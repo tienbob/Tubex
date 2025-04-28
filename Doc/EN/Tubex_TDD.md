@@ -16,14 +16,15 @@
   - UI Framework: Material-UI/Ant Design
   
 - **Backend:**
-  - Primary Framework: Node.js with Express.js
-  - API Documentation: Swagger/OpenAPI
-  - Authentication: JWT, OAuth2.0
+  - Primary Framework: Node.js (16+) with Express.js
+  - Language: TypeScript 4.9+
+  - API Documentation: Swagger/OpenAPI 3.0
+  - Authentication: JWT + OAuth2.0 (Google, Facebook)
   
 - **Databases:**
-  - Primary Database: PostgreSQL
-  - Cache Layer: Redis
-  - Document Store: MongoDB (for unstructured data)
+  - Primary Database: PostgreSQL 14
+  - Cache Layer: Redis 7
+  - Document Store: MongoDB 6
   
 - **DevOps:**
   - Cloud Provider: AWS/Viettel Cloud
@@ -32,71 +33,69 @@
   - Container Orchestration: Kubernetes
   
 - **Integration Services:**
+  - Email: AWS SES
   - Payment: VNPay/Momo
   - Messaging: Zalo API
   - Push Notifications: Firebase
-  - Email Service: AWS SES/SendGrid
 
 ## 2. Database Design
 
 ### 2.1 Database Schema
 #### Users and Authentication
 ```sql
--- Users
-CREATE TABLE users (
-    id UUID PRIMARY KEY,
-    email VARCHAR(255) UNIQUE,
-    password_hash VARCHAR(255),
-    role VARCHAR(50),
-    status VARCHAR(50),
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP
-);
-
 -- Companies (Dealers/Suppliers)
 CREATE TABLE companies (
-    id UUID PRIMARY KEY,
-    name VARCHAR(255),
-    type VARCHAR(50),
-    subscription_tier VARCHAR(50),
-    status VARCHAR(50),
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    type company_type NOT NULL,
+    subscription_tier subscription_tier NOT NULL DEFAULT 'free',
+    status VARCHAR(50) NOT NULL DEFAULT 'active',
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
+
+-- Users
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role user_role NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'active',
+    company_id UUID REFERENCES companies(id),
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP NOT NULL DEFAULT now()
+);
+
+-- Enums
+CREATE TYPE company_type AS ENUM ('dealer', 'supplier');
+CREATE TYPE subscription_tier AS ENUM ('free', 'basic', 'premium');
+CREATE TYPE user_role AS ENUM ('admin', 'manager', 'staff');
 ```
 
 #### Product Management
 ```sql
 -- Products
 CREATE TABLE products (
-    id UUID PRIMARY KEY,
-    name VARCHAR(255),
-    category_id UUID,
-    supplier_id UUID,
-    unit VARCHAR(50),
-    status VARCHAR(50),
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    base_price DECIMAL(10,2) NOT NULL,
+    unit VARCHAR(50) NOT NULL,
+    supplier_id UUID REFERENCES companies(id),
+    status VARCHAR(50) NOT NULL DEFAULT 'active',
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
--- Inventory
-CREATE TABLE inventory (
-    id UUID PRIMARY KEY,
-    product_id UUID,
-    warehouse_id UUID,
-    quantity DECIMAL,
-    unit_price DECIMAL,
-    batch_number VARCHAR(255),
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP
-);
+-- Add appropriate indexes
+CREATE INDEX "idx_products_supplier" ON "products"("supplier_id");
 ```
 
 #### Order Management
 ```sql
 -- Orders
 CREATE TABLE orders (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     customer_id UUID,
     status VARCHAR(50),
     total_amount DECIMAL,
@@ -106,7 +105,7 @@ CREATE TABLE orders (
 
 -- Order Items
 CREATE TABLE order_items (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_id UUID,
     product_id UUID,
     quantity DECIMAL,
@@ -126,9 +125,18 @@ CREATE TABLE order_items (
 
 #### Authentication
 ```
-POST /api/v1/auth/login
-POST /api/v1/auth/register
-POST /api/v1/auth/refresh-token
+# Basic Authentication
+POST /api/v1/auth/register       # Register new user and company
+POST /api/v1/auth/login          # Login with email/password
+POST /api/v1/auth/refresh-token  # Refresh access token
+POST /api/v1/auth/forgot-password # Request password reset
+POST /api/v1/auth/reset-password # Reset password with token
+
+# OAuth Authentication
+GET  /api/v1/auth/google        # Initiate Google OAuth
+GET  /api/v1/auth/google/callback # Google OAuth callback
+GET  /api/v1/auth/facebook      # Initiate Facebook OAuth
+GET  /api/v1/auth/facebook/callback # Facebook OAuth callback
 ```
 
 #### User Management
@@ -187,26 +195,51 @@ src/
 
 ### 5.1 Authentication Flow
 1. JWT Token Generation
-2. Refresh Token Mechanism
-3. Password Hashing (bcrypt)
+   - Access token (15 minutes)
+   - Refresh token (7 days)
+   - Redis storage for refresh tokens
+2. OAuth2.0 Integration
+   - Google authentication
+   - Facebook authentication
+3. Password Security
+   - Bcrypt hashing (12 rounds)
+   - Password reset via email
 4. Session Management
+   - Redis-based token storage
+   - Token invalidation on logout/reset
 
 ### 5.2 Authorization
 1. Role-Based Access Control (RBAC)
+   - User roles: admin, manager, staff
+   - Company types: dealer, supplier
 2. Permission Matrix
 3. API Gateway Security
+   - Rate limiting with Redis
+   - Input validation with Joi
+   - CORS policy
 
 ### 5.3 Data Security
 1. Data Encryption at Rest
 2. SSL/TLS Implementation
 3. Database Security
+   - Connection pooling
+   - Prepared statements
+   - Parameterized queries
 
 ## 6. Performance Optimization
 
 ### 6.1 Caching Strategy
 1. Redis Implementation
+   - Token storage
+   - Rate limiting
+   - General-purpose caching
 2. Cache Invalidation
+   - Time-based expiry
+   - Event-based invalidation
 3. Cache Layers
+   - Application-level caching
+   - Database query caching
+   - API response caching
 
 ### 6.2 Database Optimization
 1. Indexing Strategy

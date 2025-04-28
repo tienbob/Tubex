@@ -12,30 +12,82 @@ This document provides guidelines and best practices for maintaining the Tubex B
 - **TypeScript**: Installed globally (`npm install -g typescript`)
 - **Docker**: For containerized services
 - **PostgreSQL**, **MongoDB**, and **Redis**: Installed locally or accessible via Docker
+- **AWS Account**: For SES email service
+- **OAuth Credentials**: Google and Facebook developer accounts
+- **Payment Gateway Access**: VNPay and Momo accounts
 - **Nodemon**: For development (`npm install -g nodemon`)
 
 ### 1.2 Environment Variables
-Ensure the `.env` file is properly configured. Refer to `.env.example` for required variables.
+Configure the following in your `.env` file:
+
+#### Server Configuration
+- `PORT`: Server port (default: 3000)
+- `NODE_ENV`: Environment (development/production)
+- `BASE_URL`: Backend base URL
+- `FRONTEND_URL`: Frontend application URL
+
+#### Database Configuration
+- `POSTGRES_HOST`: PostgreSQL host
+- `POSTGRES_PORT`: PostgreSQL port
+- `POSTGRES_DB`: Database name
+- `POSTGRES_USER`: Database user
+- `POSTGRES_PASSWORD`: Database password
+- `MONGODB_URI`: MongoDB connection URI
+- `REDIS_HOST`: Redis host
+- `REDIS_PORT`: Redis port
+
+#### Authentication
+- `JWT_SECRET`: Secret for JWT tokens
+- `JWT_EXPIRES_IN`: Token expiration time
+
+#### OAuth Configuration
+- `GOOGLE_CLIENT_ID`: Google OAuth client ID
+- `GOOGLE_CLIENT_SECRET`: Google OAuth client secret
+- `FACEBOOK_APP_ID`: Facebook OAuth app ID
+- `FACEBOOK_APP_SECRET`: Facebook OAuth app secret
+
+#### AWS Configuration
+- `AWS_REGION`: AWS region for services
+- `AWS_ACCESS_KEY_ID`: AWS access key
+- `AWS_SECRET_ACCESS_KEY`: AWS secret key
+- `EMAIL_FROM`: Default sender email for SES
+
+#### Payment Gateways
+- `VNPAY_MERCHANT_ID`: VNPay merchant ID
+- `VNPAY_SECURE_SECRET`: VNPay secure secret
+- `MOMO_PARTNER_CODE`: Momo partner code
+- `MOMO_ACCESS_KEY`: Momo access key
+- `MOMO_SECRET_KEY`: Momo secret key
+
+#### Additional Services
+- `ZALO_APP_ID`: Zalo messaging app ID
+- `ZALO_SECRET_KEY`: Zalo messaging secret key
+- `FIREBASE_PROJECT_ID`: Firebase project ID
+- `FIREBASE_PRIVATE_KEY`: Firebase private key
+- `FIREBASE_CLIENT_EMAIL`: Firebase client email
 
 ---
 
 ## 2. Setup Instructions
 
 ### 2.1 Local Development
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd Tubex/Backend
-   ```
+1. Clone the repository
 2. Install dependencies:
    ```bash
    npm install
    ```
-3. Start the database services using Docker:
+3. Set up environment variables:
+   - Copy `.env.example` to `.env`
+   - Fill in all required variables
+4. Start the database services:
    ```bash
    docker-compose up -d
    ```
-4. Run the development server:
+5. Run database migrations:
+   ```bash
+   npm run typeorm migration:run
+   ```
+6. Start the development server:
    ```bash
    npm run dev
    ```
