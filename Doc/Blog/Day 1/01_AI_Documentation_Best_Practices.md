@@ -1,4 +1,4 @@
-# Maximizing AI Assistance: A Case Study in Creating Technical Documentation
+# Best Practices for AI-Assisted Technical Documentation: Insights from a Business Analyst
 
 ## Introduction
 
