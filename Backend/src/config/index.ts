@@ -50,5 +50,32 @@ export const config = {
       privateKey: process.env.FIREBASE_PRIVATE_KEY,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL
     }
+  },
+
+  aws: {
+    region: process.env.AWS_REGION || 'ap-southeast-1',
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+  },
+
+  email: {
+    defaultFrom: process.env.EMAIL_FROM || 'noreply@tubex.com',
+  },
+
+  frontend: {
+    url: process.env.FRONTEND_URL || 'http://localhost:3000'
+  },
+
+  baseUrl: process.env.BASE_URL || 'http://localhost:3000',
+
+  oauth: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET
+    },
+    facebook: {
+      appId: process.env.FACEBOOK_APP_ID,
+      appSecret: process.env.FACEBOOK_APP_SECRET
+    }
   }
 };

@@ -1,13 +1,18 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import passport from 'passport';
 import winston from 'winston';
+import swaggerUi from 'swagger-ui-express';
 import { config } from './config';
-import { errorHandler } from './middleware/errorHandler';
+import { swaggerSpec } from './config/swagger';
 import { connectDatabases } from './database';
+import { errorHandler } from './middleware/errorHandler';
+import { authenticate } from './middleware/auth';
+import { authLimiter } from './middleware/rateLimiter';
 import { authRoutes } from './services/auth/routes';
-import { productRoutes } from './services/product/routes';
 import { orderRoutes } from './services/order/routes';
+import { productRoutes } from './services/product/routes';
 import { inventoryRoutes } from './services/inventory/routes';
 
 // Configure logger
@@ -35,6 +40,10 @@ const app = express();
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
+app.use(passport.initialize());
+
+// Swagger Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Request logging middleware
 app.use((req: Request, res: Response, next: NextFunction) => {
