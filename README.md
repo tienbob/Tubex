@@ -225,27 +225,19 @@ npm test
 
 ## 📄 License
 
-MIT License
+**PROPRIETARY AND CONFIDENTIAL**
 
 Copyright (c) 2023-2025 Tubex
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This software and associated documentation files (the "Software") are the proprietary property of Tubex and/or its licensors.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+All rights are reserved. Unauthorized copying, distribution, modification, public display, or public performance of this proprietary software is strictly prohibited.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+The Software is provided for evaluation and internal use only and may not be used for any commercial or production purposes without express written permission from Tubex.
+
+No license, express or implied, to any intellectual property rights is granted by this document or in connection with the Software.
+
+**THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED.**
 
 ## 👥 Contributing
 
