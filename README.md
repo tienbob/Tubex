@@ -66,40 +66,132 @@ A scalable B2B SaaS platform built to streamline the construction materials supp
    # Backend
    cd Backend
    cp .env.example .env
-   # Fill in the required environment variables
+   # Edit the .env file with your configuration values
+   ```
+   
+   Required environment variables include:
+   - Database connections (PostgreSQL, MongoDB, Redis)
+   - JWT secret for authentication
+   - OAuth credentials (if using Google/Facebook login)
+   - AWS credentials for email service
+   - Payment gateway credentials
+
+4. Start the database services using Docker:
+   ```bash
+   # From Backend directory
+   docker-compose up -d
+   ```
+   
+   This will start:
+   - PostgreSQL on port 5432
+   - MongoDB on port 27017
+   - Redis on port 6379
+
+5. Run database migrations:
+   ```bash
+   # From Backend directory
+   npm run typeorm migration:run
    ```
 
-4. Start the development environment:
+6. Start the development environment:
    ```bash
-   # Start backend services
+   # Start backend server
    cd Backend
-   docker-compose up -d
    npm run dev
 
-   # Start frontend
+   # Start frontend in another terminal
    cd ../Frontend/app
    npm start
    ```
+
+7. Access the application:
+   - Backend API: http://localhost:3000/api/v1
+   - API Documentation: http://localhost:3000/api-docs
+   - Frontend: http://localhost:3001 (default React port)
 
 ## 🏗️ Project Structure
 
 ```
 Backend/
 ├── src/
+│   ├── app.ts         # Express application setup
+│   ├── server.ts      # Application entry point
 │   ├── config/        # Configuration management
-│   ├── database/      # Database connections and models
+│   │   ├── index.ts   # Environment configuration
+│   │   ├── passport.ts # Authentication strategies
+│   │   └── swagger.ts # API documentation setup
+│   ├── database/
+│   │   ├── index.ts   # Database connection setup
+│   │   ├── ormconfig.ts # ORM configuration
+│   │   ├── migrations/ # Database schema migrations
+│   │   └── models/    # Data models
+│   │       ├── mongo/ # MongoDB schemas
+│   │       └── sql/   # SQL models (users, products, orders, warehouses)
 │   ├── middleware/    # Custom middleware
+│   │   ├── auth.ts    # Authentication middleware
+│   │   ├── cache.ts   # Caching middleware
+│   │   ├── errorHandler.ts # Error handling
+│   │   ├── rateLimiter.ts # Rate limiting
+│   │   └── validation.ts # Input validation
 │   ├── services/      # Business logic modules
-│   └── server.ts      # Application entry point
+│   │   ├── auth/      # Authentication service
+│   │   ├── cache/     # Caching service
+│   │   ├── email/     # Email notifications
+│   │   ├── inventory/ # Inventory management
+│   │   ├── order/     # Order processing
+│   │   ├── product/   # Product management
+│   │   └── user/      # User management
+│   └── types/         # TypeScript type definitions
+│       └── express.d.ts # Express extensions
+└── tests/
+    ├── e2e/          # End-to-end tests
+    ├── integration/  # API integration tests
+    └── unit/         # Unit tests
 Frontend/
-└── app/
+├── app/
     └── src/
-        ├── components/
-        ├── pages/
-        ├── services/
-        └── store/
-
+        ├── App.tsx           # Main application component
+        ├── index.tsx         # Entry point
+        ├── components/       # Reusable UI components
+        │   └── whitelabel/   # Multi-tenant white-labeling
+        ├── config/           # Frontend configuration
+        ├── contexts/         # React context providers
+        ├── hooks/            # Custom React hooks
+        ├── services/         # API and utility services
+        │   └── api/          # Backend API clients
+        │       ├── apiClient.ts     # Base API client
+        │       ├── authService.ts   # Authentication API
+        │       ├── productService.ts # Product API
+        │       ├── orderService.ts  # Order API
+        │       └── inventoryService.ts # Inventory API
+        ├── styles/           # Global styles and themes
+        └── types/            # TypeScript type definitions
 ```
+
+## 📊 Project Status
+
+The project is currently in active development with the following components completed:
+
+- ✅ Backend foundation with Express and TypeScript
+- ✅ Database setup with PostgreSQL, MongoDB, and Redis
+- ✅ Authentication system with JWT
+- ✅ API structure and core endpoints
+- ✅ Frontend structure with React components
+- ✅ API client services for frontend-backend communication
+- ✅ Multi-tenant white-labeling foundation
+- ✅ Basic inventory and order management
+
+In progress:
+- 🔄 Advanced reporting and analytics features
+- 🔄 Mobile application development with React Native
+- 🔄 Payment gateway integrations
+- 🔄 Performance optimizations and scalability enhancements
+
+Upcoming:
+- 📅 Advanced user roles and permissions
+- 📅 AI-powered inventory forecasting
+- 📅 Business intelligence dashboard
+- 📅 Mobile app deployment to app stores
 
 ## 📚 Documentation
 
@@ -133,12 +225,48 @@ npm test
 
 ## 📄 License
 
-[License details to be added]
+MIT License
+
+Copyright (c) 2023-2025 Tubex
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 ## 👥 Contributing
 
-[Contribution guidelines to be added]
+We welcome contributions to the Tubex project! Here's how you can contribute:
+
+1. Fork the repository
+2. Create a new branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Run tests to ensure everything works (`npm test`)
+5. Commit your changes (`git commit -m 'Add some amazing feature'`)
+6. Push to your branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+Please ensure your code follows the project's coding standards and includes appropriate tests.
 
 ## 📞 Support
 
-[Support contact information to be added]
+For support, please contact:
+
+- Email: support@tubex.io
+- Issue Tracker: [GitHub Issues](https://github.com/tubex/tubex/issues)
+- Documentation: See the `Doc` directory for comprehensive guides
+
+For business inquiries, please contact business@tubex.io
