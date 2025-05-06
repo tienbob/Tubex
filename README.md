@@ -105,9 +105,9 @@ A scalable B2B SaaS platform built to streamline the construction materials supp
    ```
 
 7. Access the application:
-   - Backend API: http://localhost:3000/api/v1
+   - Backend API: http://localhost:3001/api/v1
    - API Documentation: http://localhost:3000/api-docs
-   - Frontend: http://localhost:3001 (default React port)
+   - Frontend: http://localhost:3000 (default React port)
 
 ## 🏗️ Project Structure
 
