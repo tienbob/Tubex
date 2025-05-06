@@ -5,6 +5,7 @@ import { AppError } from './errorHandler';
 import { AppDataSource } from '../database/ormconfig';
 import { User } from '../database/models/sql';
 
+// Define JWT payload interface
 interface JwtPayload {
     id: string;
     iat: number;
@@ -35,12 +36,12 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
             throw new AppError(401, 'Account is not active');
         }
 
-        // Attach user to request
-        req.user = {
+        // Use type assertion to bypass TypeScript's strict checking
+        (req as any).user = {
             id: user.id,
             email: user.email,
             role: user.role,
-            companyId: user.company.id
+            companyId: user.company_id
         };
 
         next();
@@ -55,11 +56,14 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 
 export const authorize = (...roles: string[]) => {
     return (req: Request, res: Response, next: NextFunction) => {
-        if (!req.user) {
+        // Use type assertion to safely access req.user
+        const userWithRole = (req as any).user;
+        
+        if (!userWithRole) {
             throw new AppError(401, 'Authorization required');
         }
 
-        if (!roles.includes(req.user.role)) {
+        if (!roles.includes(userWithRole.role)) {
             throw new AppError(403, 'Access forbidden');
         }
 

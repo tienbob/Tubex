@@ -66,7 +66,9 @@ export const inventoryValidators: ValidationSchemas = {
         body: Joi.object({
             source_warehouse_id: Joi.string().uuid().required(),
             target_warehouse_id: Joi.string().uuid().required()
-                .not(Joi.ref('source_warehouse_id')).message('Source and target warehouses must be different'),
+                .disallow(Joi.ref('source_warehouse_id')).messages({
+                    'any.invalid': 'Source and target warehouses must be different'
+                }),
             product_id: Joi.string().uuid().required(),
             quantity: Joi.number().greater(0).required(),
             batch_numbers: Joi.array().items(Joi.string()).optional(),

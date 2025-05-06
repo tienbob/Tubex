@@ -10,10 +10,14 @@ const userRepository = AppDataSource.getRepository(User);
 const companyRepository = AppDataSource.getRepository(Company);
 
 // Helper function to transform User entity to Express.User
-const transformUser = (user: User & { company: Company }): Express.User => ({
-  ...user,
-  companyId: user.company.id
-});
+const transformUser = (user: User & { company: Company }): any => {
+  return {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    companyId: user.company.id
+  };
+};
 
 // Google OAuth Strategy
 passport.use(new GoogleStrategy({

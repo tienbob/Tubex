@@ -5,16 +5,6 @@ import { Product } from '../../database/models/sql/product';
 import { Inventory } from '../../database/models/sql/inventory';
 import { AppError } from '../../middleware/errorHandler';
 
-// Extend Express Request type to include authenticated user
-interface AuthRequest extends Request {
-    user: {
-        id: string;
-        email: string;
-        role: string;
-        companyId: string;
-    };
-}
-
 interface OrderItemRequest {
     productId: string;
     quantity: number;
@@ -22,7 +12,9 @@ interface OrderItemRequest {
 }
 
 export const orderController = {
-    async createOrder(req: AuthRequest, res: Response) {
+    async createOrder(req: Request, res: Response) {
+        if (!req.user) throw new AppError(401, 'Authentication required');
+        
         const { items, deliveryAddress, paymentMethod } = req.body;
         const customerId = req.user.id;
 
@@ -46,6 +38,17 @@ export const orderController = {
             const orderItems: OrderItem[] = [];
             let totalAmount = 0;
 
+            // Fetch all inventory records for these products at once
+            const inventoryRecords = await getRepository(Inventory)
+                .createQueryBuilder('inventory')
+                .where('inventory.productId IN (:...productIds)', { productIds })
+                .getMany();
+
+            const inventoryMap = inventoryRecords.reduce((map, inv) => {
+                map[inv.product_id] = inv;
+                return map;
+            }, {} as Record<string, Inventory>);
+
             for (const item of items as OrderItemRequest[]) {
                 const product = products.find(p => p.id === item.productId);
                 if (!product) {
@@ -53,11 +56,8 @@ export const orderController = {
                 }
                 
                 // Check inventory
-                const inventory = await getRepository(Inventory)
-                    .createQueryBuilder('inventory')
-                    .where('productId = :productId', { productId: item.productId })
-                    .getOne();
-
+                const inventory = inventoryMap[item.productId];
+                
                 if (!inventory || inventory.quantity < item.quantity) {
                     throw new AppError(400, `Insufficient stock for product ${product.name}`);
                 }
@@ -101,7 +101,9 @@ export const orderController = {
         }
     },
 
-    async updateOrder(req: AuthRequest, res: Response) {
+    async updateOrder(req: Request, res: Response) {
+        if (!req.user) throw new AppError(401, 'Authentication required');
+        
         const { id } = req.params;
         const updates = req.body;
         const customerId = req.user.id;
@@ -136,7 +138,9 @@ export const orderController = {
         res.json(updatedOrder);
     },
 
-    async getOrder(req: AuthRequest, res: Response) {
+    async getOrder(req: Request, res: Response) {
+        if (!req.user) throw new AppError(401, 'Authentication required');
+        
         const { id } = req.params;
         const customerId = req.user.id;
 
@@ -152,7 +156,9 @@ export const orderController = {
         res.json(order);
     },
 
-    async listOrders(req: AuthRequest, res: Response) {
+    async listOrders(req: Request, res: Response) {
+        if (!req.user) throw new AppError(401, 'Authentication required');
+        
         const customerId = req.user.id;
         const { status, page = 1, limit = 10 } = req.query;
 
@@ -182,7 +188,9 @@ export const orderController = {
         });
     },
 
-    async cancelOrder(req: AuthRequest, res: Response) {
+    async cancelOrder(req: Request, res: Response) {
+        if (!req.user) throw new AppError(401, 'Authentication required');
+        
         const { id } = req.params;
         const customerId = req.user.id;
 

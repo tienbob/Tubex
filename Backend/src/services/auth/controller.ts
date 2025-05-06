@@ -14,7 +14,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
     const companyRepository = AppDataSource.getRepository(Company);
 
     try {
-        const { email, password, companyName, role } = req.body;
+        const { email, password, company, userRole = 'admin' } = req.body;
 
         // Check if user already exists
         const existingUser = await userRepository.findOne({ where: { email } });
@@ -22,12 +22,29 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
             throw new AppError(400, 'User with this email already exists');
         }
 
-        // Create company
-        const company = new Company();
-        company.name = companyName;
-        company.type = 'dealer'; // Default to dealer
-        company.subscription_tier = 'free'; // Start with free tier
-        await companyRepository.save(company);
+        // Check for duplicate company tax ID
+        const existingCompany = await companyRepository.findOne({ 
+            where: { tax_id: company.taxId }
+        });
+        if (existingCompany) {
+            throw new AppError(400, 'A company with this tax ID is already registered');
+        }
+
+        // Create company with enhanced details
+        const newCompany = new Company();
+        newCompany.name = company.name;
+        newCompany.type = company.type;
+        newCompany.tax_id = company.taxId;
+        newCompany.business_license = company.businessLicense;
+        newCompany.address = company.address;
+        newCompany.business_category = company.businessCategory || '';
+        newCompany.employee_count = company.employeeCount || 0;
+        newCompany.year_established = company.yearEstablished || new Date().getFullYear();
+        newCompany.contact_phone = company.contactPhone;
+        newCompany.status = 'pending_verification'; // New companies need verification
+        newCompany.subscription_tier = 'free';
+        
+        await companyRepository.save(newCompany);
 
         // Hash password
         const salt = await bcrypt.genSalt(12);
@@ -37,45 +54,53 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
         const user = new User();
         user.email = email;
         user.password_hash = passwordHash;
-        user.role = role;
-        user.company = company;
-        user.status = 'pending'; // Set status to pending until email is verified
+        user.role = userRole;
+        user.company = newCompany;
+        user.status = 'pending'; // User status starts as pending until email is verified
         await userRepository.save(user);
 
-        // Generate verification token
-        const verificationToken = jwt.sign(
+        // Generate verification tokens
+        const emailVerificationToken = jwt.sign(
             { id: user.id },
             config.jwt.secret as jwt.Secret,
             { expiresIn: '24h' }
         );
 
-        // Store verification token in Redis
-        await redisClient.set(`email_verification:${user.id}`, verificationToken, {
-            EX: 24 * 60 * 60 // 24 hours
-        });
+        const companyVerificationToken = jwt.sign(
+            { 
+                companyId: newCompany.id,
+                taxId: company.taxId,
+                businessLicense: company.businessLicense
+            },
+            config.jwt.secret as jwt.Secret,
+            { expiresIn: '72h' }
+        );
 
-        // Generate auth tokens
-        const { accessToken, refreshToken } = generateTokens(user.id);
-
-        // Store refresh token in Redis
-        await redisClient.set(`refresh_token:${user.id}`, refreshToken, {
-            EX: 7 * 24 * 60 * 60 // 7 days
-        });
+        // Store verification tokens in Redis
+        await Promise.all([
+            redisClient.set(`email_verification:${user.id}`, emailVerificationToken, {
+                EX: 24 * 60 * 60 // 24 hours
+            }),
+            redisClient.set(`company_verification:${newCompany.id}`, companyVerificationToken, {
+                EX: 72 * 60 * 60 // 72 hours
+            })
+        ]);
 
         // Send welcome and verification emails
         await Promise.all([
-            sendWelcomeEmail(user.email, user.email.split('@')[0]), // Using email prefix as name
-            sendVerificationEmail(user.email, verificationToken)
+            sendWelcomeEmail(user.email, company.name),
+            sendVerificationEmail(user.email, emailVerificationToken)
         ]);
+
+        // Notify admin about new company registration
+        // TODO: Implement admin notification service
 
         res.status(201).json({
             status: 'success',
             data: {
                 userId: user.id,
-                companyId: company.id,
-                accessToken,
-                refreshToken,
-                message: 'Please check your email to verify your account'
+                companyId: newCompany.id,
+                message: 'Registration successful. Please check your email to verify your account. Your company registration is pending verification by our team.'
             }
         });
     } catch (error) {
@@ -267,5 +292,80 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
         } else {
             next(error);
         }
+    }
+};
+
+export const verifyInvitationCode = async (req: Request, res: Response, next: NextFunction) => {
+    const companyRepository = AppDataSource.getRepository(Company);
+    
+    try {
+        const { code } = req.params;
+        
+        if (!code || code.length < 5) {
+            throw new AppError(400, 'Invalid invitation code format');
+        }
+        
+        // In a real implementation, the invitation codes would be stored in the database
+        // Here we would query for invitation codes linked to companies
+        // For now, we're using Redis to store and retrieve invitation-company mappings
+        
+        const companyId = await redisClient.get(`invitation_code:${code}`);
+        
+        if (!companyId) {
+            throw new AppError(404, 'Invalid invitation code');
+        }
+        
+        const company = await companyRepository.findOne({ where: { id: companyId } });
+        
+        if (!company) {
+            throw new AppError(404, 'Company not found');
+        }
+        
+        if (company.status !== 'active' && company.status !== 'pending_verification') {
+            throw new AppError(400, 'Company is not active');
+        }
+        
+        // Return company info without sensitive data
+        res.status(200).json({
+            status: 'success',
+            data: {
+                id: company.id,
+                name: company.name,
+                type: company.type,
+                business_category: company.business_category
+            }
+        });
+        
+    } catch (error) {
+        next(error);
+    }
+};
+
+// For demo/testing purposes, let's create a utility method to generate invitation codes
+export const generateInvitationCode = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        if (!req.user) throw new AppError(401, 'Authentication required');
+        
+        const { companyId } = req.body;
+        
+        // Generate a random code (in production, use a more secure method)
+        const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+        
+        // Store the invitation code with company ID in Redis
+        // Set expiry to 7 days
+        await redisClient.set(`invitation_code:${code}`, companyId, {
+            EX: 7 * 24 * 60 * 60
+        });
+        
+        res.status(201).json({
+            status: 'success',
+            data: {
+                code,
+                expiresIn: '7 days'
+            }
+        });
+        
+    } catch (error) {
+        next(error);
     }
 };

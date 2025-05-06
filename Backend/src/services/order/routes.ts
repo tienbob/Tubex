@@ -1,5 +1,4 @@
-import { Router } from 'express';
-import { RequestHandler } from 'express';
+import { Router, RequestHandler } from 'express';
 import { orderController } from './controller';
 import { orderValidators } from './validators';
 import { validateRequest } from '../../middleware/validation';

@@ -1,8 +1,17 @@
-import { Router } from 'express';
+import { Router, RequestHandler } from 'express';
 import passport from 'passport';
-import { register, login, refreshToken, forgotPassword, resetPassword } from './controller';
+import { 
+  register, 
+  login, 
+  refreshToken, 
+  forgotPassword, 
+  resetPassword, 
+  verifyInvitationCode,
+  generateInvitationCode 
+} from './controller';
 import { validateRegistration, validateLogin } from './validators';
 import { authLimiter } from '../../middleware/rateLimiter';
+import { authenticate, authorize } from '../../middleware/auth';
 import { generateTokens } from './utils';
 import { config } from '../../config';
 import { User } from '../../database/models/sql';
@@ -62,7 +71,7 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/register', authLimiter, validateRegistration, register);
+router.post('/register', authLimiter, validateRegistration, register as RequestHandler);
 
 /**
  * @swagger
@@ -99,7 +108,7 @@ router.post('/register', authLimiter, validateRegistration, register);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/login', authLimiter, validateLogin, login);
+router.post('/login', authLimiter, validateLogin, login as RequestHandler);
 
 /**
  * @swagger
@@ -126,7 +135,7 @@ router.post('/login', authLimiter, validateLogin, login);
  *             schema:
  *               $ref: '#/components/schemas/AuthResponse'
  */
-router.post('/refresh-token', authLimiter, refreshToken);
+router.post('/refresh-token', authLimiter, refreshToken as RequestHandler);
 
 /**
  * @swagger
@@ -150,7 +159,7 @@ router.post('/refresh-token', authLimiter, refreshToken);
  *       200:
  *         description: Password reset email sent
  */
-router.post('/forgot-password', authLimiter, forgotPassword);
+router.post('/forgot-password', authLimiter, forgotPassword as RequestHandler);
 
 /**
  * @swagger
@@ -177,7 +186,7 @@ router.post('/forgot-password', authLimiter, forgotPassword);
  *       200:
  *         description: Password reset successful
  */
-router.post('/reset-password', authLimiter, resetPassword);
+router.post('/reset-password', authLimiter, resetPassword as RequestHandler);
 
 /**
  * @swagger
@@ -208,13 +217,13 @@ router.get('/google',
  */
 router.get('/google/callback',
   passport.authenticate('google', { session: false }),
-  async (req, res) => {
+  (async (req, res) => {
     if (!req.user) {
       return res.redirect(`${config.frontend.url}/auth/error`);
     }
     const tokens = generateTokens(req.user.id);
     res.redirect(`${config.frontend.url}/auth/callback?tokens=${JSON.stringify(tokens)}`);
-  }
+  }) as RequestHandler
 );
 
 /**
@@ -246,13 +255,62 @@ router.get('/facebook',
  */
 router.get('/facebook/callback',
   passport.authenticate('facebook', { session: false }),
-  async (req, res) => {
+  (async (req, res) => {
     if (!req.user) {
       return res.redirect(`${config.frontend.url}/auth/error`);
     }
     const tokens = generateTokens(req.user.id);
     res.redirect(`${config.frontend.url}/auth/callback?tokens=${JSON.stringify(tokens)}`);
-  }
+  }) as RequestHandler
 );
+
+/**
+ * @swagger
+ * /auth/invitation-code/{code}:
+ *   get:
+ *     summary: Verify invitation code and retrieve company information
+ *     tags: [Authentication]
+ *     parameters:
+ *       - in: path
+ *         name: code
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Invitation code to verify
+ *     responses:
+ *       200:
+ *         description: Valid invitation code with company details
+ *       404:
+ *         description: Invalid invitation code or company not found
+ */
+router.get('/invitation-code/:code', verifyInvitationCode as RequestHandler);
+
+/**
+ * @swagger
+ * /auth/invitation-code:
+ *   post:
+ *     summary: Generate a new invitation code for employee registration
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - companyId
+ *             properties:
+ *               companyId:
+ *                 type: string
+ *                 format: uuid
+ *     responses:
+ *       201:
+ *         description: Invitation code generated
+ *       401:
+ *         description: Authentication required
+ */
+router.post('/invitation-code', authenticate, authorize('admin', 'manager'), generateInvitationCode as RequestHandler);
 
 export const authRoutes = router;

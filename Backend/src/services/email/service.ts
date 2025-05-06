@@ -1,18 +1,28 @@
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 import { AppError } from '../../middleware/errorHandler';
 import { config } from '../../config';
+import { Company } from '../../database/models/sql/company';
 
-if (!config.aws.accessKeyId || !config.aws.secretAccessKey) {
-  throw new Error('AWS credentials are not configured');
-}
+// Development mode check
+const isDevelopment = config.nodeEnv === 'development';
+let sesClient: SESClient | null = null;
 
-const sesClient = new SESClient({
-  region: config.aws.region,
-  credentials: {
-    accessKeyId: config.aws.accessKeyId,
-    secretAccessKey: config.aws.secretAccessKey
+// Only initialize AWS SES if credentials are available or we're in production
+if ((config.aws.accessKeyId && config.aws.secretAccessKey) || !isDevelopment) {
+  if (!config.aws.accessKeyId || !config.aws.secretAccessKey) {
+    throw new Error('AWS credentials are not configured in production mode');
   }
-});
+  
+  sesClient = new SESClient({
+    region: config.aws.region,
+    credentials: {
+      accessKeyId: config.aws.accessKeyId,
+      secretAccessKey: config.aws.secretAccessKey
+    }
+  });
+} else {
+  console.log('AWS credentials not found, using mock email service in development mode');
+}
 
 interface EmailOptions {
   to: string | string[];
@@ -23,6 +33,18 @@ interface EmailOptions {
 
 export const sendEmail = async (options: EmailOptions) => {
   const { to, subject, html, from = config.email.defaultFrom } = options;
+
+  // In development mode with no AWS credentials, log the email instead of sending
+  if (!sesClient) {
+    console.log('----------------------');
+    console.log('MOCK EMAIL SERVICE (Development Mode)');
+    console.log('From:', from);
+    console.log('To:', Array.isArray(to) ? to.join(', ') : to);
+    console.log('Subject:', subject);
+    console.log('Body:', html);
+    console.log('----------------------');
+    return;
+  }
 
   const command = new SendEmailCommand({
     Source: from,
@@ -117,4 +139,36 @@ export const sendLoginNotificationEmail = async (to: string, loginTime: Date, lo
     subject: 'New Login to Your Account',
     html
   });
+};
+
+export const sendUserStatusChangeEmail = async (
+  to: string,
+  newStatus: string,
+  reason: string
+) => {
+  const subject = `Your Account Status Has Been Updated`;
+  const html = `
+    <h1>Account Status Update</h1>
+    <p>Your account status has been updated to: <strong>${newStatus}</strong></p>
+    <p>Reason provided: ${reason}</p>
+    ${newStatus === 'inactive' ? `
+    <p style="color: #d32f2f;">Your access to the system has been suspended. 
+    Please contact your company administrator for more information.</p>
+    ` : `
+    <p style="color: #2e7d32;">Your account is now active. 
+    You can log in to access the system.</p>
+    `}
+    <p>If you believe this change was made in error, please contact your company administrator.</p>
+  `;
+
+  await sendEmail({
+    to,
+    subject,
+    html
+  });
+};
+
+export const sendVerificationNotification = async (company: Company): Promise<void> => {
+    // TODO: Implement actual email sending logic
+    console.log(`Sending verification notification for company ${company.name}. Status: ${company.status}`);
 };
