@@ -1,0 +1,58 @@
+:root {
+  --primary-color: #3f51b5;
+  --primary-color-rgb: 63, 81, 181; /* Adding RGB values for primary color */
+  --secondary-color: #f50057;
+  --font-family: 'Roboto, sans-serif';
+  --button-radius: 4px;
+}
+
+.white-label-container {
+  font-family: var(--font-family);
+}
+
+.white-label-primary-bg {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.white-label-secondary-bg {
+  background-color: var(--secondary-color);
+  color: white;
+}
+
+.white-label-button {
+  border-radius: var(--button-radius);
+}
+
+.white-label-card {
+  border-radius: calc(var(--button-radius) * 2);
+  overflow: hidden;
+}
+
+/* White label layout styles */
+.wl-page-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.wl-content {
+  flex: 1;
+  padding: 20px;
+}
+
+.wl-sidebar {
+  background-color: rgba(var(--primary-color-rgb), 0.05);
+  padding: 16px;
+}
+
+/* Typography with tenant branding */
+.wl-title {
+  color: var(--primary-color);
+  margin-bottom: 16px;
+}
+
+.wl-subtitle {
+  color: var(--secondary-color);
+  margin-bottom: 12px;
+}
