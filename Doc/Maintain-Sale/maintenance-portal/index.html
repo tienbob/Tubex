@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tubex Backend Maintenance Portal</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/themes/prism-tomorrow.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <h1>Tubex Backend Maintenance Portal</h1>
+                <div class="controls">
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="Search modules, functions...">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <button id="themeToggle" class="theme-toggle">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="sidebar">
+                <div class="tree-container">
+                    <!-- Tree structure will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <div class="content">
+                <div class="module-details">
+                    <div id="moduleContent">
+                        <div class="welcome-message">
+                            <h2>Welcome to Tubex Maintenance Portal</h2>
+                            <p>Select a module from the tree structure to view its details.</p>
+                            <div class="quick-links">
+                                <h3>Quick Links</h3>
+                                <ul>
+                                    <li><a href="#" data-module="auth">Authentication Module</a></li>
+                                    <li><a href="#" data-module="database">Database Configuration</a></li>
+                                    <li><a href="#" data-module="services">Services Overview</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-typescript.min.js"></script>
+    <script src="data.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

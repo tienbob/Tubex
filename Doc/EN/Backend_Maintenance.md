@@ -155,79 +155,177 @@ Configure the following in your `.env` file:
 - **Database Connection Errors**:
   - Ensure PostgreSQL, MongoDB, and Redis are running.
   - Verify `.env` configuration.
+  - Check network connectivity and firewall settings.
+  - Verify database user permissions.
+  - Common error codes and solutions:
+    - ECONNREFUSED: Check if database service is running
+    - Authentication failed: Verify credentials in .env
+    - Too many connections: Check connection pool settings
+
 - **TypeScript Compilation Errors**:
   - Run `npm run build` to identify issues.
   - Check `tsconfig.json` for misconfigurations.
+  - Common fixes:
+    - Clear the dist folder: `rm -rf dist`
+    - Delete node_modules: `rm -rf node_modules && npm install`
+    - Check TypeScript version compatibility
+
 - **Docker Issues**:
   - Run `docker-compose logs` to debug container issues.
+  - Common docker commands:
+    ```bash
+    # Restart all services
+    docker-compose down && docker-compose up -d
+    
+    # Check container status
+    docker-compose ps
+    
+    # View real-time logs
+    docker-compose logs -f
+    ```
 
-### 4.2 Logs
-- Application logs are stored in `error.log` and `combined.log`.
-- Use `winston` for detailed logging.
+- **Memory Issues**:
+  - Check Node.js heap usage: `node --inspect`
+  - Monitor container memory: `docker stats`
+  - Adjust Node.js memory limit: `NODE_OPTIONS="--max-old-space-size=4096"`
 
----
+### 4.2 Logs and Monitoring
+- Application logs location:
+  - Error logs: `/logs/error.log`
+  - Combined logs: `/logs/combined.log`
+  - Access logs: `/logs/access.log`
+- Log rotation policy:
+  - Daily rotation
+  - Keep last 14 days
+  - Max size: 50MB per file
+- Log monitoring tools:
+  - Use `winston` for application logging
+  - ELK Stack integration (optional)
+  - Log levels: error, warn, info, debug
 
-## 5. Updating the System
+### 4.3 Performance Optimization
+- Database Optimization:
+  - Regular VACUUM for PostgreSQL
+  - Index optimization
+  - Query performance monitoring
+- Caching Strategy:
+  - Redis caching for:
+    - User sessions
+    - API responses
+    - Frequently accessed data
+  - Cache invalidation rules
+- Rate Limiting:
+  - Default: 100 requests per minute
+  - Configurable per endpoint
+  - IP-based and token-based limiting
 
-### 5.1 Dependency Updates
-1. Check for outdated dependencies:
-   ```bash
-   npm outdated
-   ```
-2. Update dependencies:
-   ```bash
-   npm update
-   ```
+## 5. Backup and Recovery
 
-### 5.2 Database Migrations
-1. Generate a new migration:
-   ```bash
-   npm run typeorm migration:generate -- -n <MigrationName>
-   ```
-2. Run migrations:
-   ```bash
-   npm run typeorm migration:run
-   ```
-
-### 5.3 Adding New Features
-- Follow the existing folder structure.
-- Add new routes under `src/services`.
-- Update `server.ts` to include new routes.
-
----
-
-## 6. Best Practices
-
-### 6.1 Code Quality
-- Use `eslint` to lint code:
+### 5.1 Database Backup
+- PostgreSQL:
   ```bash
-  npm run lint
+  # Daily automated backup
+  pg_dump -U username -d dbname > backup_$(date +%Y%m%d).sql
+  
+  # Restore from backup
+  psql -U username -d dbname < backup_file.sql
   ```
-- Follow TypeScript best practices.
+- MongoDB:
+  ```bash
+  # Backup
+  mongodump --uri="mongodb://username:password@host:port/dbname"
+  
+  # Restore
+  mongorestore --uri="mongodb://username:password@host:port/dbname" dump/
+  ```
 
-### 6.2 Security
-- Rotate secrets in `.env` regularly.
-- Use strong passwords for database services.
-- Enable SSL/TLS for production environments.
+### 5.2 Environment Backup
+- Configuration files:
+  - Regular backup of .env files
+  - Secure storage of credentials
+  - Version control for config templates
+- Document storage:
+  - AWS S3 bucket backup
+  - Regular sync of uploaded files
 
-### 6.3 Performance
-- Use Redis for caching frequently accessed data.
-- Optimize database queries with indexing.
-- Monitor API performance using tools like Postman or New Relic.
+### 5.3 Disaster Recovery
+- Recovery Time Objective (RTO): 4 hours
+- Recovery Point Objective (RPO): 24 hours
+- Recovery procedures:
+  1. Restore latest database backup
+  2. Verify data integrity
+  3. Restore configuration
+  4. Validate system functionality
 
----
+## 6. Security Measures
 
-## 7. Monitoring and Maintenance
+### 6.1 Access Control
+- Role-based access control (RBAC)
+- IP whitelisting for admin access
+- Two-factor authentication for critical operations
+- Regular access audit
 
-### 7.1 Health Checks
-- Use the `/health` endpoint to verify server status.
+### 6.2 Data Protection
+- Data encryption at rest
+- SSL/TLS for data in transit
+- Regular security updates
+- PCI DSS compliance measures
 
-### 7.2 Monitoring Tools
-- **Docker**: Monitor container health.
-- **Database Tools**: Use pgAdmin for PostgreSQL and MongoDB Compass for MongoDB.
-- **Logging**: Review logs regularly for errors.
+### 6.3 Monitoring and Alerts
+- System metrics monitoring:
+  - CPU usage
+  - Memory usage
+  - Disk space
+  - Network traffic
+- Alert thresholds:
+  - CPU > 80%
+  - Memory > 85%
+  - Disk space > 90%
+  - Response time > 2s
+- Alert channels:
+  - Email notifications
+  - Slack integration
+  - SMS for critical alerts
 
----
+## 7. Scheduled Maintenance
 
-## 8. Contact Information
-For further assistance, contact the development team or refer to the project documentation.
+### 7.1 Daily Tasks
+- Log rotation
+- Backup verification
+- Health check monitoring
+
+### 7.2 Weekly Tasks
+- Security updates
+- Performance analysis
+- Error log review
+
+### 7.3 Monthly Tasks
+- Full system backup
+- Security audit
+- Performance optimization
+- Dependency updates
+
+## 8. Documentation Updates
+- Maintain changelog
+- Update API documentation
+- Record system modifications
+- Document configuration changes
+
+## 9. Support Contacts
+
+### 9.1 Primary Contacts
+- System Administrator: [Contact Info]
+- Database Administrator: [Contact Info]
+- Security Team: [Contact Info]
+
+### 9.2 Escalation Path
+1. Level 1: Development Team
+2. Level 2: System Administrator
+3. Level 3: Technical Lead
+4. Level 4: CTO
+
+### 9.3 External Support
+- AWS Support
+- Database vendor support
+- Payment gateway support
+- Third-party service providers

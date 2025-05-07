@@ -1,13 +1,58 @@
-# Building a Robust Inventory Management System with AI Assistance: A Case Study
+# Leveraging GitHub Copilot for Inventory Management System Development: The Tubex Journey
 
 ## Introduction
 
-In this blog post, we'll explore how we leveraged AI assistance to build a comprehensive inventory management system for Tubex, our B2B SaaS platform for construction materials. We'll focus on the prompting strategies, implementation challenges, and lessons learned during the development process.
+In this blog post, we'll explore how we leveraged GitHub Copilot as our AI development partner to build a comprehensive inventory management system for Tubex, our B2B SaaS platform for construction materials. We'll focus on our AI prompting strategies, how Copilot accelerated implementation, and the lessons learned during the development process.
+
+## GitHub Copilot's Role in Inventory Management Development
+
+### 1. Architecture Planning & Database Design
+We started by asking GitHub Copilot to help design our inventory system architecture:
+
+**Example Prompt:**
+```
+"Design a scalable inventory management system for construction materials with multi-warehouse support, batch tracking, and real-time stock updates. Include database schema and key components."
+```
+
+Copilot responded with a comprehensive architecture diagram and database schema suggestions, which we refined iteratively.
+
+### 2. Core Code Generation
+For each inventory component, we used targeted prompts to generate base implementations:
+
+**Example - Stock Movement:**
+```
+"Generate TypeScript code for inventory stock movement tracking with:
+- Transaction support
+- Audit logging
+- Concurrency handling
+- TypeORM integration
+Include proper error handling and type definitions."
+```
+
+### 3. Performance & Optimization
+We leveraged Copilot for system optimization:
+
+**Example Prompt:**
+```
+"Optimize this inventory query for large datasets with proper indexing strategy, pagination, and caching suggestions."
+```
+
+Copilot provided recommendations for:
+- Database indexing strategy
+- Redis caching implementation
+- Query optimization techniques
+- Pagination logic
 
 ## Understanding the Requirements
 
-Before diving into implementation, we used AI to help analyze our Business Requirements Document (BRD) and Product Requirements Document (PRD) to identify key features needed for the inventory management system:
+Before diving into implementation, we used GitHub Copilot to help analyze our Business Requirements Document (BRD) and Product Requirements Document (PRD) to identify key features needed for the inventory management system:
 
+**Example Prompt:**
+```
+"Analyze these business requirements and extract key inventory management features, priorities, and performance targets."
+```
+
+This helped us identify:
 - Real-time stock tracking
 - Multi-warehouse support
 - Batch tracking with expiry management

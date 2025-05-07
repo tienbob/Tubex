@@ -1,0 +1,254 @@
+:root {
+    --primary-color: #2563eb;
+    --text-color: #1f2937;
+    --bg-color: #ffffff;
+    --sidebar-bg: #f3f4f6;
+    --hover-bg: #e5e7eb;
+    --border-color: #e2e8f0;
+    --header-height: 60px;
+    --transition-speed: 0.3s;
+}
+
+/* Dark theme variables */
+[data-theme="dark"] {
+    --primary-color: #60a5fa;
+    --text-color: #f3f4f6;
+    --bg-color: #111827;
+    --sidebar-bg: #1f2937;
+    --hover-bg: #374151;
+    --border-color: #374151;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    color: var(--text-color);
+    background: var(--bg-color);
+    transition: background-color var(--transition-speed), color var(--transition-speed);
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+header {
+    height: var(--header-height);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-color);
+    position: fixed;
+    width: 100%;
+    top: 0;
+    z-index: 100;
+}
+
+.header-content {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 0 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 100%;
+}
+
+h1 {
+    font-size: 1.5rem;
+    color: var(--primary-color);
+}
+
+.controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.search-box {
+    position: relative;
+}
+
+.search-box input {
+    padding: 0.5rem 1rem;
+    padding-right: 2.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    width: 300px;
+    font-size: 0.9rem;
+}
+
+.search-box i {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-color);
+    opacity: 0.5;
+}
+
+.theme-toggle {
+    background: none;
+    border: none;
+    color: var(--text-color);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    transition: background-color var(--transition-speed);
+}
+
+.theme-toggle:hover {
+    background: var(--hover-bg);
+}
+
+main {
+    display: flex;
+    height: calc(100vh - var(--header-height));
+    margin-top: var(--header-height);
+}
+
+.sidebar {
+    width: 300px;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border-color);
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+.tree-container {
+    padding: 1rem;
+}
+
+.tree-item {
+    margin: 0.25rem 0;
+}
+
+.tree-item .item-header {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background-color var(--transition-speed);
+}
+
+.tree-item .item-header:hover {
+    background: var(--hover-bg);
+}
+
+.tree-item .item-header i {
+    margin-right: 0.5rem;
+    width: 20px;
+    transition: transform var(--transition-speed);
+}
+
+.tree-item.expanded > .item-header i {
+    transform: rotate(90deg);
+}
+
+.tree-item .children {
+    margin-left: 1.5rem;
+    display: none;
+}
+
+.tree-item.expanded > .children {
+    display: block;
+}
+
+.content {
+    flex-grow: 1;
+    padding: 2rem;
+    overflow-y: auto;
+}
+
+.module-details {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.welcome-message {
+    text-align: center;
+    padding: 2rem;
+}
+
+.quick-links {
+    margin-top: 2rem;
+    text-align: left;
+}
+
+.quick-links ul {
+    list-style: none;
+    margin-top: 1rem;
+}
+
+.quick-links li {
+    margin: 0.5rem 0;
+}
+
+.quick-links a {
+    color: var(--primary-color);
+    text-decoration: none;
+    display: inline-block;
+    padding: 0.5rem;
+    border-radius: 6px;
+    transition: background-color var(--transition-speed);
+}
+
+.quick-links a:hover {
+    background: var(--hover-bg);
+}
+
+code[class*="language-"] {
+    border-radius: 6px;
+    margin: 1rem 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        left: -300px;
+        top: var(--header-height);
+        height: calc(100vh - var(--header-height));
+        transition: left var(--transition-speed);
+        z-index: 99;
+    }
+
+    .sidebar.active {
+        left: 0;
+    }
+
+    .search-box input {
+        width: 200px;
+    }
+}
+
+/* Loading Animation */
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.loading::after {
+    content: "";
+    width: 30px;
+    height: 30px;
+    border: 2px solid var(--border-color);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: loading 0.6s linear infinite;
+}
+
+@keyframes loading {
+    to {
+        transform: rotate(360deg);
+    }
+}

@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tubex B2B SaaS Platform - Project Diagram</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2ecc71;
+            --accent-color: #f39c12;
+            --api-color: #9b59b6;
+            --background-color: #f8f9fa;
+            --text-color: #333;
+            --box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            --transition: all 0.3s ease;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 1.2rem;
+        }
+
+        .diagram {
+            display: flex;
+            justify-content: center;
+        }
+
+        .node {
+            margin-bottom: 20px;
+            width: 100%;
+        }
+
+        .node-content {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: var(--box-shadow);
+            padding: 15px;
+            transition: var(--transition);
+            margin-bottom: 10px;
+            position: relative;
+        }
+
+        .api-node .node-content {
+            border-left: 4px solid var(--api-color);
+        }
+
+        .node-content:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+
+        .node-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .node-title {
+            font-weight: bold;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .node-description {
+            margin-top: 10px;
+            display: none;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+
+        .node-children {
+            padding-left: 40px;
+            display: none;
+        }
+
+        .arrow {
+            transition: transform 0.3s ease;
+        }
+
+        .expanded > .node-content .arrow {
+            transform: rotate(90deg);
+        }
+
+        .expanded > .node-children {
+            display: block;
+        }
+
+        .expanded > .node-content .node-description {
+            display: block;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin-left: 10px;
+            color: white;
+            background-color: var(--accent-color);
+        }
+
+        .phase-1 {
+            background-color: #2ecc71;
+        }
+
+        .phase-2 {
+            background-color: #f39c12;
+        }
+
+        .phase-3 {
+            background-color: #9b59b6;
+        }
+
+        .icon-project {
+            color: var(--primary-color);
+        }
+
+        .icon-backend {
+            color: #2c3e50;
+        }
+
+        .icon-frontend {
+            color: #e74c3c;
+        }
+
+        .icon-module {
+            color: var(--secondary-color);
+        }
+
+        .icon-feature {
+            color: var(--accent-color);
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .root > .node-content {
+            background-color: #eaf2f8;
+        }
+
+        .level-1 > .node-content {
+            background-color: #d6eaf8;
+        }
+
+        .level-2 > .node-content {
+            background-color: #ebf5fb;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .control-button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .control-button:hover {
+            background-color: #2980b9;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .node-children {
+                padding-left: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Tubex B2B SaaS Platform</h1>
+        <p class="subtitle">Interactive Project Structure for Pre-Sales Team</p>
+        
+        <div class="legend">
+            <div class="legend-item"><span class="tag phase-1">Phase 1</span> <span>MVP (May-Oct 2025)</span></div>
+            <div class="legend-item"><span class="tag phase-2">Phase 2</span> <span>Growth (Nov 2025-Apr 2026)</span></div>
+            <div class="legend-item"><span class="tag phase-3">Phase 3</span> <span>Scale (2026-2028)</span></div>
+        </div>
+        
+        <div class="button-container">
+            <button class="control-button" id="expand-all">Expand All</button>
+            <button class="control-button" id="collapse-all">Collapse All</button>
+        </div>
+        
+        <div class="diagram" id="project-diagram">
+            <!-- The diagram will be populated by JavaScript -->
+        </div>
+        
+        <footer>
+            <p>Tubex Pre-Sales Project Diagram - Updated May 6, 2025</p>
+        </footer>
+    </div>
+
+    <script>
+        const projectData = {
+            name: 'Tubex B2B SaaS Platform',
+            icon: 'fa-project-diagram',
+            description: 'B2B SaaS platform for construction materials dealers (steel, pipes, accessories) with a focus on sales management, inventory control, and AI integration.',
+            iconClass: 'icon-project',
+            phase: 'all',
+            children: [
+                {
+                    name: 'Backend',
+                    icon: 'fa-server',
+                    description: 'NodeJS backend with TypeScript, Express, PostgreSQL, MongoDB, and Redis.',
+                    iconClass: 'icon-backend',
+                    phase: 'all',
+                    children: [
+                        {
+                            name: 'Authentication & User Management',
+                            icon: 'fa-user-shield',
+                            description: 'JWT-based authentication with OAuth2.0 integration (Google, Facebook), and multi-tenant user management.',
+                            iconClass: 'icon-module',
+                            phase: '1',
+                            children: [
+                                {
+                                    name: 'User Registration & Login',
+                                    icon: 'fa-user-plus',
+                                    description: 'Complete signup/login flow with email verification, role assignment (dealer/supplier/admin), and company information.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'OAuth Integration',
+                                    icon: 'fa-handshake',
+                                    description: 'Social login via Google and Facebook with secure profile linking.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Role-Based Access Control',
+                                    icon: 'fa-user-lock',
+                                    description: 'Comprehensive role management for admin, manager, dealers, suppliers and staff users with customizable permissions.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Two-Factor Authentication',
+                                    icon: 'fa-shield-alt',
+                                    description: 'Optional 2FA via email or SMS for enhanced security.',
+                                    iconClass: 'icon-feature',
+                                    phase: '2',
+                                    status: 'in-progress'
+                                }
+                            ]
+                        },
+                        {
+                            name: 'Inventory Management',
+                            icon: 'fa-boxes',
+                            description: 'Complete inventory tracking system with multi-warehouse support.',
+                            iconClass: 'icon-module',
+                            phase: '1',
+                            children: [
+                                {
+                                    name: 'Stock Management',
+                                    icon: 'fa-box',
+                                    description: 'Real-time inventory tracking with batch and serial number support.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Multi-Warehouse',
+                                    icon: 'fa-warehouse',
+                                    description: 'Support for multiple physical locations with stock transfers.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Batch Tracking',
+                                    icon: 'fa-tags',
+                                    description: 'Track inventory by batches with manufacturing and expiry dates.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Automated Reordering',
+                                    icon: 'fa-sync',
+                                    description: 'Intelligent reordering based on minimum stock levels and demand forecasting.',
+                                    iconClass: 'icon-feature',
+                                    phase: '2',
+                                    status: 'in-progress'
+                                }
+                            ]
+                        },
+                        {
+                            name: 'Company Verification',
+                            icon: 'fa-building-shield',
+                            description: 'Automated company verification system for supplier and dealer onboarding.',
+                            iconClass: 'icon-module',
+                            phase: '1',
+                            status: 'completed',
+                            children: [
+                                {
+                                    name: 'Document Verification',
+                                    icon: 'fa-file-certificate',
+                                    description: 'Business license and official document verification system.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Verification Workflow',
+                                    icon: 'fa-diagram-project',
+                                    description: 'Complete verification workflow with admin approval process.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                }
+                            ]
+                        },
+                        {
+                            name: 'Sales & Order Management',
+                            icon: 'fa-shopping-cart',
+                            description: 'End-to-end sales process from quotation to invoicing.',
+                            iconClass: 'icon-module',
+                            phase: '1',
+                            children: [
+                                {
+                                    name: 'Quotation System',
+                                    icon: 'fa-file-invoice',
+                                    description: 'Create, manage and track customer quotations with automated pricing.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Order Processing',
+                                    icon: 'fa-clipboard-list',
+                                    description: 'Convert quotations to orders with inventory allocation and status tracking.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Invoicing',
+                                    icon: 'fa-file-invoice-dollar',
+                                    description: 'Automatic invoice generation with payment tracking and tax compliance.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Multi-channel Order Management',
+                                    icon: 'fa-random',
+                                    description: 'Integrate orders from various channels (web, app, Zalo) into a unified system.',
+                                    iconClass: 'icon-feature',
+                                    phase: '2',
+                                    status: 'planning'
+                                }
+                            ]
+                        },
+                        {
+                            name: 'Customer Management',
+                            icon: 'fa-users',
+                            description: 'Customer relationship management with complete history tracking.',
+                            iconClass: 'icon-module',
+                            phase: '1',
+                            children: [
+                                {
+                                    name: 'Customer Profiles',
+                                    icon: 'fa-address-card',
+                                    description: 'Detailed customer information with contact details and preferences.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Purchase History',
+                                    icon: 'fa-history',
+                                    description: 'Complete customer purchase history with filtering and analytics.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Communication Tools',
+                                    icon: 'fa-comments',
+                                    description: 'Integrated SMS and Zalo messaging for customer communication.',
+                                    iconClass: 'icon-feature',
+                                    phase: '2',
+                                    status: 'planning'
+                                },
+                                {
+                                    name: 'Loyalty & Rewards',
+                                    icon: 'fa-award',
+                                    description: 'Customer loyalty program with points, tiers, and rewards.',
+                                    iconClass: 'icon-feature',
+                                    phase: '2',
+                                    status: 'planning'
+                                }
+                            ]
+                        },
+                        {
+                            name: 'Payment Integration',
+                            icon: 'fa-credit-card',
+                            description: 'Integration with major Vietnamese payment providers.',
+                            iconClass: 'icon-module',
+                            phase: '1',
+                            children: [
+                                {
+                                    name: 'VNPay Integration',
+                                    icon: 'fa-money-bill-wave',
+                                    description: 'Complete VNPay payment processing with transaction tracking.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Momo Integration',
+                                    icon: 'fa-wallet',
+                                    description: 'Momo wallet integration for easy mobile payments.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Payment Reconciliation',
+                                    icon: 'fa-balance-scale',
+                                    description: 'Automated matching of payments with invoices and orders.',
+                                    iconClass: 'icon-feature',
+                                    phase: '2',
+                                    status: 'planning'
+                                },
+                                {
+                                    name: 'Credit Management',
+                                    icon: 'fa-hand-holding-usd',
+                                    description: 'Customer credit limits and payment terms management.',
+                                    iconClass: 'icon-feature',
+                                    phase: '2',
+                                    status: 'planning'
+                                }
+                            ]
+                        },
+                        {
+                            name: 'Reporting & Analytics',
+                            icon: 'fa-chart-line',
+                            description: 'Comprehensive reporting system with business insights.',
+                            iconClass: 'icon-module',
+                            phase: '1',
+                            children: [
+                                {
+                                    name: 'Sales Reports',
+                                    icon: 'fa-chart-bar',
+                                    description: 'Detailed sales analysis by product, customer, period, etc.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Inventory Reports',
+                                    icon: 'fa-chart-pie',
+                                    description: 'Stock levels, movement, aging, and valuation reports.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Financial Dashboards',
+                                    icon: 'fa-money-check-alt',
+                                    description: 'Financial KPIs and performance visualization.',
+                                    iconClass: 'icon-feature',
+                                    phase: '2',
+                                    status: 'planning'
+                                },
+                                {
+                                    name: 'AI-Powered Insights',
+                                    icon: 'fa-brain',
+                                    description: 'Advanced predictive analytics and business recommendations using AI.',
+                                    iconClass: 'icon-feature',
+                                    phase: '3',
+                                    status: 'planning'
+                                }
+                            ]
+                        },
+                        {
+                            name: 'AI & Machine Learning',
+                            icon: 'fa-robot',
+                            description: 'Intelligent features powered by AI and machine learning.',
+                            iconClass: 'icon-module',
+                            phase: '3',
+                            children: [
+                                {
+                                    name: 'Demand Forecasting',
+                                    icon: 'fa-chart-line',
+                                    description: 'AI-powered prediction of product demand based on historical data and market factors.',
+                                    iconClass: 'icon-feature',
+                                    phase: '3',
+                                    status: 'planning'
+                                },
+                                {
+                                    name: 'Smart Pricing',
+                                    icon: 'fa-tags',
+                                    description: 'Dynamic pricing recommendations based on market conditions and customer behavior.',
+                                    iconClass: 'icon-feature',
+                                    phase: '3',
+                                    status: 'planning'
+                                },
+                                {
+                                    name: 'Chatbot Integration',
+                                    icon: 'fa-comment-dots',
+                                    description: 'AI chatbot for Zalo and web platforms to handle customer queries and orders.',
+                                    iconClass: 'icon-feature',
+                                    phase: '3',
+                                    status: 'planning'
+                                },
+                                {
+                                    name: 'Anomaly Detection',
+                                    icon: 'fa-exclamation-triangle',
+                                    description: 'Automatic detection of unusual patterns in sales, inventory, or user behavior.',
+                                    iconClass: 'icon-feature',
+                                    phase: '3',
+                                    status: 'planning'
+                                }
+                            ]
+                        },
+                        {
+                            name: 'Multi-supplier Platform',
+                            icon: 'fa-industry',
+                            description: 'Support for multiple suppliers with their own dealer networks.',
+                            iconClass: 'icon-module',
+                            phase: '2',
+                            children: [
+                                {
+                                    name: 'Supplier Management',
+                                    icon: 'fa-truck',
+                                    description: 'Complete supplier profiles, catalogs, and performance metrics.',
+                                    iconClass: 'icon-feature',
+                                    phase: '2',
+                                    status: 'planning'
+                                },
+                                {
+                                    name: 'Product Catalog',
+                                    icon: 'fa-book',
+                                    description: 'Multi-supplier product catalog with custom pricing for each dealer.',
+                                    iconClass: 'icon-feature',
+                                    phase: '2',
+                                    status: 'planning'
+                                },
+                                {
+                                    name: 'Dealer Network',
+                                    icon: 'fa-network-wired',
+                                    description: 'Supplier-specific dealer networks with customized access and settings.',
+                                    iconClass: 'icon-feature',
+                                    phase: '2',
+                                    status: 'planning'
+                                },
+                                {
+                                    name: 'B2B Marketplace',
+                                    icon: 'fa-store',
+                                    description: 'Full-featured B2B marketplace connecting suppliers and dealers.',
+                                    iconClass: 'icon-feature',
+                                    phase: '3',
+                                    status: 'planning'
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    name: 'Frontend',
+                    icon: 'fa-desktop',
+                    description: 'React.js and React Native frontends with responsive design and Material UI components.',
+                    iconClass: 'icon-frontend',
+                    phase: 'all',
+                    children: [
+                        {
+                            name: 'Authentication Module',
+                            icon: 'fa-user-shield',
+                            description: 'Feature-rich authentication UI components for user registration and login.',
+                            iconClass: 'icon-module',
+                            phase: '1',
+                            children: [
+                                {
+                                    name: 'User Registration',
+                                    icon: 'fa-user-plus',
+                                    description: 'Complete registration form with email, password, company name, and role selection (dealer/supplier/admin).',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'User Login',
+                                    icon: 'fa-sign-in-alt',
+                                    description: 'Secure login form with validation and error handling.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Password Recovery',
+                                    icon: 'fa-key',
+                                    description: 'Password reset flow with email verification.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Auth Context Provider',
+                                    icon: 'fa-shield-alt',
+                                    description: 'React context for managing authentication state across the application.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                }
+                            ]
+                        },
+                        {
+                            name: 'White Label Module',
+                            icon: 'fa-palette',
+                            description: 'Multi-tenant white labeling solution for customizable UI branding.',
+                            iconClass: 'icon-module',
+                            phase: '1',
+                            children: [
+                                {
+                                    name: 'Tenant Theming',
+                                    icon: 'fa-brush',
+                                    description: 'Dynamic theme customization with tenant-specific colors, logos, and typography.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Theme Provider',
+                                    icon: 'fa-object-group',
+                                    description: 'Context-based theme provider with automatic tenant detection and theme application.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'White Label Components',
+                                    icon: 'fa-puzzle-piece',
+                                    description: 'Pre-styled UI components that automatically adapt to tenant branding.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Admin Configuration',
+                                    icon: 'fa-sliders-h',
+                                    description: 'Administration interface for managing tenant white label configurations.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                }
+                            ]
+                        },
+                        {
+                            name: 'Web Application',
+                            icon: 'fa-globe',
+                            description: 'React.js web application with responsive design.',
+                            iconClass: 'icon-module',
+                            phase: '1',
+                            children: [
+                                {
+                                    name: 'Dashboard',
+                                    icon: 'fa-tachometer-alt',
+                                    description: 'Customizable dashboard with key business metrics and widgets.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Inventory Interface',
+                                    icon: 'fa-boxes',
+                                    description: 'Complete stock management interface with real-time updates.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Sales Portal',
+                                    icon: 'fa-cash-register',
+                                    description: 'Quotation and order management interface for sales staff.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Admin Panel',
+                                    icon: 'fa-cogs',
+                                    description: 'Comprehensive administration interface for system management.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Reports & Analytics',
+                                    icon: 'fa-chart-bar',
+                                    description: 'Visual reports and analytics with export capabilities.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                }
+                            ]
+                        },
+                        {
+                            name: 'Mobile Application',
+                            icon: 'fa-mobile-alt',
+                            description: 'React Native mobile application for iOS and Android.',
+                            iconClass: 'icon-module',
+                            phase: '2',
+                            children: [
+                                {
+                                    name: 'Mobile Dashboard',
+                                    icon: 'fa-tachometer-alt',
+                                    description: 'Key metrics and tasks optimized for mobile view.',
+                                    iconClass: 'icon-feature',
+                                    phase: '2',
+                                    status: 'in-progress'
+                                },
+                                {
+                                    name: 'Inventory Scanner',
+                                    icon: 'fa-barcode',
+                                    description: 'Mobile barcode scanner for inventory management.',
+                                    iconClass: 'icon-feature',
+                                    phase: '2',
+                                    status: 'in-progress'
+                                },
+                                {
+                                    name: 'Field Sales Tool',
+                                    icon: 'fa-user-tie',
+                                    description: 'Mobile sales tools for representatives in the field.',
+                                    iconClass: 'icon-feature',
+                                    phase: '2',
+                                    status: 'planning'
+                                },
+                                {
+                                    name: 'Push Notifications',
+                                    icon: 'fa-bell',
+                                    description: 'Real-time alerts and notifications via Firebase.',
+                                    iconClass: 'icon-feature',
+                                    phase: '2',
+                                    status: 'planning'
+                                },
+                                {
+                                    name: 'Offline Mode',
+                                    icon: 'fa-wifi',
+                                    description: 'Limited functionality when working offline with data sync.',
+                                    iconClass: 'icon-feature',
+                                    phase: '3',
+                                    status: 'planning'
+                                }
+                            ]
+                        },
+                        {
+                            name: 'Zalo Mini App',
+                            icon: 'fa-comments',
+                            description: 'Zalo Mini App for customer orders and queries.',
+                            iconClass: 'icon-module',
+                            phase: '2',
+                            children: [
+                                {
+                                    name: 'Customer Portal',
+                                    icon: 'fa-user-circle',
+                                    description: 'Customer account management and order history within Zalo.',
+                                    iconClass: 'icon-feature',
+                                    phase: '2',
+                                    status: 'planning'
+                                },
+                                {
+                                    name: 'Order Placement',
+                                    icon: 'fa-shopping-bag',
+                                    description: 'Simple ordering interface optimized for Zalo Mini App.',
+                                    iconClass: 'icon-feature',
+                                    phase: '2',
+                                    status: 'planning'
+                                },
+                                {
+                                    name: 'Status Tracking',
+                                    icon: 'fa-truck-loading',
+                                    description: 'Real-time order status updates and notifications.',
+                                    iconClass: 'icon-feature',
+                                    phase: '2',
+                                    status: 'planning'
+                                },
+                                {
+                                    name: 'AI Chatbot',
+                                    icon: 'fa-robot',
+                                    description: 'Intelligent chatbot for customer support and ordering within Zalo.',
+                                    iconClass: 'icon-feature',
+                                    phase: '3',
+                                    status: 'planning'
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    name: 'Infrastructure & DevOps',
+                    icon: 'fa-cloud',
+                    description: 'Cloud infrastructure and DevOps pipelines.',
+                    iconClass: 'icon-backend',
+                    phase: 'all',
+                    children: [
+                        {
+                            name: 'Cloud Infrastructure',
+                            icon: 'fa-server',
+                            description: 'AWS/Viettel Cloud infrastructure with high availability.',
+                            iconClass: 'icon-module',
+                            phase: '1',
+                            children: [
+                                {
+                                    name: 'Load Balancing',
+                                    icon: 'fa-balance-scale',
+                                    description: 'Distributed load across multiple application servers.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Auto-scaling',
+                                    icon: 'fa-expand-arrows-alt',
+                                    description: 'Dynamic resource scaling based on demand.',
+                                    iconClass: 'icon-feature',
+                                    phase: '2',
+                                    status: 'planning'
+                                },
+                                {
+                                    name: 'Database Clusters',
+                                    icon: 'fa-database',
+                                    description: 'High-availability database clusters with replication.',
+                                    iconClass: 'icon-feature',
+                                    phase: '2',
+                                    status: 'planning'
+                                }
+                            ]
+                        },
+                        {
+                            name: 'CI/CD Pipeline',
+                            icon: 'fa-code-branch',
+                            description: 'Continuous Integration and Deployment pipeline.',
+                            iconClass: 'icon-module',
+                            phase: '1',
+                            children: [
+                                {
+                                    name: 'Automated Testing',
+                                    icon: 'fa-vial',
+                                    description: 'Automated unit, integration, and end-to-end tests.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Containerization',
+                                    icon: 'fa-docker',
+                                    description: 'Docker containers for consistent environments.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Kubernetes Orchestration',
+                                    icon: 'fa-dharmachakra',
+                                    description: 'Container orchestration for production environments.',
+                                    iconClass: 'icon-feature',
+                                    phase: '2',
+                                    status: 'planning'
+                                }
+                            ]
+                        },
+                        {
+                            name: 'Monitoring & Logging',
+                            icon: 'fa-chart-line',
+                            description: 'System monitoring and centralized logging.',
+                            iconClass: 'icon-module',
+                            phase: '1',
+                            children: [
+                                {
+                                    name: 'Performance Monitoring',
+                                    icon: 'fa-tachometer-alt',
+                                    description: 'Real-time tracking of system performance metrics.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Error Tracking',
+                                    icon: 'fa-bug',
+                                    description: 'Centralized error logging and alerting.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1', 
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'User Analytics',
+                                    icon: 'fa-users-cog',
+                                    description: 'Detailed user behavior and system usage analytics.',
+                                    iconClass: 'icon-feature',
+                                    phase: '2',
+                                    status: 'planning'
+                                }
+                            ]
+                        },
+                        {
+                            name: 'Security',
+                            icon: 'fa-shield-alt',
+                            description: 'Comprehensive security implementation.',
+                            iconClass: 'icon-module',
+                            phase: 'all',
+                            children: [
+                                {
+                                    name: 'SSL Encryption',
+                                    icon: 'fa-lock',
+                                    description: 'End-to-end encryption for all data in transit.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Data Encryption',
+                                    icon: 'fa-key',
+                                    description: 'Encryption of sensitive data at rest.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Tenant Isolation',
+                                    icon: 'fa-users-slash',
+                                    description: 'Complete data isolation between different tenant accounts.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Audit Logging',
+                                    icon: 'fa-clipboard-list',
+                                    description: 'Comprehensive audit trail of system activities.',
+                                    iconClass: 'icon-feature',
+                                    phase: '1',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Advanced Threat Protection',
+                                    icon: 'fa-user-shield',
+                                    description: 'Advanced security measures against emerging threats.',
+                                    iconClass: 'icon-feature',
+                                    phase: '3',
+                                    status: 'planning'
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        };
+
+        function createNode(nodeData, level = 0) {
+            const node = document.createElement('div');
+            node.className = `node level-${level}`;
+            if (level === 0) node.classList.add('root');
+            
+            const nodeContent = document.createElement('div');
+            nodeContent.className = 'node-content';
+            
+            // Add status indicator if available
+            if (nodeData.status) {
+                nodeContent.classList.add(`status-${nodeData.status}`);
+            }
+            
+            const nodeHeader = document.createElement('div');
+            nodeHeader.className = 'node-header';
+            
+            const nodeTitle = document.createElement('div');
+            nodeTitle.className = 'node-title';
+            
+            // Icon
+            const icon = document.createElement('i');
+            icon.className = `fas ${nodeData.icon} ${nodeData.iconClass || ''}`;
+            nodeTitle.appendChild(icon);
+            
+            // Title text
+            const titleText = document.createTextNode(nodeData.name);
+            nodeTitle.appendChild(titleText);
+            
+            // Phase tag
+            if (nodeData.phase && nodeData.phase !== 'all') {
+                const phaseTag = document.createElement('span');
+                phaseTag.className = `tag phase-${nodeData.phase}`;
+                phaseTag.textContent = `Phase ${nodeData.phase}`;
+                nodeTitle.appendChild(phaseTag);
+            }
+            
+            // Status tag if available
+            if (nodeData.status) {
+                const statusTag = document.createElement('span');
+                statusTag.className = `tag status-${nodeData.status}`;
+                statusTag.textContent = nodeData.status.charAt(0).toUpperCase() + nodeData.status.slice(1);
+                nodeTitle.appendChild(statusTag);
+            }
+            
+            nodeHeader.appendChild(nodeTitle);
+            
+            // Arrow for expandable nodes
+            if (nodeData.children && nodeData.children.length > 0) {
+                const arrow = document.createElement('i');
+                arrow.className = 'fas fa-caret-right arrow';
+                nodeHeader.appendChild(arrow);
+            }
+            
+            nodeContent.appendChild(nodeHeader);
+            
+            // Description
+            if (nodeData.description) {
+                const nodeDescription = document.createElement('div');
+                nodeDescription.className = 'node-description';
+                nodeDescription.textContent = nodeData.description;
+                nodeContent.appendChild(nodeDescription);
+            }
+            
+            node.appendChild(nodeContent);
+            
+            // Children
+            if (nodeData.children && nodeData.children.length > 0) {
+                const nodeChildren = document.createElement('div');
+                nodeChildren.className = 'node-children';
+                
+                nodeData.children.forEach(childData => {
+                    const childNode = createNode(childData, level + 1);
+                    nodeChildren.appendChild(childNode);
+                });
+                
+                node.appendChild(nodeChildren);
+            }
+            
+            return node;
+        }
+
+        // Add click event handlers after DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            const diagram = document.getElementById('project-diagram');
+            const rootNode = createNode(projectData);
+            diagram.appendChild(rootNode);
+            
+            // Initial expansion of root node
+            rootNode.classList.add('expanded');
+            
+            // Add status colors to CSS
+            const style = document.createElement('style');
+            style.textContent = `
+                .status-completed { border-left: 4px solid #2ecc71; }
+                .status-in-progress { border-left: 4px solid #3498db; }
+                .status-planning { border-left: 4px solid #95a5a6; }
+                
+                .tag.status-completed { background-color: #2ecc71; }
+                .tag.status-in-progress { background-color: #3498db; }
+                .tag.status-planning { background-color: #95a5a6; }
+            `;
+            document.head.appendChild(style);
+            
+            // Add click handlers to all node headers
+            document.querySelectorAll('.node-header').forEach(header => {
+                header.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    const node = header.closest('.node');
+                    node.classList.toggle('expanded');
+                });
+            });
+            
+            // Expand/collapse all buttons
+            document.getElementById('expand-all').addEventListener('click', function() {
+                document.querySelectorAll('.node').forEach(node => {
+                    node.classList.add('expanded');
+                });
+            });
+            
+            document.getElementById('collapse-all').addEventListener('click', function() {
+                document.querySelectorAll('.node:not(.root)').forEach(node => {
+                    node.classList.remove('expanded');
+                });
+            });
+        });
+    </script>
+</body>
+</html>
