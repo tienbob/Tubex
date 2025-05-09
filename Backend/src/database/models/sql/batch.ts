@@ -32,10 +32,10 @@ export class Batch {
     unit: string;
 
     @Column("timestamp", { nullable: true })
-    manufacturing_date: Date;
+    manufacturing_date: Date | null;
 
     @Column("timestamp", { nullable: true })
-    expiry_date: Date;
+    expiry_date: Date | null;
 
     @Column("jsonb", { nullable: true })
     metadata: Record<string, any>;

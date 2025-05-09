@@ -33,15 +33,48 @@ const registrationSchema = Joi.object({
     .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d\w\W]{8,}$/)
     .required()
     .messages({
+      'string.min': 'Password must be at least 8 characters long',
       'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, and one number'
     }),
   company: companySchema.required(),
+  firstName: Joi.string().required().messages({
+    'any.required': 'First name is required'
+  }),
+  lastName: Joi.string().required().messages({
+    'any.required': 'Last name is required'
+  }),
   userRole: Joi.string().valid('admin', 'manager', 'staff').default('admin')
+});
+
+const employeeRegistrationSchema = Joi.object({
+  email: Joi.string().email().required(),
+  password: Joi.string().min(8)
+    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d\w\W]{8,}$/)
+    .required()
+    .messages({
+      'string.min': 'Password must be at least 8 characters long',
+      'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+    }),
+  firstName: Joi.string().required(),
+  lastName: Joi.string().required(),
+  invitationCode: Joi.string().required().messages({
+    'any.required': 'Invitation code is required'
+  }),
+  role: Joi.string().valid('admin', 'manager', 'staff').default('staff')
 });
 
 const loginSchema = Joi.object({
   email: Joi.string().email().required(),
-  password: Joi.string().required()
+  password: Joi.string().required(),
+  rememberMe: Joi.boolean().default(false)
+});
+
+const completeOAuthRegistrationSchema = Joi.object({
+  tempUserId: Joi.string().required().messages({
+    'any.required': 'Temporary user ID is required'
+  }),
+  company: companySchema.required(),
+  userRole: Joi.string().valid('admin', 'manager', 'staff').default('admin')
 });
 
 export const validateRegistration = async (
@@ -57,6 +90,19 @@ export const validateRegistration = async (
   }
 };
 
+export const validateEmployeeRegistration = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    await employeeRegistrationSchema.validateAsync(req.body);
+    next();
+  } catch (error) {
+    next(new AppError(400, error instanceof Error ? error.message : 'Validation error occurred'));
+  }
+};
+
 export const validateLogin = async (
   req: Request,
   res: Response,
@@ -64,6 +110,19 @@ export const validateLogin = async (
 ) => {
   try {
     await loginSchema.validateAsync(req.body);
+    next();
+  } catch (error) {
+    next(new AppError(400, error instanceof Error ? error.message : 'Validation error occurred'));
+  }
+};
+
+export const validateOAuthRegistrationCompletion = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    await completeOAuthRegistrationSchema.validateAsync(req.body);
     next();
   } catch (error) {
     next(new AppError(400, error instanceof Error ? error.message : 'Validation error occurred'));

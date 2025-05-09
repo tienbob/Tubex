@@ -12,6 +12,7 @@ import { productRoutes } from './services/product/routes';
 import { orderRoutes } from './services/order/routes';
 import { inventoryRoutes } from './services/inventory/routes';
 import { userManagementRoutes } from './services/user-management/routes';
+import { warehouseRoutes } from './services/warehouse/routes';
 import { companyVerificationRoutes } from './services/company-verification/routes';
 import { errorHandler } from './middleware/errorHandler';
 import compression from 'compression';
@@ -69,6 +70,7 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/company/manage', userManagementRoutes); // New user management routes
 app.use('/api/v1/products', productRoutes);
+app.use('/api/v1/warehouse', warehouseRoutes); // New warehouse management routes
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/inventory', inventoryRoutes);
 app.use('/api/v1/company-verification', companyVerificationRoutes);

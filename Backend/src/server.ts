@@ -1,19 +1,34 @@
 import { app, logger } from './app';
 import { config } from './config';
-import { connectDatabases } from './database';
+import { connectDatabases, AppDataSource } from './database';
 
 const PORT = config.port || 3001;
 
 const startServer = async () => {
   try {
-    // Try to connect to databases, but continue even if they fail
+    // Connect to databases - critical for application functionality
     try {
       await connectDatabases();
+      
+      // Verify PostgreSQL connection is active
+      if (!AppDataSource.isInitialized) {
+        throw new Error('PostgreSQL database connection failed to initialize');
+      }
     } catch (dbError) {
-      logger.warn('Database connection issues, continuing in development mode:', dbError);
+      logger.error('Critical database connection error:', dbError);
+      
+      // Only continue in development mode with proper warning
+      if (config.nodeEnv === 'development') {
+        logger.warn('⚠️ WARNING: Starting server without database connection. Most functionality will NOT work!');
+        console.warn('\n⚠️ DATABASE CONNECTION FAILED! Application will have limited functionality.\n');
+      } else {
+        // In production, database connection is mandatory
+        logger.error('Cannot start server without database connection in production mode');
+        process.exit(1);
+      }
     }
     
-    // Start the server regardless of database connection status
+    // Start the server
     app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT} in ${config.nodeEnv} mode`);
       console.log(`Server is listening on http://localhost:${PORT}`);

@@ -1,14 +1,42 @@
 import { Request, Response } from 'express';
-import { getRepository, getConnection } from 'typeorm';
-import { Order, OrderItem, OrderStatus, PaymentStatus } from '../../database/models/sql/order';
+import { OrderItem, OrderStatus, PaymentStatus } from '../../database/models/sql/order';
 import { Product } from '../../database/models/sql/product';
 import { Inventory } from '../../database/models/sql/inventory';
+import { OrderHistory } from '../../database/models/sql/orderHistory';
 import { AppError } from '../../middleware/errorHandler';
+import { AppDataSource } from '../../database';
+import { Order } from '../../database/models/sql/order';
+import { In } from 'typeorm';
+import { logger } from '../../app';
 
 interface OrderItemRequest {
     productId: string;
     quantity: number;
     discount?: number;
+}
+
+interface OrderProcessError extends Error {
+    message: string;
+}
+
+async function createOrderHistoryEntry(
+    order: Order,
+    previousStatus: OrderStatus,
+    newStatus: OrderStatus,
+    userId: string,
+    notes?: string,
+    metadata?: Record<string, any>,
+    queryRunner = AppDataSource.createQueryRunner()
+) {
+    const historyEntry = new OrderHistory();
+    historyEntry.order_id = order.id;
+    historyEntry.user_id = userId;
+    historyEntry.previous_status = previousStatus;
+    historyEntry.new_status = newStatus;
+    historyEntry.notes = notes || '';
+    historyEntry.metadata = metadata || {};
+    
+    await queryRunner.manager.save(OrderHistory, historyEntry);
 }
 
 export const orderController = {
@@ -18,14 +46,19 @@ export const orderController = {
         const { items, deliveryAddress, paymentMethod } = req.body;
         const customerId = req.user.id;
 
-        const queryRunner = getConnection().createQueryRunner();
+        // Check if database connection is initialized
+        if (!AppDataSource.isInitialized) {
+            throw new AppError(500, 'Database connection is not initialized');
+        }
+
+        const queryRunner = AppDataSource.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();
 
         try {
             // Validate products and calculate total
             const productIds = items.map((item: OrderItemRequest) => item.productId);
-            const products = await getRepository(Product)
+            const products = await AppDataSource.getRepository(Product)
                 .createQueryBuilder('product')
                 .whereInIds(productIds)
                 .getMany();
@@ -39,7 +72,7 @@ export const orderController = {
             let totalAmount = 0;
 
             // Fetch all inventory records for these products at once
-            const inventoryRecords = await getRepository(Inventory)
+            const inventoryRecords = await AppDataSource.getRepository(Inventory)
                 .createQueryBuilder('inventory')
                 .where('inventory.productId IN (:...productIds)', { productIds })
                 .getMany();
@@ -108,34 +141,92 @@ export const orderController = {
         const updates = req.body;
         const customerId = req.user.id;
 
-        const order = await getRepository(Order).findOne({
-            where: { id, customerId },
-            relations: ['items']
-        });
+        const queryRunner = AppDataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
 
-        if (!order) {
-            throw new AppError(404, 'Order not found');
+        try {
+            const order = await queryRunner.manager.findOne(Order, {
+                where: { id, customerId },
+                relations: ['items'],
+                lock: { mode: "pessimistic_write" }
+            });
+
+            if (!order) {
+                throw new AppError(404, 'Order not found');
+            }
+
+            const previousStatus = order.status;
+
+            // Validate status transition
+            if (updates.status && !isValidStatusTransition(order.status, updates.status)) {
+                throw new AppError(400, `Invalid status transition from ${order.status} to ${updates.status}`);
+            }
+
+            // If changing to processing, verify stock availability again
+            if (updates.status === OrderStatus.PROCESSING) {
+                for (const item of order.items) {
+                    const inventory = await queryRunner.manager.findOne(Inventory, {
+                        where: { product_id: item.productId }
+                    });
+                    
+                    if (!inventory || inventory.quantity < item.quantity) {
+                        throw new AppError(400, `Insufficient stock for product in order item ${item.id}`);
+                    }
+                }
+            }
+
+            // If cancelling, restore inventory
+            if (updates.status === OrderStatus.CANCELLED && order.status !== OrderStatus.CANCELLED) {
+                for (const item of order.items) {
+                    await queryRunner.manager.update(Inventory,
+                        { productId: item.productId },
+                        { quantity: () => `quantity + ${item.quantity}` }
+                    );
+                }
+            }
+
+            // Update order fields
+            if (updates.status) order.status = updates.status;
+            if (updates.paymentStatus) order.paymentStatus = updates.paymentStatus;
+            if (updates.paymentMethod) order.paymentMethod = updates.paymentMethod;
+            if (updates.deliveryAddress) order.deliveryAddress = updates.deliveryAddress;
+
+            // Add metadata for tracking changes
+            if (!order.metadata) order.metadata = {};
+            order.metadata.lastUpdated = new Date();
+            order.metadata.updatedBy = req.user.id;
+
+            const updatedOrder = await queryRunner.manager.save(Order, order);
+
+            // Create history entry if status changed
+            if (updates.status && previousStatus !== updates.status) {
+                await createOrderHistoryEntry(
+                    order,
+                    previousStatus,
+                    updates.status,
+                    req.user.id,
+                    updates.notes,
+                    {
+                        updatedVia: 'manual',
+                        paymentStatus: updates.paymentStatus,
+                        updatedAt: new Date()
+                    },
+                    queryRunner
+                );
+            }
+
+            await queryRunner.commitTransaction();
+            res.json(updatedOrder);
+        } catch (error) {
+            await queryRunner.rollbackTransaction();
+            if (error instanceof AppError) {
+                throw error;
+            }
+            throw new AppError(500, 'Failed to update order');
+        } finally {
+            await queryRunner.release();
         }
-
-        // Update order status
-        if (updates.status) {
-            order.status = updates.status;
-        }
-
-        if (updates.paymentStatus) {
-            order.paymentStatus = updates.paymentStatus;
-        }
-
-        if (updates.paymentMethod) {
-            order.paymentMethod = updates.paymentMethod;
-        }
-
-        if (updates.deliveryAddress) {
-            order.deliveryAddress = updates.deliveryAddress;
-        }
-
-        const updatedOrder = await getRepository(Order).save(order);
-        res.json(updatedOrder);
     },
 
     async getOrder(req: Request, res: Response) {
@@ -144,7 +235,7 @@ export const orderController = {
         const { id } = req.params;
         const customerId = req.user.id;
 
-        const order = await getRepository(Order).findOne({
+        const order = await AppDataSource.getRepository(Order).findOne({
             where: { id, customerId },
             relations: ['items', 'items.product']
         });
@@ -162,7 +253,7 @@ export const orderController = {
         const customerId = req.user.id;
         const { status, page = 1, limit = 10 } = req.query;
 
-        const queryBuilder = getRepository(Order)
+        const queryBuilder = AppDataSource.getRepository(Order)
             .createQueryBuilder('order')
             .leftJoinAndSelect('order.items', 'items')
             .leftJoinAndSelect('items.product', 'product')
@@ -194,7 +285,7 @@ export const orderController = {
         const { id } = req.params;
         const customerId = req.user.id;
 
-        const queryRunner = getConnection().createQueryRunner();
+        const queryRunner = AppDataSource.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();
 
@@ -231,5 +322,175 @@ export const orderController = {
         } finally {
             await queryRunner.release();
         }
+    },
+
+    async bulkProcessOrders(req: Request, res: Response) {
+        if (!req.user) throw new AppError(401, 'Authentication required');
+        
+        const { orderIds, status, notes } = req.body;
+        const queryRunner = AppDataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+
+        try {
+            const orders = await queryRunner.manager.find(Order, {
+                where: { id: In(orderIds), customerId: req.user.id },
+                relations: ['items'],
+                lock: { mode: "pessimistic_write" }
+            });
+
+            if (orders.length !== orderIds.length) {
+                throw new AppError(404, 'One or more orders not found');
+            }
+
+            const processedOrders: string[] = [];
+            const failedOrders: Array<{ id: string; reason: string }> = [];
+
+            // Process all orders
+            for (const order of orders) {
+                try {
+                    if (!isValidStatusTransition(order.status, status)) {
+                        throw new Error(`Invalid status transition from ${order.status} to ${status}`);
+                    }
+
+                    const previousStatus = order.status;
+
+                    // Handle inventory updates
+                    if (status === OrderStatus.PROCESSING) {
+                        for (const item of order.items) {
+                            const inventory = await queryRunner.manager.findOne(Inventory, {
+                                where: { product_id: item.productId }
+                            });
+                            
+                            if (!inventory || inventory.quantity < item.quantity) {
+                                throw new Error(`Insufficient stock for product in order ${order.id}`);
+                            }
+
+                            await queryRunner.manager.update(Inventory,
+                                { product_id: item.productId },
+                                { quantity: () => `quantity - ${item.quantity}` }
+                            );
+                        }
+                    } else if (status === OrderStatus.CANCELLED && order.status !== OrderStatus.CANCELLED) {
+                        for (const item of order.items) {
+                            await queryRunner.manager.update(Inventory,
+                                { product_id: item.productId },
+                                { quantity: () => `quantity + ${item.quantity}` }
+                            );
+                        }
+                    }
+
+                    // Update order
+                    order.status = status;
+                    if (!order.metadata) order.metadata = {};
+                    order.metadata.lastUpdated = new Date();
+                    order.metadata.updatedBy = req.user.id;
+                    order.metadata.bulkProcessed = true;
+                    await queryRunner.manager.save(order);
+
+                    // Create history entry
+                    await createOrderHistoryEntry(
+                        order,
+                        previousStatus,
+                        status,
+                        req.user.id,
+                        notes,
+                        {
+                            updatedVia: 'bulk',
+                            bulkProcessId: new Date().getTime(),
+                            updatedAt: new Date()
+                        },
+                        queryRunner
+                    );
+
+                    processedOrders.push(order.id);
+                } catch (error) {
+                    const orderError = error as OrderProcessError;
+                    failedOrders.push({
+                        id: order.id,
+                        reason: orderError.message || 'Unknown error occurred'
+                    });
+                }
+            }
+
+            if (processedOrders.length === 0) {
+                // Modified to use the correct AppError constructor signature
+                const errorMessage = 'No orders could be processed: ' + 
+                    failedOrders.map(f => `Order ${f.id}: ${f.reason}`).join('; ');
+                throw new AppError(400, errorMessage);
+            }
+
+            await queryRunner.commitTransaction();
+            res.json({
+                message: `Successfully processed ${processedOrders.length} orders`,
+                processedOrders,
+                failedOrders: failedOrders.length > 0 ? failedOrders : undefined
+            });
+        } catch (error) {
+            await queryRunner.rollbackTransaction();
+            logger.error('Error processing orders:', error);
+            if (error instanceof AppError) {
+                throw error;
+            }
+            throw new AppError(500, 'Failed to process orders');
+        } finally {
+            await queryRunner.release();
+        }
+    },
+
+    async getOrderHistory(req: Request, res: Response) {
+        if (!req.user) throw new AppError(401, 'Authentication required');
+        
+        const { id } = req.params;
+        const customerId = req.user.id;
+
+        // Verify order ownership
+        const order = await AppDataSource.getRepository(Order).findOne({
+            where: { id, customerId }
+        });
+
+        if (!order) {
+            throw new AppError(404, 'Order not found');
+        }
+
+        // Get order history
+        const history = await AppDataSource.getRepository(OrderHistory).find({
+            where: { order_id: id },
+            relations: ['user'],
+            order: { created_at: 'DESC' }
+        });
+
+        // Format response
+        const formattedHistory = history.map(entry => ({
+            id: entry.id,
+            timestamp: entry.created_at,
+            previousStatus: entry.previous_status,
+            newStatus: entry.new_status,
+            notes: entry.notes,
+            user: {
+                id: entry.user.id,
+                email: entry.user.email
+            },
+            metadata: entry.metadata
+        }));
+
+        res.json({
+            orderId: id,
+            history: formattedHistory
+        });
     }
 };
+
+// Helper function to validate order status transitions
+function isValidStatusTransition(currentStatus: OrderStatus, newStatus: OrderStatus): boolean {
+    const validTransitions: Record<OrderStatus, OrderStatus[]> = {
+        [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
+        [OrderStatus.CONFIRMED]: [OrderStatus.PROCESSING, OrderStatus.CANCELLED],
+        [OrderStatus.PROCESSING]: [OrderStatus.SHIPPED, OrderStatus.CANCELLED],
+        [OrderStatus.SHIPPED]: [OrderStatus.DELIVERED],
+        [OrderStatus.DELIVERED]: [],
+        [OrderStatus.CANCELLED]: []
+    };
+
+    return validTransitions[currentStatus]?.includes(newStatus) || false;
+}

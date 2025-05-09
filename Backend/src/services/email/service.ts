@@ -125,18 +125,46 @@ export const sendVerificationEmail = async (to: string, verificationToken: strin
   });
 };
 
-export const sendLoginNotificationEmail = async (to: string, loginTime: Date, location?: string) => {
+interface LoginDetails {
+  ipAddress?: string;
+  userAgent?: string;
+  timestamp?: string;
+  location?: string;
+}
+
+export const sendLoginNotificationEmail = async (to: string, loginTime: Date, loginDetails?: LoginDetails) => {
+  // Format user agent to be more readable
+  let deviceInfo = 'Unknown device';
+  if (loginDetails?.userAgent) {
+    if (loginDetails.userAgent.includes('Mobile')) {
+      deviceInfo = loginDetails.userAgent.includes('iPhone') ? 'iPhone' : 
+                   loginDetails.userAgent.includes('Android') ? 'Android device' : 'Mobile device';
+    } else {
+      deviceInfo = loginDetails.userAgent.includes('Windows') ? 'Windows computer' :
+                   loginDetails.userAgent.includes('Mac') ? 'Mac computer' :
+                   loginDetails.userAgent.includes('Linux') ? 'Linux computer' : 'Desktop computer';
+    }
+  }
+
   const html = `
     <h1>New Login Detected</h1>
     <p>We detected a new login to your Tubex account:</p>
     <p>Time: ${loginTime.toLocaleString()}</p>
-    ${location ? `<p>Location: ${location}</p>` : ''}
+    ${loginDetails?.ipAddress ? `<p>IP Address: ${loginDetails.ipAddress}</p>` : ''}
+    ${deviceInfo ? `<p>Device: ${deviceInfo}</p>` : ''}
+    ${loginDetails?.location ? `<p>Location: ${loginDetails.location}</p>` : ''}
     <p>If this wasn't you, please change your password immediately and contact our support team.</p>
+    <p>For security, we recommend:</p>
+    <ul>
+      <li>Using a strong, unique password</li>
+      <li>Enabling two-factor authentication when available</li>
+      <li>Logging out when using shared devices</li>
+    </ul>
   `;
 
   await sendEmail({
     to,
-    subject: 'New Login to Your Account',
+    subject: 'Security Alert: New Login to Your Account',
     html
   });
 };
@@ -171,4 +199,46 @@ export const sendUserStatusChangeEmail = async (
 export const sendVerificationNotification = async (company: Company): Promise<void> => {
     // TODO: Implement actual email sending logic
     console.log(`Sending verification notification for company ${company.name}. Status: ${company.status}`);
+};
+
+export const sendCompanyApprovalNotification = async (to: string, companyName: string): Promise<void> => {
+  const html = `
+    <h1>Company Registration Approved</h1>
+    <p>Great news! Your company <strong>${companyName}</strong> has been verified and approved.</p>
+    <p>Your company account is now active, and you can start using all features of the Tubex platform.</p>
+    <p>Next steps:</p>
+    <ul>
+      <li>Set up your company profile</li>
+      <li>Invite team members using invitation codes</li>
+      <li>Explore the platform features</li>
+    </ul>
+    <p>If you have any questions or need assistance, please contact our support team.</p>
+    <p>Thank you for choosing Tubex for your business needs!</p>
+    <p>Best regards,<br/>The Tubex Team</p>
+  `;
+
+  await sendEmail({
+    to,
+    subject: `Company Registration Approved: ${companyName}`,
+    html
+  });
+};
+
+export const sendCompanyRejectionNotification = async (to: string, companyName: string, reason: string): Promise<void> => {
+  const html = `
+    <h1>Company Registration Status Update</h1>
+    <p>We've reviewed your company registration for <strong>${companyName}</strong>.</p>
+    <p>Unfortunately, we're unable to approve the registration at this time.</p>
+    <p><strong>Reason:</strong> ${reason}</p>
+    <p>You can address the issues mentioned and submit a new registration, or contact our support team for assistance.</p>
+    <p>If you believe this decision was made in error, please respond to this email with any additional information that might help us reconsider.</p>
+    <p>Thank you for your interest in Tubex.</p>
+    <p>Best regards,<br/>The Tubex Support Team</p>
+  `;
+
+  await sendEmail({
+    to,
+    subject: `Company Registration Update: ${companyName}`,
+    html
+  });
 };

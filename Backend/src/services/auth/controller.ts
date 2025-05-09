@@ -7,14 +7,14 @@ import { User, Company } from '../../database/models/sql';
 import { redisClient } from '../../database';
 import { config } from '../../config';
 import { generateTokens } from './utils';
-import { sendPasswordResetEmail, sendWelcomeEmail, sendVerificationEmail, sendLoginNotificationEmail } from '../email/service';
+import { sendPasswordResetEmail, sendWelcomeEmail, sendVerificationEmail, sendLoginNotificationEmail, sendCompanyApprovalNotification, sendCompanyRejectionNotification } from '../email/service';
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
     const userRepository = AppDataSource.getRepository(User);
     const companyRepository = AppDataSource.getRepository(Company);
 
     try {
-        const { email, password, company, userRole = 'admin' } = req.body;
+        const { email, password, company, firstName, lastName, userRole = 'admin' } = req.body;
 
         // Check if user already exists
         const existingUser = await userRepository.findOne({ where: { email } });
@@ -57,6 +57,13 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
         user.role = userRole;
         user.company = newCompany;
         user.status = 'pending'; // User status starts as pending until email is verified
+        
+        // Add first name and last name to user metadata
+        user.metadata = {
+            firstName: firstName || '',
+            lastName: lastName || ''
+        };
+        
         await userRepository.save(user);
 
         // Generate verification tokens
@@ -112,7 +119,8 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     const userRepository = AppDataSource.getRepository(User);
 
     try {
-        const { email, password } = req.body;
+        const { email, password, rememberMe = false } = req.body;
+        console.log(`Login attempt for email: ${email}`);
 
         // Find user
         const user = await userRepository.findOne({
@@ -121,60 +129,168 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
         });
 
         if (!user) {
+            console.log(`User not found: ${email}`);
             throw new AppError(401, 'Invalid credentials');
+        }
+
+        console.log(`User found: ${user.id}, status: ${user.status}, role: ${user.role}`);
+
+        // Track failed login attempts
+        const failedLoginKey = `failed_login:${email}`;
+        const failedAttempts = await redisClient.get(failedLoginKey);
+        const maxFailedAttempts = 5;
+        
+        if (failedAttempts && parseInt(failedAttempts) >= maxFailedAttempts) {
+            const lockoutTime = await redisClient.ttl(failedLoginKey);
+            
+            if (lockoutTime > 0) {
+                throw new AppError(429, `Too many failed login attempts. Please try again in ${Math.ceil(lockoutTime / 60)} minutes.`);
+            }
         }
 
         // Verify password
         const isValidPassword = await bcrypt.compare(password, user.password_hash);
+        
         if (!isValidPassword) {
+            console.log('Password validation failed');
+            
+            // Increment failed login attempts
+            const currentAttempts = failedAttempts ? parseInt(failedAttempts) + 1 : 1;
+            
+            // Set lockout time if maximum attempts reached
+            if (currentAttempts >= maxFailedAttempts) {
+                // Lockout for 15 minutes
+                await redisClient.set(failedLoginKey, currentAttempts.toString(), {
+                    EX: 15 * 60 // 15 minutes
+                });
+            } else {
+                // Store attempt count, expire in 1 hour
+                await redisClient.set(failedLoginKey, currentAttempts.toString(), {
+                    EX: 60 * 60 // 1 hour
+                });
+            }
+            
             throw new AppError(401, 'Invalid credentials');
         }
 
+        // Reset failed login attempts on successful login
+        await redisClient.del(failedLoginKey);
+
         // Check if user is active
         if (user.status !== 'active') {
-            throw new AppError(401, 'Account is not active');
+            console.log(`User not active: ${user.status}`);
+            // Provide more specific message based on status
+            if (user.status === 'pending') {
+                throw new AppError(401, 'Your email address has not been verified. Please check your email for a verification link.');
+            } else if (user.status === 'suspended') {
+                throw new AppError(401, 'Your account has been suspended. Please contact support for assistance.');
+            } else if (user.status === 'locked') {
+                throw new AppError(401, 'Your account has been locked due to suspicious activity. Please reset your password to unlock it.');
+            } else {
+                throw new AppError(401, 'Your account is not active. Please contact support for assistance.');
+            }
+        }
+
+        // Check if company is active (only for non-admin users)
+        if (user.company && user.role !== 'admin') {
+            if (user.company.status !== 'active') {
+                console.log(`Company not active: ${user.company.status}`);
+                
+                if (user.company.status === 'pending_verification') {
+                    throw new AppError(401, 'Your company is pending verification. You will be notified when verification is complete.');
+                } else if (user.company.status === 'rejected') {
+                    throw new AppError(401, 'Your company registration has been rejected. Please contact support for more information.');
+                } else if (user.company.status === 'suspended') {
+                    throw new AppError(401, 'Your company account has been suspended. Please contact support for assistance.');
+                } else {
+                    throw new AppError(401, 'Your company account is not active. Please contact support for assistance.');
+                }
+            }
         }
 
         // Generate tokens
         const { accessToken, refreshToken } = generateTokens(user.id);
 
-        // Store refresh token in Redis
+        // Store refresh token in Redis with longer expiry if "Remember me" is selected
+        const refreshTokenExpiry = rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60; // 30 days for "Remember me", 7 days default
+        
         await redisClient.set(`refresh_token:${user.id}`, refreshToken, {
-            EX: 7 * 24 * 60 * 60 // 7 days
+            EX: refreshTokenExpiry
         });
 
-        // Get IP location for security notification
-        const ipAddress = req.ip || req.socket.remoteAddress;
-        const lastLoginKey = `last_login_ip:${user.id}`;
-        const lastLoginIp = await redisClient.get(lastLoginKey); 
+        // Get device and location information for security notification
+        const userAgent = req.headers['user-agent'] || 'unknown';
+        const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
+        
+        // Create a device identifier from IP and user agent
+        const deviceId = require('crypto')
+            .createHash('md5')
+            .update(`${ipAddress}-${userAgent}`)
+            .digest('hex');
 
-        // If IP is different from last login, send notification
-        if (lastLoginIp !== ipAddress) {
-            await sendLoginNotificationEmail(user.email, new Date());
-            // Update last login IP
-            await redisClient.set(lastLoginKey, ipAddress || 'unknown', {
-                EX: 7 * 24 * 60 * 60 // 7 days
-            });
+        const deviceKey = `login_device:${user.id}:${deviceId}`;
+        const knownDevice = await redisClient.get(deviceKey);
+        
+        if (!knownDevice) {
+            try {
+                // Send notification about login from new device
+                await sendLoginNotificationEmail(
+                    user.email, 
+                    new Date(),
+                    {
+                        ipAddress,
+                        userAgent,
+                        timestamp: new Date().toISOString()
+                    }
+                );
+                
+                // Store this device as known for future logins
+                await redisClient.set(deviceKey, new Date().toISOString(), {
+                    EX: 90 * 24 * 60 * 60 // 90 days
+                });
+            } catch (emailError) {
+                // Log but don't fail the login if email notification fails
+                console.error('Failed to send login notification email:', emailError);
+            }
         }
 
+        // Record successful login
+        await redisClient.set(`last_login:${user.id}`, JSON.stringify({
+            timestamp: new Date().toISOString(),
+            ipAddress,
+            userAgent,
+            deviceId
+        }), {
+            EX: 90 * 24 * 60 * 60 // 90 days retention
+        });
+
+        console.log(`Login successful for user: ${user.id}`);
+        
+        // Return a response that includes all the fields the frontend expects
         res.status(200).json({
             status: 'success',
             data: {
                 userId: user.id,
-                companyId: user.company.id,
+                companyId: user.company?.id,
+                email: user.email,
                 role: user.role,
+                status: user.status,
+                firstName: user.metadata?.firstName || '',
+                lastName: user.metadata?.lastName || '',
                 accessToken,
-                refreshToken
+                refreshToken,
+                rememberMe
             }
         });
     } catch (error) {
+        console.error('Login error:', error);
         next(error);
     }
 };
 
 export const refreshToken = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { refreshToken } = req.body;
+        const { refreshToken, rememberMe } = req.body;
 
         if (!refreshToken) {
             throw new AppError(400, 'Refresh token is required');
@@ -191,15 +307,44 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
 
         // Generate new tokens
         const tokens = generateTokens(decoded.id);
+        
+        // Use the same "Remember me" preference that was set during login
+        // or use the current request's value if explicitly provided
+        const userPreferenceKey = `user_prefs:${decoded.id}`;
+        let shouldRemember = rememberMe;
+        
+        // If rememberMe wasn't provided in the request, try to get from stored preferences
+        if (shouldRemember === undefined) {
+            const userPrefs = await redisClient.get(userPreferenceKey);
+            if (userPrefs) {
+                try {
+                    const parsedPrefs = JSON.parse(userPrefs);
+                    shouldRemember = parsedPrefs.rememberMe || false;
+                } catch (e) {
+                    shouldRemember = false;
+                }
+            }
+        }
+        
+        // Store the preference for future token refreshes
+        await redisClient.set(userPreferenceKey, JSON.stringify({ rememberMe: shouldRemember }), {
+            EX: 30 * 24 * 60 * 60 // 30 days
+        });
+        
+        // Set appropriate expiry time based on "Remember me" preference
+        const refreshTokenExpiry = shouldRemember ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60; // 30 days vs 7 days
 
         // Update refresh token in Redis
         await redisClient.set(`refresh_token:${decoded.id}`, tokens.refreshToken, {
-            EX: 7 * 24 * 60 * 60 // 7 days
+            EX: refreshTokenExpiry
         });
 
         res.status(200).json({
             status: 'success',
-            data: tokens
+            data: {
+                ...tokens,
+                rememberMe: shouldRemember
+            }
         });
     } catch (error) {
         if (error instanceof jwt.JsonWebTokenError) {
@@ -368,4 +513,400 @@ export const generateInvitationCode = async (req: Request, res: Response, next: 
     } catch (error) {
         next(error);
     }
+};
+
+export const verifyEmail = async (req: Request, res: Response, next: NextFunction) => {
+    const userRepository = AppDataSource.getRepository(User);
+    
+    try {
+        const { token } = req.params;
+        
+        if (!token) {
+            throw new AppError(400, 'Verification token is missing');
+        }
+        
+        // Verify token
+        const decoded = jwt.verify(token, config.jwt.secret as jwt.Secret) as { id: string };
+        
+        // Check if verification token exists in Redis
+        const storedToken = await redisClient.get(`email_verification:${decoded.id}`);
+        if (!storedToken || storedToken !== token) {
+            throw new AppError(401, 'Invalid or expired verification token');
+        }
+        
+        // Find user
+        const user = await userRepository.findOne({ 
+            where: { id: decoded.id },
+            relations: ['company']
+        });
+        
+        if (!user) {
+            throw new AppError(404, 'User not found');
+        }
+        
+        // Mark user as verified
+        if (user.status === 'pending') {
+            user.status = 'active';
+            await userRepository.save(user);
+            
+            // Remove verification token from Redis
+            await redisClient.del(`email_verification:${decoded.id}`);
+            
+            return res.status(200).json({
+                status: 'success',
+                message: 'Email verified successfully. You can now log in to your account.',
+                redirectUrl: `${config.frontend.url}/auth/login`
+            });
+        }
+        
+        // If user is already active
+        return res.status(200).json({
+            status: 'success',
+            message: 'Email already verified. You can log in to your account.',
+            redirectUrl: `${config.frontend.url}/auth/login`
+        });
+        
+    } catch (error) {
+        if (error instanceof jwt.JsonWebTokenError) {
+            return res.status(401).json({
+                status: 'error',
+                message: 'Invalid or expired verification token',
+                redirectUrl: `${config.frontend.url}/auth/verification-failed`
+            });
+        }
+        next(error);
+    }
+};
+
+export const verifyCompany = async (req: Request, res: Response, next: NextFunction) => {
+    const companyRepository = AppDataSource.getRepository(Company);
+    const userRepository = AppDataSource.getRepository(User);
+
+    try {
+        // Check if the current user has admin privileges
+        if (!req.user || req.user.role !== 'admin') {
+            throw new AppError(403, 'Only administrators can verify companies');
+        }
+
+        const { companyId, status, reason } = req.body;
+
+        if (!['active', 'rejected'].includes(status)) {
+            throw new AppError(400, 'Invalid status value - must be "active" or "rejected"');
+        }
+
+        // Find the company
+        const company = await companyRepository.findOne({ 
+            where: { id: companyId } 
+        });
+
+        if (!company) {
+            throw new AppError(404, 'Company not found');
+        }
+
+        if (company.status !== 'pending_verification') {
+            throw new AppError(400, 'Company is not pending verification');
+        }
+
+        // Update company status
+        company.status = status;
+        await companyRepository.save(company);
+
+        // If approved, activate all pending users for this company
+        if (status === 'active') {
+            // Find company admin user
+            const adminUser = await userRepository.findOne({
+                where: { 
+                    company_id: companyId,
+                    role: 'admin',
+                    status: 'active' // Only notify users with verified emails
+                }
+            });
+
+            if (adminUser) {
+                // Send company approval notification
+                try {
+                    await sendCompanyApprovalNotification(adminUser.email, company.name);
+                } catch (error) {
+                    console.error('Failed to send company approval notification:', error);
+                    // Continue execution even if notification fails
+                }
+            }
+        } else if (status === 'rejected' && reason) {
+            // Find company admin to notify about rejection
+            const adminUser = await userRepository.findOne({
+                where: { 
+                    company_id: companyId,
+                    role: 'admin'
+                }
+            });
+
+            if (adminUser) {
+                // Send company rejection notification
+                try {
+                    await sendCompanyRejectionNotification(adminUser.email, company.name, reason);
+                } catch (error) {
+                    console.error('Failed to send company rejection notification:', error);
+                    // Continue execution even if notification fails
+                }
+            }
+        }
+
+        res.status(200).json({
+            status: 'success',
+            message: status === 'active' 
+                ? 'Company successfully verified and activated' 
+                : 'Company registration rejected',
+            data: {
+                companyId: company.id,
+                companyName: company.name,
+                status: company.status
+            }
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const registerEmployee = async (req: Request, res: Response, next: NextFunction) => {
+    const userRepository = AppDataSource.getRepository(User);
+    const companyRepository = AppDataSource.getRepository(Company);
+
+    try {
+        const { email, password, firstName, lastName, invitationCode, role = 'staff' } = req.body;
+
+        // Validate role
+        if (!['admin', 'manager', 'staff'].includes(role)) {
+            throw new AppError(400, 'Invalid role. Must be one of: admin, manager, staff');
+        }
+
+        // Check if user already exists
+        const existingUser = await userRepository.findOne({ where: { email } });
+        if (existingUser) {
+            throw new AppError(400, 'User with this email already exists');
+        }
+
+        // Validate invitation code and get company
+        const companyId = await redisClient.get(`invitation_code:${invitationCode}`);
+        if (!companyId) {
+            throw new AppError(400, 'Invalid or expired invitation code');
+        }
+
+        // Find company
+        const company = await companyRepository.findOne({ where: { id: companyId } });
+        if (!company) {
+            throw new AppError(404, 'Company not found');
+        }
+
+        // Check company status
+        if (company.status !== 'active') {
+            throw new AppError(400, 'Cannot join this company. The company account is not active.');
+        }
+
+        // Hash password
+        const salt = await bcrypt.genSalt(12);
+        const passwordHash = await bcrypt.hash(password, salt);
+
+        // Create user
+        const user = new User();
+        user.email = email;
+        user.password_hash = passwordHash;
+        user.role = role;
+        user.company = company;
+        user.company_id = company.id;
+        user.status = 'pending'; // User status starts as pending until email is verified
+        
+        // Add name to user metadata
+        user.metadata = {
+            firstName: firstName || '',
+            lastName: lastName || '',
+            invitedAt: new Date().toISOString()
+        };
+        
+        await userRepository.save(user);
+
+        // Generate email verification token
+        const emailVerificationToken = jwt.sign(
+            { id: user.id },
+            config.jwt.secret as jwt.Secret,
+            { expiresIn: '24h' }
+        );
+
+        // Store verification token in Redis
+        await redisClient.set(`email_verification:${user.id}`, emailVerificationToken, {
+            EX: 24 * 60 * 60 // 24 hours
+        });
+
+        // Send verification email
+        await sendVerificationEmail(user.email, emailVerificationToken);
+
+        // After successful use, remove the invitation code from Redis
+        // This prevents the code from being used multiple times
+        await redisClient.del(`invitation_code:${invitationCode}`);
+
+        res.status(201).json({
+            status: 'success',
+            data: {
+                userId: user.id,
+                companyId: company.id,
+                companyName: company.name,
+                message: 'Registration successful. Please check your email to verify your account.'
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const completeOAuthRegistration = async (req: Request, res: Response, next: NextFunction) => {
+    const userRepository = AppDataSource.getRepository(User);
+    const companyRepository = AppDataSource.getRepository(Company);
+
+    try {
+        const { tempUserId, company, userRole = 'admin' } = req.body;
+
+        if (!tempUserId) {
+            throw new AppError(400, 'Missing temporary user ID');
+        }
+
+        // Retrieve the OAuth profile data from Redis
+        const profileData = await redisClient.get(`oauth_profile:${tempUserId}`);
+        if (!profileData) {
+            throw new AppError(400, 'Registration session expired or invalid');
+        }
+
+        const profile = JSON.parse(profileData);
+        const email = profile.emails?.[0]?.value;
+
+        if (!email) {
+            throw new AppError(400, 'Email address is required');
+        }
+
+        // Check if user already exists (shouldn't happen but double-checking)
+        const existingUser = await userRepository.findOne({ where: { email } });
+        if (existingUser) {
+            throw new AppError(400, 'User with this email already exists');
+        }
+
+        // Check for duplicate company tax ID
+        if (company?.taxId) {
+            const existingCompany = await companyRepository.findOne({ 
+                where: { tax_id: company.taxId }
+            });
+            if (existingCompany) {
+                throw new AppError(400, 'A company with this tax ID is already registered');
+            }
+        }
+
+        // Create company with enhanced details
+        const newCompany = new Company();
+        newCompany.name = company.name;
+        newCompany.type = company.type;
+        newCompany.tax_id = company.taxId;
+        newCompany.business_license = company.businessLicense;
+        newCompany.address = company.address;
+        newCompany.business_category = company.businessCategory || '';
+        newCompany.employee_count = company.employeeCount || 0;
+        newCompany.year_established = company.yearEstablished || new Date().getFullYear();
+        newCompany.contact_phone = company.contactPhone;
+        newCompany.status = 'pending_verification'; // New companies need verification
+        newCompany.subscription_tier = 'free';
+        
+        await companyRepository.save(newCompany);
+
+        // Create user
+        const user = new User();
+        user.email = email;
+        user.password_hash = ''; // OAuth users don't have passwords
+        user.role = userRole;
+        user.company = newCompany;
+        user.company_id = newCompany.id;
+        user.status = 'active'; // OAuth users are automatically verified
+
+        // Add profile data to user metadata
+        const firstName = profile.firstName || '';
+        const lastName = profile.lastName || '';
+        
+        user.metadata = {
+            firstName,
+            lastName,
+            oauthProvider: profile.provider,
+            [`${profile.provider}Id`]: profile.id,
+            profilePictureUrl: profile.photos?.[0]?.value || null,
+            profileComplete: true,
+            registeredAt: new Date().toISOString()
+        };
+        
+        await userRepository.save(user);
+
+        // Generate tokens for automatic login
+        const { accessToken, refreshToken } = generateTokens(user.id);
+
+        // Store refresh token in Redis
+        await redisClient.set(`refresh_token:${user.id}`, refreshToken, {
+            EX: 7 * 24 * 60 * 60 // 7 days
+        });
+
+        // Remove the temporary profile data
+        await redisClient.del(`oauth_profile:${tempUserId}`);
+
+        // Send welcome email
+        await sendWelcomeEmail(user.email, company.name);
+
+        // Notify admin about new company registration
+        // TODO: Implement admin notification service
+
+        res.status(201).json({
+            status: 'success',
+            data: {
+                userId: user.id,
+                companyId: newCompany.id,
+                email: user.email,
+                role: user.role,
+                status: user.status,
+                firstName: user.metadata?.firstName || '',
+                lastName: user.metadata?.lastName || '',
+                accessToken,
+                refreshToken,
+                message: 'Registration successful. Your company registration is pending verification by our team.'
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const handleOAuthCallback = async (req: Request, res: Response) => {
+    if (!req.user) {
+        return res.redirect(`${config.frontend.url}/auth/error`);
+    }
+
+    const user = req.user as any;
+
+    // Check if the user needs to complete registration
+    if (user.needsRegistration) {
+        // Redirect to the registration completion page
+        return res.redirect(
+            `${config.frontend.url}/auth/complete-registration?` +
+            `tempUserId=${user.tempUserId}&` +
+            `email=${encodeURIComponent(user.email)}&` +
+            `provider=${user.provider}`
+        );
+    }
+
+    // Regular OAuth login - generate tokens
+    const { accessToken, refreshToken } = generateTokens(user.id);
+
+    // Store refresh token in Redis
+    await redisClient.set(`refresh_token:${user.id}`, refreshToken, {
+        EX: 7 * 24 * 60 * 60 // 7 days
+    });
+
+    // Redirect to the callback URL with tokens
+    res.redirect(
+        `${config.frontend.url}/auth/callback?` +
+        `tokens=${encodeURIComponent(JSON.stringify({ accessToken, refreshToken }))}&` +
+        `userId=${user.id}&` +
+        `email=${encodeURIComponent(user.email)}`
+    );
 };

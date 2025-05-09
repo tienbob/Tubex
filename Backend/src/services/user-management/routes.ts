@@ -25,7 +25,7 @@ const wrap = (handler: RequestHandlerWithAuth): RequestHandler =>
 
 /**
  * @swagger
- * /api/v1/company/users:
+ * /company/manage:
  *   get:
  *     summary: List all users in the company
  *     tags: [User Management]
@@ -45,7 +45,7 @@ router.get('/',
 
 /**
  * @swagger
- * /api/v1/company/users/audit-logs:
+ * /company/manage/audit-logs:
  *   get:
  *     summary: Get user management audit logs
  *     tags: [User Management]
@@ -65,7 +65,7 @@ router.get('/audit-logs',
 
 /**
  * @swagger
- * /api/v1/company/users/{userId}:
+ * /company/manage/{userId}:
  *   put:
  *     summary: Update user role and status
  *     tags: [User Management]
@@ -118,7 +118,7 @@ router.put(
 
 /**
  * @swagger
- * /api/v1/company/users/{userId}:
+ * /company/manage/{userId}:
  *   delete:
  *     summary: Remove user from company (soft delete)
  *     tags: [User Management]

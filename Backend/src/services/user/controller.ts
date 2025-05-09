@@ -5,7 +5,7 @@ import { User } from '../../database/models/sql';
 
 /**
  * @swagger
- * /api/v1/users:
+ * /users:
  *   get:
  *     summary: Get all users
  *     tags: [Users]
@@ -65,7 +65,7 @@ export const getAllUsers = async (req: Request, res: Response, next: NextFunctio
 
 /**
  * @swagger
- * /api/v1/users/{id}:
+ * /users/{id}:
  *   get:
  *     summary: Get a user by ID
  *     tags: [Users]
@@ -115,7 +115,7 @@ export const getUserById = async (req: Request, res: Response, next: NextFunctio
 
 /**
  * @swagger
- * /api/v1/users/{id}:
+ * /users/{id}:
  *   put:
  *     summary: Update a user
  *     tags: [Users]
@@ -190,7 +190,7 @@ export const updateUser = async (req: Request, res: Response, next: NextFunction
 
 /**
  * @swagger
- * /api/v1/users/{id}:
+ * /users/{id}:
  *   delete:
  *     summary: Delete a user
  *     tags: [Users]

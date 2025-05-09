@@ -8,8 +8,8 @@ import { User } from '../database/models/sql';
 // Define JWT payload interface
 interface JwtPayload {
     id: string;
-    iat: number;
-    exp: number;
+    iat?: number;
+    exp?: number;
 }
 
 export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
@@ -41,7 +41,8 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
             id: user.id,
             email: user.email,
             role: user.role,
-            companyId: user.company_id
+            companyId: user.company ? user.company.id : null,
+            companyType: user.company ? user.company.type : null
         };
 
         next();
@@ -54,6 +55,10 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     }
 };
 
+/**
+ * Role-based authorization middleware
+ * @param roles - Array of allowed user roles
+ */
 export const authorize = (...roles: string[]) => {
     return (req: Request, res: Response, next: NextFunction) => {
         // Use type assertion to safely access req.user
@@ -63,8 +68,37 @@ export const authorize = (...roles: string[]) => {
             throw new AppError(401, 'Authorization required');
         }
 
+        // Always allow admin users through, regardless of specified roles
+        if (userWithRole.role === 'admin') {
+            return next();
+        }
+
         if (!roles.includes(userWithRole.role)) {
-            throw new AppError(403, 'Access forbidden');
+            throw new AppError(403, 'Access forbidden: Insufficient role permissions');
+        }
+
+        next();
+    };
+};
+
+/**
+ * Company type authorization middleware
+ * @param companyTypes - Array of allowed company types
+ */
+export const authorizeCompanyType = (...companyTypes: string[]) => {
+    return (req: Request, res: Response, next: NextFunction) => {
+        const user = (req as any).user;
+        
+        if (!user) {
+            throw new AppError(401, 'Authorization required');
+        }
+
+        if (!user.companyType) {
+            throw new AppError(403, 'Company information not available');
+        }
+
+        if (!companyTypes.includes(user.companyType)) {
+            throw new AppError(403, 'Access forbidden: Company type not authorized for this operation');
         }
 
         next();

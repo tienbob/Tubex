@@ -7,9 +7,19 @@ import {
   forgotPassword, 
   resetPassword, 
   verifyInvitationCode,
-  generateInvitationCode 
+  generateInvitationCode,
+  verifyEmail,
+  verifyCompany,
+  registerEmployee,
+  completeOAuthRegistration,
+  handleOAuthCallback
 } from './controller';
-import { validateRegistration, validateLogin } from './validators';
+import { 
+  validateRegistration, 
+  validateLogin, 
+  validateEmployeeRegistration,
+  validateOAuthRegistrationCompletion
+} from './validators';
 import { authLimiter } from '../../middleware/rateLimiter';
 import { authenticate, authorize } from '../../middleware/auth';
 import { generateTokens } from './utils';
@@ -217,13 +227,7 @@ router.get('/google',
  */
 router.get('/google/callback',
   passport.authenticate('google', { session: false }),
-  (async (req, res) => {
-    if (!req.user) {
-      return res.redirect(`${config.frontend.url}/auth/error`);
-    }
-    const tokens = generateTokens(req.user.id);
-    res.redirect(`${config.frontend.url}/auth/callback?tokens=${JSON.stringify(tokens)}`);
-  }) as RequestHandler
+  handleOAuthCallback as RequestHandler
 );
 
 /**
@@ -255,14 +259,44 @@ router.get('/facebook',
  */
 router.get('/facebook/callback',
   passport.authenticate('facebook', { session: false }),
-  (async (req, res) => {
-    if (!req.user) {
-      return res.redirect(`${config.frontend.url}/auth/error`);
-    }
-    const tokens = generateTokens(req.user.id);
-    res.redirect(`${config.frontend.url}/auth/callback?tokens=${JSON.stringify(tokens)}`);
-  }) as RequestHandler
+  handleOAuthCallback as RequestHandler
 );
+
+/**
+ * @swagger
+ * /auth/complete-oauth-registration:
+ *   post:
+ *     summary: Complete registration process for OAuth users
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - tempUserId
+ *               - company
+ *             properties:
+ *               tempUserId:
+ *                 type: string
+ *               company:
+ *                 type: object
+ *                 required:
+ *                   - name
+ *                   - type
+ *                   - taxId
+ *                   - businessLicense
+ *                   - address
+ *               userRole:
+ *                 type: string
+ *                 enum: [admin, manager, staff]
+ *                 default: admin
+ *     responses:
+ *       201:
+ *         description: Registration completed successfully
+ */
+router.post('/complete-oauth-registration', authLimiter, validateOAuthRegistrationCompletion, completeOAuthRegistration as RequestHandler);
 
 /**
  * @swagger
@@ -312,5 +346,108 @@ router.get('/invitation-code/:code', verifyInvitationCode as RequestHandler);
  *         description: Authentication required
  */
 router.post('/invitation-code', authenticate, authorize('admin', 'manager'), generateInvitationCode as RequestHandler);
+
+/**
+ * @swagger
+ * /auth/verify-email/{token}:
+ *   get:
+ *     summary: Verify email with token
+ *     tags: [Authentication]
+ *     parameters:
+ *       - in: path
+ *         name: token
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Email verification token sent to user's email
+ *     responses:
+ *       200:
+ *         description: Email verified successfully
+ *       401:
+ *         description: Invalid or expired verification token
+ */
+router.get('/verify-email/:token', verifyEmail as RequestHandler);
+
+/**
+ * @swagger
+ * /auth/verify-company:
+ *   post:
+ *     summary: Verify a company registration (Admin only)
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - companyId
+ *               - status
+ *             properties:
+ *               companyId:
+ *                 type: string
+ *                 format: uuid
+ *               status:
+ *                 type: string
+ *                 enum: [active, rejected]
+ *               reason:
+ *                 type: string
+ *                 description: Required if status is rejected
+ *     responses:
+ *       200:
+ *         description: Company verification successful
+ *       400:
+ *         description: Invalid input or company is not pending verification
+ *       403:
+ *         description: Not authorized to verify companies
+ *       404:
+ *         description: Company not found
+ */
+router.post('/verify-company', authenticate, authorize('admin'), verifyCompany as RequestHandler);
+
+/**
+ * @swagger
+ * /auth/register-employee:
+ *   post:
+ *     summary: Register a new employee using invitation code
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - firstName
+ *               - lastName
+ *               - invitationCode
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 minLength: 8
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
+ *               invitationCode:
+ *                 type: string
+ *               role:
+ *                 type: string
+ *                 enum: [admin, manager, staff]
+ *                 default: staff
+ *     responses:
+ *       201:
+ *         description: Employee registration successful
+ *       400:
+ *         description: Invalid input or invitation code
+ */
+router.post('/register-employee', authLimiter, validateEmployeeRegistration, registerEmployee as RequestHandler);
 
 export const authRoutes = router;

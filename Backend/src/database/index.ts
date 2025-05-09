@@ -3,6 +3,9 @@ import mongoose from 'mongoose';
 import { AppDataSource } from './ormconfig';
 import { config } from '../config';
 
+// Re-export AppDataSource so it can be imported from './database'
+export { AppDataSource };
+
 // MongoDB connection
 export const connectMongoDB = async () => {
   try {
@@ -19,8 +22,8 @@ export const connectMongoDB = async () => {
   }
 };
 
-// Redis connection (silenced for now)
-// Using a dummy client that doesn't actually connect
+// Commenting out dummy Redis client - using real client instead
+/*
 export const redisClient = {
   connect: async () => Promise.resolve(),
   on: (event: string, callback: any) => {},
@@ -29,9 +32,9 @@ export const redisClient = {
   del: async () => {},
   disconnect: async () => Promise.resolve(),
 } as any;
+*/
 
-// Commenting out actual Redis client for now - will enable later
-/*
+// Using actual Redis client
 export const redisClient = createClient({
   socket: {
     host: config.dbConfig.redis.host,
@@ -46,7 +49,6 @@ redisClient.on('error', (err: Error) => {
   }
 });
 redisClient.on('connect', () => console.log('Redis connected successfully'));
-*/
 
 export const connectDatabases = async () => {
   try {
@@ -56,15 +58,50 @@ export const connectDatabases = async () => {
 
     try {
       // Initialize TypeORM connection
-      await AppDataSource.initialize();
-      console.log('PostgreSQL connected successfully via TypeORM');
-      postgresConnected = true;
+      if (AppDataSource.isInitialized) {
+        console.log('PostgreSQL connection already initialized');
+        postgresConnected = true;
+      } else {
+        await AppDataSource.initialize();
+        console.log('PostgreSQL connected successfully via TypeORM');
+        postgresConnected = true;
+      }
     } catch (error) {
       console.error('PostgreSQL connection error:', error);
       if (config.nodeEnv !== 'development') {
         throw error;
       }
       console.warn('Running in development mode without PostgreSQL connection');
+    }
+
+    // Add connection monitoring for TypeORM
+    if (postgresConnected) {
+      // Set up a periodic connection check
+      const connectionCheckInterval = setInterval(async () => {
+        try {
+          // Simple query to verify connection is alive
+          if (AppDataSource.isInitialized) {
+            await AppDataSource.query('SELECT 1');
+          }
+        } catch (err) {
+          console.error('PostgreSQL connection check failed:', err);
+          try {
+            if (AppDataSource.isInitialized) {
+              await AppDataSource.destroy();
+            }
+            await AppDataSource.initialize();
+            console.log('PostgreSQL connection restored successfully');
+          } catch (reconnectError) {
+            console.error('Failed to reconnect to PostgreSQL:', reconnectError);
+          }
+        }
+      }, 30000); // Check every 30 seconds
+      
+      // Clean up on process exit
+      process.on('SIGINT', () => {
+        clearInterval(connectionCheckInterval);
+        process.exit(0);
+      });
     }
 
     try {
@@ -77,23 +114,26 @@ export const connectDatabases = async () => {
     }
 
     try {
-      // Connect Redis (silenced for now)
+      // Connect Redis
       await redisClient.connect();
-      console.log('Redis connection silenced for development');
-      redisConnected = true;  // Setting to true since we're using a mock client
+      console.log('Redis connected successfully');
+      redisConnected = true;
     } catch (error) {
-      // This should never happen with mock client
-      console.error('Unexpected error with Redis mock:', error);
+      console.error('Redis connection error:', error);
       if (config.nodeEnv !== 'development') {
         throw error;
       }
+      console.warn('Running in development mode without Redis connection');
     }
 
     // Log connection status
-    console.log(`Database connections - PostgreSQL: ${postgresConnected}, MongoDB: ${mongoConnected}, Redis: ${redisConnected} (mock)`);
+    console.log(`Database connections - PostgreSQL: ${postgresConnected}, MongoDB: ${mongoConnected}, Redis: ${redisConnected}`);
     
     if (config.nodeEnv === 'development') {
-      console.log('Server starting in development mode - database connection failures will be tolerated');
+      // Even in development mode, PostgreSQL is essential for core functionality
+      if (!postgresConnected) {
+        console.warn('WARNING: PostgreSQL is not connected. Core functionality will not work properly.');
+      }
       return { postgresConnected, mongoConnected, redisConnected };
     } else if (!postgresConnected || !mongoConnected || !redisConnected) {
       throw new Error('Failed to connect to one or more required databases in production mode');
@@ -102,10 +142,6 @@ export const connectDatabases = async () => {
     return { postgresConnected, mongoConnected, redisConnected };
   } catch (error) {
     console.error('Database connection error:', error);
-    if (config.nodeEnv === 'development') {
-      console.warn('Running in development mode with database connection issues');
-      return { postgresConnected: false, mongoConnected: false, redisConnected: false };
-    }
-    process.exit(1);
+    throw error; // Rethrow to allow server.ts to handle it appropriately
   }
 };
