@@ -2,6 +2,9 @@
 
 A scalable B2B SaaS platform built to streamline the construction materials supply chain, featuring multi-tenant architecture, real-time inventory management, and comprehensive order tracking.
 
+## Project Overview
+Tubex is a comprehensive B2B SaaS platform designed for the construction materials industry, facilitating efficient transactions between suppliers and dealers.
+
 ## 🚀 Features
 
 - Multi-tenant architecture with dealer isolation
@@ -125,48 +128,107 @@ Backend/
 │   │   ├── ormconfig.ts # ORM configuration
 │   │   ├── migrations/ # Database schema migrations
 │   │   └── models/    # Data models
-│   │       ├── mongo/ # MongoDB schemas
-│   │       └── sql/   # SQL models (users, products, orders, warehouses)
+│   │       ├── mongo/ # MongoDB schemas (analytics, logs)
+│   │       └── sql/   # SQL models (core business data)
 │   ├── middleware/    # Custom middleware
-│   │   ├── auth.ts    # Authentication middleware
-│   │   ├── cache.ts   # Caching middleware
-│   │   ├── errorHandler.ts # Error handling
-│   │   ├── rateLimiter.ts # Rate limiting
-│   │   └── validation.ts # Input validation
+│   │   ├── adminAuth.ts # Admin authentication
+│   │   ├── auth.ts    # User authentication
+│   │   ├── cache.ts   # Redis caching
+│   │   ├── errorHandler.ts # Global error handling
+│   │   ├── rateLimiter.ts # API rate limiting
+│   │   └── validation.ts # Request validation
 │   ├── services/      # Business logic modules
-│   │   ├── auth/      # Authentication service
+│   │   ├── auth/      # Authentication & authorization
 │   │   ├── cache/     # Caching service
+│   │   ├── company-verification/ # Business verification
 │   │   ├── email/     # Email notifications
 │   │   ├── inventory/ # Inventory management
 │   │   ├── order/     # Order processing
-│   │   ├── product/   # Product management
-│   │   └── user/      # User management
+│   │   ├── product/   # Product catalog
+│   │   ├── user/      # Basic user operations
+│   │   ├── user-management/ # Advanced user features
+│   │   └── warehouse/ # Warehouse management
 │   └── types/         # TypeScript type definitions
-│       └── express.d.ts # Express extensions
+│       └── express.d.ts # Express type extensions
+├── scripts/          # Deployment & maintenance
+│   ├── docker-migrate.sh    # Container migrations
+│   ├── run_warehouse_migration.bat # Windows migrations
+│   ├── run_warehouse_migration.sh  # Unix migrations
+│   └── run-db-migrations.sh # Database migrations
 └── tests/
     ├── e2e/          # End-to-end tests
     ├── integration/  # API integration tests
     └── unit/         # Unit tests
+
 Frontend/
-├── app/
+└── app/
     └── src/
         ├── App.tsx           # Main application component
         ├── index.tsx         # Entry point
         ├── components/       # Reusable UI components
-        │   └── whitelabel/   # Multi-tenant white-labeling
-        ├── config/           # Frontend configuration
-        ├── contexts/         # React context providers
-        ├── hooks/            # Custom React hooks
-        ├── services/         # API and utility services
-        │   └── api/          # Backend API clients
-        │       ├── apiClient.ts     # Base API client
-        │       ├── authService.ts   # Authentication API
+        │   ├── admin/       # Admin dashboard components
+        │   ├── auth/        # Authentication components
+        │   ├── common/      # Shared components
+        │   ├── dashboard/   # User dashboard components
+        │   ├── inventory/   # Inventory management UI
+        │   ├── orders/      # Order management UI
+        │   ├── products/    # Product catalog UI
+        │   └── whitelabel/  # Multi-tenant customization
+        ├── config/          # Frontend configuration
+        ├── contexts/        # React context providers
+        │   ├── AuthContext.tsx    # Authentication state
+        │   ├── ThemeContext.tsx   # Theming state
+        │   └── UserContext.tsx    # User state
+        ├── hooks/           # Custom React hooks
+        │   ├── useAuth.ts         # Authentication hooks
+        │   ├── useForm.ts         # Form handling
+        │   └── useTheme.ts        # Theming hooks
+        ├── services/        # API and utility services
+        │   └── api/         # Backend API clients
+        │       ├── apiClient.ts      # Base API client
+        │       ├── authService.ts    # Authentication API
+        │       ├── companyService.ts # Company API
+        │       ├── inventoryService.ts # Inventory API
+        │       ├── orderService.ts   # Order API
         │       ├── productService.ts # Product API
-        │       ├── orderService.ts  # Order API
-        │       └── inventoryService.ts # Inventory API
-        ├── styles/           # Global styles and themes
-        └── types/            # TypeScript type definitions
+        │       └── warehouseService.ts # Warehouse API
+        ├── styles/          # Global styles and themes
+        │   ├── theme/      # Theme configurations
+        │   └── global.css  # Global CSS
+        └── types/          # TypeScript type definitions
+            ├── api.ts      # API interfaces
+            ├── models.ts   # Data models
+            └── utils.ts    # Utility types
 ```
+
+## Current Project Status
+As of May 2025:
+
+### Backend (Node.js/TypeScript)
+- ✅ Core infrastructure setup (Docker, databases)
+- ✅ Authentication system
+- ✅ User management
+- ✅ Inventory management
+- ✅ Order processing
+- ✅ Company verification system
+- ✅ Caching layer implementation
+- ✅ Email service integration
+- 🚧 Warehouse management system (In Progress)
+- 🚧 Product management system (In Progress)
+
+### Frontend (React)
+- ✅ Project scaffolding with Create React App
+- ✅ Basic component structure
+- ✅ API service integration
+- ✅ State management setup
+- 🚧 Product management UI (In Progress)
+- 🚧 User management interface (In Progress)
+
+### Infrastructure
+- ✅ Docker containerization
+- ✅ Database setup (PostgreSQL, MongoDB, Redis)
+- ✅ Migration system
+- 🚧 CI/CD pipeline (In Progress)
 
 ## 📊 Project Status
 
@@ -193,6 +255,15 @@ Upcoming:
 - 📅 Business intelligence dashboard
 - 📅 Mobile app deployment to app stores
 
+## Repository Structure
+- `/Backend` - Node.js/TypeScript backend services
+- `/Frontend` - React-based web application
+- `/Doc` - Project documentation (EN/VN)
+  - Technical documentation
+  - User stories
+  - Architecture documents
+  - Maintenance guides
+
 ## 📚 Documentation
 
 Comprehensive documentation is available in the `Doc` directory:
@@ -200,6 +271,13 @@ Comprehensive documentation is available in the `Doc` directory:
 - Business Requirements Document (BRD)
 - Product Requirements Document (PRD)
 - API Documentation (available at `/api-docs` when running the server)
+
+## Documentation
+- [Business Requirements Document](Doc/EN/Tubex_BRD.md)
+- [Product Requirements Document](Doc/EN/Tubex_PRD.md)
+- [Technical Design Document](Doc/EN/Tubex_TDD.md)
+- [Warehouse Service Architecture](Doc/EN/Warehouse_Service_Architecture.md)
+- [Backend Maintenance Guide](Doc/EN/Backend_Maintenance.md)
 
 ## 🧪 Running Tests
 
