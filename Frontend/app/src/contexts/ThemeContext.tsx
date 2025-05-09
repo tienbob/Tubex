@@ -12,6 +12,7 @@ export interface Theme {
   companyName: string;
   fontFamily?: string;
   borderRadius?: number;
+  buttonRadius?: number;
 }
 
 // Define context type

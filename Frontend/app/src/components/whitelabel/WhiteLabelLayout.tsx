@@ -50,26 +50,43 @@ const WhiteLabelLayout: React.FC<WhiteLabelLayoutProps> = ({
   // If auth is required but user is not authenticated, you could redirect here
   // or show a login prompt component instead of the requested page
   if (requireAuth && !isAuthenticated) {
-    // In a real app, you might redirect to login page or show a login component
-    // For this example, we'll just render a message
     return (
-      <Box className="wl-page-container">
+      <Box sx={{ 
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100vh'
+      }}>
         <WhiteLabelStyleInjector />
         {showHeader && <WhiteLabelHeader />}
-        <Container maxWidth={maxWidth} className="wl-content">
+        <Container 
+          maxWidth={maxWidth} 
+          sx={{ 
+            flex: '1 0 auto',
+            display: 'flex',
+            flexDirection: 'column',
+            py: 3
+          }}
+        >
           <Box sx={{ textAlign: 'center', py: 4 }}>
             <h2>Authentication Required</h2>
             <p>You need to be logged in to access this page.</p>
-            {/* A login button or form could be added here */}
           </Box>
         </Container>
-        {showFooter && <WhiteLabelFooter />}
+        {showFooter && (
+          <Box component="footer" sx={{ flexShrink: 0 }}>
+            <WhiteLabelFooter />
+          </Box>
+        )}
       </Box>
     );
   }
 
   return (
-    <Box className="wl-page-container">
+    <Box sx={{ 
+      display: 'flex',
+      flexDirection: 'column',
+      minHeight: '100vh'
+    }}>
       {/* Inject CSS variables for theme */}
       <WhiteLabelStyleInjector />
       
@@ -77,12 +94,24 @@ const WhiteLabelLayout: React.FC<WhiteLabelLayoutProps> = ({
       {showHeader && <WhiteLabelHeader />}
       
       {/* Main content */}
-      <Container maxWidth={maxWidth} className="wl-content">
+      <Container 
+        maxWidth={maxWidth} 
+        sx={{ 
+          flex: '1 0 auto',
+          display: 'flex',
+          flexDirection: 'column',
+          py: 3
+        }}
+      >
         {children}
       </Container>
       
       {/* Footer */}
-      {showFooter && <WhiteLabelFooter />}
+      {showFooter && (
+        <Box component="footer" sx={{ flexShrink: 0 }}>
+          <WhiteLabelFooter />
+        </Box>
+      )}
     </Box>
   );
 };

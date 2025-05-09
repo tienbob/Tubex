@@ -1,155 +1,519 @@
-import { get, post, put, patch, del } from './apiClient';
+import { get, post, put, patch } from './apiClient';
+import { AxiosError } from 'axios';
+import { API_BASE_URL } from '../../config';
 
-interface Inventory {
+// Custom error class for API errors
+export class ApiError extends Error {
+  status: number;
+  data: any;
+  
+  constructor(message: string, status: number, data?: any) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.data = data;
+  }
+}
+
+export interface PaginationParams {
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortDirection?: 'asc' | 'desc';
+}
+
+export interface InventoryItem {
   id: string;
   product_id: string;
-  warehouse_id: string;
-  company_id: string;
   quantity: number;
-  minimum_stock: number;
+  batch_number?: string;
+  location?: string;
+  company_id: string;
+  warehouse_id: string;
+  expiry_date?: string;
+  created_at: string;
+  updated_at: string;
+  min_threshold?: number;
+  max_threshold?: number;
+  reorder_point?: number;
+  reorder_quantity?: number;
+  auto_reorder?: boolean;
   product?: {
-    id: string;
     name: string;
-    description: string;
-    base_price: number;
-    unit: string;
+    sku: string;
   };
   warehouse?: {
-    id: string;
     name: string;
-    location: string;
   };
-  batches?: Batch[];
 }
 
-interface Batch {
-  id: string;
-  inventory_id: string;
-  batch_number: string;
-  production_date: string;
-  expiry_date: string;
-  quantity: number;
-  cost_price: number;
-}
-
-interface InventoryResponse {
-  status: string;
-  data: Inventory;
-}
-
-interface InventoryListResponse {
-  status: string;
-  data: Inventory[];
-}
-
-interface InventoryCreateRequest {
+export interface InventoryCreateInput {
   product_id: string;
   warehouse_id: string;
   quantity: number;
-  minimum_stock?: number;
+  unit: string;
+  min_threshold?: number;
+  max_threshold?: number;
+  reorder_point?: number;
+  reorder_quantity?: number;
+  auto_reorder?: boolean;
 }
 
-interface InventoryUpdateRequest {
-  warehouse_id?: string;
-  quantity?: number;
-  minimum_stock?: number;
-}
-
-interface InventoryAdjustRequest {
-  quantity: number;
+export interface StockAdjustment {
+  adjustment: number;
   reason: string;
+  batch_number?: string;
+  manufacturing_date?: string;
+  expiry_date?: string;
 }
 
-interface InventoryTransferRequest {
-  from_warehouse_id: string;
-  to_warehouse_id: string;
+export interface StockTransfer {
+  source_warehouse_id: string;
+  target_warehouse_id: string;
   product_id: string;
   quantity: number;
+  batch_numbers?: string[];
 }
 
-/**
- * Service for handling inventory-related API calls
- */
-const inventoryService = {
-  /**
-   * Get all inventory items for a company
-   */
-  getInventory: async (companyId: string): Promise<InventoryListResponse> => {
-    const response = await get<InventoryListResponse>(`/inventory/company/${companyId}`);
-    return response.data;
+export interface GetInventoryParams {
+  companyId: string;
+  page?: number;
+  limit?: number;
+  warehouseId?: string;
+  sortBy?: string;
+  sortDirection?: 'asc' | 'desc';
+}
+
+export interface ApiResponse<T> {
+  data: T;
+  pagination?: {
+    total: number;
+    page: number;
+    limit: number;
+  };
+}
+
+export interface LowStockItem {
+  product_id: string;
+  product_name: string;
+  current_quantity: number;
+  threshold: number;
+  warehouse_id: string;
+  warehouse_name: string;
+}
+
+export interface ExpiringBatchItem {
+  batch_id: string;
+  batch_number: string;
+  product_id: string;
+  product_name: string;
+  expiry_date: string;
+  remaining_days: number;
+  quantity: number;
+  warehouse_id: string;
+  warehouse_name: string;
+}
+
+export interface InventoryTransferRequest {
+  product_id: string;
+  source_warehouse_id: string;
+  destination_warehouse_id: string;
+  batch_id?: string;
+  quantity: number;
+  notes?: string;
+}
+
+export interface InventoryAuditLog {
+  id: string;
+  inventory_id: string;
+  product_id: string;
+  warehouse_id: string;
+  previous_quantity: number;
+  new_quantity: number;
+  change_type: 'addition' | 'reduction' | 'transfer_in' | 'transfer_out' | 'adjustment';
+  reference_id?: string;
+  created_by: string;
+  created_at: string;
+}
+
+export const inventoryService = {
+  async getInventory(params: GetInventoryParams): Promise<ApiResponse<InventoryItem[]>> {
+    try {
+      // Input validation
+      if (!params.companyId) {
+        throw new Error('Company ID is required');
+      }
+      
+      if (params.page && params.page < 1) {
+        throw new Error('Page number must be greater than 0');
+      }
+      
+      if (params.limit && (params.limit < 1 || params.limit > 100)) {
+        throw new Error('Limit must be between 1 and 100');
+      }
+      
+      const { companyId, warehouseId, page, limit, sortBy, sortDirection } = params;
+      const endpoint = `/inventory/company/${companyId}${warehouseId ? `/warehouse/${warehouseId}` : ''}`;
+      
+      const response = await get<ApiResponse<InventoryItem[]>>(endpoint, {
+        params: { page, limit, sortBy, sortDirection }
+      });
+      
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || 'Failed to fetch inventory data',
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
   },
 
-  /**
-   * Get inventory items for a specific warehouse
-   */
-  getWarehouseInventory: async (companyId: string, warehouseId: string): Promise<InventoryListResponse> => {
-    const response = await get<InventoryListResponse>(`/inventory/company/${companyId}/warehouse/${warehouseId}`);
-    return response.data;
+  async getInventoryItem(id: string): Promise<ApiResponse<InventoryItem>> {
+    try {
+      if (!id || typeof id !== 'string') {
+        throw new Error('Valid inventory item ID is required');
+      }
+      
+      const response = await get<ApiResponse<InventoryItem>>(`/inventory/${id}`);
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || `Failed to fetch inventory item: ${id}`,
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
   },
 
-  /**
-   * Get a specific inventory item
-   */
-  getInventoryItem: async (companyId: string, id: string): Promise<InventoryResponse> => {
-    const response = await get<InventoryResponse>(`/inventory/company/${companyId}/item/${id}`);
-    return response.data;
+  async createInventoryItem(data: InventoryCreateInput): Promise<ApiResponse<InventoryItem>> {
+    try {
+      // Input validation
+      if (!data.product_id) {
+        throw new Error('Product ID is required');
+      }
+      
+      if (!data.warehouse_id) {
+        throw new Error('Warehouse ID is required');
+      }
+      
+      if (data.quantity < 0) {
+        throw new Error('Quantity cannot be negative');
+      }
+      
+      const response = await post<ApiResponse<InventoryItem>>('/inventory', data);
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || 'Failed to create inventory item',
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
   },
 
-  /**
-   * Create a new inventory item
-   */
-  createInventoryItem: async (companyId: string, data: InventoryCreateRequest): Promise<InventoryResponse> => {
-    const response = await post<InventoryResponse>(`/inventory/company/${companyId}`, data);
-    return response.data;
+  async updateInventoryItem(id: string, data: Partial<InventoryCreateInput>): Promise<ApiResponse<InventoryItem>> {
+    try {
+      if (!id || typeof id !== 'string') {
+        throw new Error('Valid inventory item ID is required');
+      }
+      
+      // Input validation for quantity if provided
+      if (data.quantity !== undefined && data.quantity < 0) {
+        throw new Error('Quantity cannot be negative');
+      }
+      
+      const response = await put<ApiResponse<InventoryItem>>(`/inventory/${id}`, data);
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || `Failed to update inventory item: ${id}`,
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
   },
 
-  /**
-   * Update an inventory item
-   */
-  updateInventoryItem: async (companyId: string, id: string, data: InventoryUpdateRequest): Promise<InventoryResponse> => {
-    const response = await put<InventoryResponse>(`/inventory/company/${companyId}/item/${id}`, data);
-    return response.data;
+  async adjustInventoryQuantity(companyId: string, id: string, data: StockAdjustment): Promise<ApiResponse<InventoryItem>> {
+    try {
+      if (!companyId) {
+        throw new Error('Company ID is required');
+      }
+      
+      if (!id || typeof id !== 'string') {
+        throw new Error('Valid inventory item ID is required');
+      }
+      
+      if (!data.reason || data.reason.trim() === '') {
+        throw new Error('Adjustment reason is required');
+      }
+      
+      const response = await patch<ApiResponse<InventoryItem>>(
+        `/inventory/company/${companyId}/item/${id}/adjust`,
+        data
+      );
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || `Failed to adjust inventory quantity for item: ${id}`,
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
   },
 
-  /**
-   * Adjust inventory quantity
-   */
-  adjustInventoryQuantity: async (companyId: string, id: string, data: InventoryAdjustRequest): Promise<InventoryResponse> => {
-    const response = await patch<InventoryResponse>(`/inventory/company/${companyId}/item/${id}/adjust`, data);
-    return response.data;
+  async getWarehouses(companyId: string): Promise<ApiResponse<Array<{ id: string; name: string }>>> {
+    try {
+      if (!companyId) {
+        throw new Error('Company ID is required');
+      }
+      
+      const response = await get<ApiResponse<Array<{ id: string; name: string }>>>(`/warehouses/company/${companyId}`);
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || 'Failed to fetch warehouses',
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
   },
 
-  /**
-   * Delete inventory item
-   */
-  deleteInventoryItem: async (companyId: string, id: string): Promise<any> => {
-    const response = await del<any>(`/inventory/company/${companyId}/item/${id}`);
-    return response.data;
+  async transferStock(data: StockTransfer): Promise<ApiResponse<InventoryItem>> {
+    try {
+      // Input validation
+      if (!data.source_warehouse_id) {
+        throw new Error('Source warehouse ID is required');
+      }
+      
+      if (!data.target_warehouse_id) {
+        throw new Error('Target warehouse ID is required');
+      }
+      
+      if (!data.product_id) {
+        throw new Error('Product ID is required');
+      }
+      
+      if (data.quantity <= 0) {
+        throw new Error('Transfer quantity must be greater than 0');
+      }
+      
+      if (data.source_warehouse_id === data.target_warehouse_id) {
+        throw new Error('Source and target warehouses cannot be the same');
+      }
+      
+      const response = await post<ApiResponse<InventoryItem>>('/inventory/transfer', data);
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || 'Failed to transfer stock',
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
   },
 
-  /**
-   * Check low stock items
-   */
-  checkLowStock: async (companyId: string): Promise<InventoryListResponse> => {
-    const response = await get<InventoryListResponse>(`/inventory/company/${companyId}/low-stock`);
-    return response.data;
+  async getInventorySummary(companyId: string): Promise<ApiResponse<any>> {
+    try {
+      if (!companyId) {
+        throw new Error('Company ID is required');
+      }
+      
+      const response = await get<ApiResponse<any>>(`/inventory/company/${companyId}/summary`);
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || 'Failed to fetch inventory summary',
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
   },
 
-  /**
-   * Get expiring batches
-   */
-  getExpiringBatches: async (companyId: string): Promise<any> => {
-    const response = await get<any>(`/inventory/company/${companyId}/expiring-batches`);
-    return response.data;
+  async getLowStockAlerts(companyId: string): Promise<ApiResponse<InventoryItem[]>> {
+    try {
+      if (!companyId) {
+        throw new Error('Company ID is required');
+      }
+      
+      const response = await get<ApiResponse<InventoryItem[]>>(`/inventory/company/${companyId}/low-stock`);
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || 'Failed to fetch low stock alerts',
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
+  },
+  adjustInventory(inventoryId: string, adjustmentData: { adjustment: number; reason: string; reference?: string }): Promise<ApiResponse<void>> {
+    return post(`/inventory/${inventoryId}/adjust`, adjustmentData);
   },
 
-  /**
-   * Transfer stock between warehouses
-   */
-  transferStock: async (companyId: string, data: InventoryTransferRequest): Promise<any> => {
-    const response = await post<any>(`/inventory/company/${companyId}/transfer`, data);
-    return response.data;
+  async getLowStockItems(companyId: string): Promise<ApiResponse<LowStockItem[]>> {
+    try {
+      if (!companyId) {
+        throw new Error('Company ID is required');
+      }
+      
+      const response = await get<ApiResponse<LowStockItem[]>>(`/inventory/company/${companyId}/low-stock`);
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || 'Failed to fetch low stock items',
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
+  },
+  
+  async getExpiringBatches(companyId: string, daysThreshold: number = 30): Promise<ApiResponse<ExpiringBatchItem[]>> {
+    try {
+      if (!companyId) {
+        throw new Error('Company ID is required');
+      }
+      
+      const response = await get<ApiResponse<ExpiringBatchItem[]>>(
+        `/inventory/company/${companyId}/expiring-batches`, 
+        { params: { days: daysThreshold } }
+      );
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || 'Failed to fetch expiring batches',
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
+  },
+  
+  async transferInventory(data: InventoryTransferRequest): Promise<ApiResponse<InventoryItem>> {
+    try {
+      if (!data.product_id) {
+        throw new Error('Product ID is required');
+      }
+      
+      if (!data.source_warehouse_id) {
+        throw new Error('Source warehouse ID is required');
+      }
+      
+      if (!data.destination_warehouse_id) {
+        throw new Error('Destination warehouse ID is required');
+      }
+      
+      if (data.quantity <= 0) {
+        throw new Error('Transfer quantity must be greater than 0');
+      }
+      
+      if (data.source_warehouse_id === data.destination_warehouse_id) {
+        throw new Error('Source and destination warehouses cannot be the same');
+      }
+      
+      const response = await post<ApiResponse<InventoryItem>>('/inventory/transfer', data);
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || 'Failed to transfer inventory',
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
+  },
+  
+  async getInventoryAuditLog(inventoryId: string, params: PaginationParams = {}): Promise<ApiResponse<InventoryAuditLog[]>> {
+    try {
+      if (!inventoryId) {
+        throw new Error('Inventory ID is required');
+      }
+      
+      const response = await get<ApiResponse<InventoryAuditLog[]>>(
+        `/inventory/${inventoryId}/audit-log`,
+        { params }
+      );
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || 'Failed to fetch inventory audit log',
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
+  },
+  
+  async getProductInventorySummary(productId: string): Promise<ApiResponse<{
+    product_id: string;
+    product_name: string;
+    total_quantity: number;
+    locations: {
+      warehouse_id: string;
+      warehouse_name: string;
+      quantity: number;
+    }[];
+  }>> {
+    try {
+      if (!productId) {
+        throw new Error('Product ID is required');
+      }
+      
+      const response = await get<ApiResponse<{
+        product_id: string;
+        product_name: string;
+        total_quantity: number;
+        locations: {
+          warehouse_id: string;
+          warehouse_name: string;
+          quantity: number;
+        }[];
+      }>>(`/inventory/product/${productId}/summary`);
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || 'Failed to fetch product inventory summary',
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
   }
-};
-
-export default inventoryService;
+}

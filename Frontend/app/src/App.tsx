@@ -4,111 +4,55 @@ import {
   WhiteLabelLayout,
   WhiteLabelProvider
 } from './components/whitelabel';
-import { ThemeProvider } from './contexts/ThemeContext';
-import { AuthProvider } from './contexts/AuthContext';
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import AuthRoute from './components/auth/AuthRoute';
 
-// Component imports
-import LoginForm from './components/auth/LoginForm';
-import RegisterForm from './components/auth/RegisterForm';
-import ProductList from './components/products/ProductList';
-import ProtectedRoute from './components/routing/ProtectedRoute';
-import AdminEmployeeVerification from './components/admin/AdminEmployeeVerification';
+// Pages
+import Dashboard from './pages/Dashboard';
+import ProductManagement from './pages/ProductManagement';
+import InventoryManagement from './pages/InventoryManagement';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import Join from './pages/Join';
+import PendingApproval from './pages/PendingApproval';
 
-// Page component imports
-import LandingPage from './components/pages/LandingPage';
-import Home from './components/pages/Home';
-import Unauthorized from './components/pages/Unauthorized';
-import PageNotFound from './components/pages/PageNotFound';
-import Orders from './components/pages/Orders';
-import Inventory from './components/pages/Inventory';
+// Create a client
+const queryClient = new QueryClient();
 
-function App() {
+const App: React.FC = () => {
   return (
-    <BrowserRouter>
-      <ThemeProvider>
-        <AuthProvider>
-          <WhiteLabelProvider>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <WhiteLabelProvider>
+          <WhiteLabelLayout>
             <Routes>
-              {/* Public routes */}
-              <Route path="/" element={
-                <WhiteLabelLayout>
-                  <LandingPage />
-                </WhiteLabelLayout>
-              } />
-            
-              <Route path="/login" element={
-                <WhiteLabelLayout>
-                  <LoginForm />
-                </WhiteLabelLayout>
-              } />
+              {/* Authentication Routes (accessible only when not logged in) */}
+              <Route path="/login" element={<AuthRoute><Login /></AuthRoute>} />
+              <Route path="/register" element={<AuthRoute><Register /></AuthRoute>} />
+              <Route path="/forgot-password" element={<AuthRoute><ForgotPassword /></AuthRoute>} />
+              <Route path="/reset-password" element={<AuthRoute><ResetPassword /></AuthRoute>} />
+              <Route path="/join" element={<AuthRoute><Join /></AuthRoute>} />
+              <Route path="/register/employee" element={<AuthRoute><Join /></AuthRoute>} />
+              <Route path="/auth/pending-approval" element={<PendingApproval />} />
+              <Route path="/auth/oauth-callback" element={<AuthRoute><Login /></AuthRoute>} />
+                {/* Protected Routes (require authentication) */}
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/products" element={<ProtectedRoute><ProductManagement /></ProtectedRoute>} />
+              <Route path="/inventory" element={<ProtectedRoute><InventoryManagement /></ProtectedRoute>} />
               
-              <Route path="/register" element={
-                <WhiteLabelLayout>
-                  <RegisterForm />
-                </WhiteLabelLayout>
-              } />
-              
-              <Route path="/unauthorized" element={
-                <WhiteLabelLayout>
-                  <Unauthorized />
-                </WhiteLabelLayout>
-              } />
-              
-              {/* Protected routes */}
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <WhiteLabelLayout>
-                    <Home />
-                  </WhiteLabelLayout>
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/products" element={
-                <ProtectedRoute>
-                  <WhiteLabelLayout>
-                    <ProductList />
-                  </WhiteLabelLayout>
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/orders" element={
-                <ProtectedRoute>
-                  <WhiteLabelLayout>
-                    <Orders />
-                  </WhiteLabelLayout>
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/inventory" element={
-                <ProtectedRoute role={["dealer", "supplier"]}>
-                  <WhiteLabelLayout>
-                    <Inventory />
-                  </WhiteLabelLayout>
-                </ProtectedRoute>
-              } />
-              
-              {/* Admin routes */}
-              <Route path="/admin/employee-verification" element={
-                <ProtectedRoute role="admin">
-                  <WhiteLabelLayout>
-                    <AdminEmployeeVerification />
-                  </WhiteLabelLayout>
-                </ProtectedRoute>
-              } />
-              
-              {/* Catch all route - 404 */}
-              <Route path="*" element={
-                <WhiteLabelLayout>
-                  <PageNotFound />
-                </WhiteLabelLayout>
-              } />
+              {/* Fallback for unmatched routes - redirect to login */}
+              <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
-          </WhiteLabelProvider>
-        </AuthProvider>
-      </ThemeProvider>
-    </BrowserRouter>
+          </WhiteLabelLayout>
+        </WhiteLabelProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
-}
+};
 
 export default App;

@@ -1,26 +1,64 @@
 import { get, post, put, del } from './apiClient';
+import { AxiosError } from 'axios';
 
-interface Product {
+// Custom error class for API errors
+export class ApiError extends Error {
+  status: number;
+  data: any;
+  
+  constructor(message: string, status: number, data?: any) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.data = data;
+  }
+}
+
+export interface Product {
   id: string;
   name: string;
   description: string;
   base_price: number;
   unit: string;
   supplier_id: string;
-  status: 'active' | 'inactive';
-  supplier?: {
-    id: string;
-    name: string;
+  status: 'active' | 'inactive' | 'out_of_stock';
+  created_at: string;
+  updated_at: string;
+  sku?: string;
+  dimensions?: {
+    length: number;
+    width: number;
+    height: number;
   };
+  inventory?: {
+    quantity: number;
+    lowStockThreshold: number;
+  };
+  images?: string[];
+  specifications?: Record<string, string>;
 }
 
-interface ProductResponse {
-  status: string;
-  data: Product;
+export interface ProductCreateInput {
+  name: string;
+  description: string;
+  base_price: number;
+  unit: string;
+  supplier_id: string;
+  status?: 'active' | 'inactive' | 'out_of_stock';
 }
 
-interface ProductsListResponse {
-  products: Product[];
+export interface ProductUpdateInput extends Partial<ProductCreateInput> {}
+
+export interface ProductListParams {
+  page?: number;
+  limit?: number;
+  supplier_id?: string;
+  status?: string;
+  search?: string;
+}
+
+export interface PaginationResponse<T> {
+  products: T[];
   pagination: {
     total: number;
     page: number;
@@ -29,73 +67,257 @@ interface ProductsListResponse {
   };
 }
 
-interface ProductCreateRequest {
+export interface ProductCategory {
+  id: string;
   name: string;
-  description: string;
-  base_price: number;
-  unit: string;
-  supplier_id: string;
-  status?: 'active' | 'inactive';
-}
-
-interface ProductUpdateRequest {
-  name?: string;
   description?: string;
-  base_price?: number;
-  unit?: string;
-  status?: 'active' | 'inactive';
+  created_at: string;
+  updated_at: string;
 }
 
-/**
- * Service for handling product-related API calls
- */
-const productService = {
-  /**
-   * Get all products with pagination and filtering
-   */
-  getProducts: async (
-    params: {
-      page?: number;
-      limit?: number;
-      supplier_id?: string;
-      status?: string;
-    } = {}
-  ): Promise<ProductsListResponse> => {
-    const response = await get<ProductsListResponse>('/products', { params });
-    return response.data;
+export interface ProductPriceHistory {
+  id: string;
+  product_id: string;
+  price: number;
+  effective_date: string;
+  created_by: string;
+}
+
+export interface PriceHistoryResponse {
+  status: string;
+  data: ProductPriceHistory[];
+  pagination?: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export const productService = {
+  async getProducts(params: ProductListParams = {}): Promise<PaginationResponse<Product>> {
+    try {
+      // Input validation
+      if (params.page && params.page < 1) {
+        throw new Error('Page number must be greater than 0');
+      }
+      
+      if (params.limit && (params.limit < 1 || params.limit > 100)) {
+        throw new Error('Limit must be between 1 and 100');
+      }
+      
+      const queryParams = {
+        page: params.page || 1,
+        limit: params.limit || 10,
+        supplier_id: params.supplier_id,
+        status: params.status,
+        search: params.search
+      };
+      
+      const response = await get<PaginationResponse<Product>>('/products', { params: queryParams });
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || 'Failed to fetch products',
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
   },
 
-  /**
-   * Get a single product by ID
-   */
-  getProductById: async (id: string): Promise<ProductResponse> => {
-    const response = await get<ProductResponse>(`/products/${id}`);
-    return response.data;
+  async getProduct(id: string): Promise<Product> {
+    try {
+      if (!id || typeof id !== 'string') {
+        throw new Error('Valid product ID is required');
+      }
+      
+      const response = await get<{data: Product}>(`/products/${id}`);
+      return response.data.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || `Failed to fetch product: ${id}`,
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
   },
 
-  /**
-   * Create a new product (suppliers only)
-   */
-  createProduct: async (productData: ProductCreateRequest): Promise<ProductResponse> => {
-    const response = await post<ProductResponse>('/products', productData);
-    return response.data;
+  async createProduct(data: ProductCreateInput): Promise<Product> {
+    try {
+      // Input validation
+      if (!data.name || data.name.trim() === '') {
+        throw new Error('Product name is required');
+      }
+      
+      if (data.base_price < 0) {
+        throw new Error('Product price cannot be negative');
+      }
+      
+      if (!data.supplier_id) {
+        throw new Error('Supplier ID is required');
+      }
+      
+      const response = await post<{data: Product}>('/products', data);
+      return response.data.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || 'Failed to create product',
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
   },
 
-  /**
-   * Update an existing product (suppliers only)
-   */
-  updateProduct: async (id: string, productData: ProductUpdateRequest): Promise<ProductResponse> => {
-    const response = await put<ProductResponse>(`/products/${id}`, productData);
-    return response.data;
+  async updateProduct(id: string, data: ProductUpdateInput): Promise<Product> {
+    try {
+      if (!id || typeof id !== 'string') {
+        throw new Error('Valid product ID is required');
+      }
+      
+      // Input validation for price if provided
+      if (data.base_price !== undefined && data.base_price < 0) {
+        throw new Error('Product price cannot be negative');
+      }
+      
+      const response = await put<{data: Product}>(`/products/${id}`, data);
+      return response.data.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || `Failed to update product: ${id}`,
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
   },
 
-  /**
-   * Delete a product (suppliers only)
-   */
-  deleteProduct: async (id: string): Promise<any> => {
-    const response = await del<any>(`/products/${id}`);
-    return response.data;
+  async deleteProduct(id: string): Promise<void> {
+    try {
+      if (!id || typeof id !== 'string') {
+        throw new Error('Valid product ID is required');
+      }
+      
+      await del<{success: boolean}>(`/products/${id}`);
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || `Failed to delete product: ${id}`,
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
+  },
+  
+  async bulkUpdateStatus(productIds: string[], status: 'active' | 'inactive' | 'out_of_stock'): Promise<void> {
+    try {
+      if (!productIds || !productIds.length) {
+        throw new Error('At least one product ID is required');
+      }
+      
+      if (!status || !['active', 'inactive', 'out_of_stock'].includes(status)) {
+        throw new Error('Valid status is required (active, inactive, or out_of_stock)');
+      }
+      
+      await post<{success: boolean}>('/products/bulk-status', {
+        productIds,
+        status
+      });
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || 'Failed to update product status in bulk',
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
+  },
+
+  async getCategories(companyId: string): Promise<{data: ProductCategory[]}> {
+    try {
+      if (!companyId || typeof companyId !== 'string') {
+        throw new Error('Valid company ID is required');
+      }
+      
+      const response = await get<{data: ProductCategory[]}>(`/companies/${companyId}/product-categories`);
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || 'Failed to fetch product categories',
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
+  },
+
+  async getPriceHistory(productId: string, params: {page?: number; limit?: number} = {}): Promise<PriceHistoryResponse> {
+    try {
+      if (!productId || typeof productId !== 'string') {
+        throw new Error('Valid product ID is required');
+      }
+      
+      const queryParams = {
+        page: params.page || 1,
+        limit: params.limit || 10
+      };
+      
+      const response = await get<PriceHistoryResponse>(`/products/${productId}/price-history`, { params: queryParams });
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || `Failed to fetch price history for product: ${productId}`,
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
+  },
+  
+  async updateProductPrice(productId: string, price: number, effectiveDate?: string): Promise<Product> {
+    try {
+      if (!productId || typeof productId !== 'string') {
+        throw new Error('Valid product ID is required');
+      }
+      
+      if (price < 0) {
+        throw new Error('Price cannot be negative');
+      }
+      
+      const data = {
+        price,
+        effective_date: effectiveDate || new Date().toISOString()
+      };
+      
+      const response = await post<{data: Product}>(`/products/${productId}/price`, data);
+      return response.data.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || `Failed to update price for product: ${productId}`,
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
   }
 };
-
-export default productService;
