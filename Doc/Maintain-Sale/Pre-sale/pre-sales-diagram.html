@@ -266,12 +266,69 @@
             phase: 'all',
             children: [
                 {
-                    name: 'Backend',
+                    name: 'Backend (Node.js/TypeScript)',
                     icon: 'fa-server',
-                    description: 'NodeJS backend with TypeScript, Express, PostgreSQL, MongoDB, and Redis.',
+                    description: 'Scalable backend built with Node.js, TypeScript, and multiple databases (PostgreSQL, MongoDB, Redis)',
                     iconClass: 'icon-backend',
-                    phase: 'all',
+                    phase: '1',
+                    status: 'completed',
                     children: [
+                        {
+                            name: 'Core Infrastructure',
+                            icon: 'fa-layer-group',
+                            description: 'Core system infrastructure including containerization and database setup',
+                            iconClass: 'icon-module',
+                            phase: '1',
+                            status: 'completed',
+                            children: [
+                                {
+                                    name: 'Docker Containers',
+                                    icon: 'fa-docker',
+                                    description: 'Containerized services with Docker and Docker Compose',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Database Setup',
+                                    icon: 'fa-database',
+                                    description: 'Multi-database architecture with PostgreSQL, MongoDB, and Redis',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Migration System',
+                                    icon: 'fa-code-branch',
+                                    description: 'Automated database migrations for schema updates',
+                                    status: 'completed'
+                                }
+                            ]
+                        },
+                        {
+                            name: 'Authentication & Security',
+                            icon: 'fa-shield-alt',
+                            description: 'Comprehensive authentication and security features',
+                            iconClass: 'icon-module',
+                            phase: '1',
+                            status: 'completed',
+                            children: [
+                                {
+                                    name: 'User Authentication',
+                                    icon: 'fa-user-lock',
+                                    description: 'JWT-based authentication with OAuth2.0 integration',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Role-Based Access',
+                                    icon: 'fa-users-cog',
+                                    description: 'Fine-grained role-based access control',
+                                    status: 'completed'
+                                },
+                                {
+                                    name: 'Two-Factor Auth',
+                                    icon: 'fa-key',
+                                    description: 'Optional 2FA for enhanced security',
+                                    status: 'in-progress'
+                                }
+                            ]
+                        },
                         {
                             name: 'Authentication & User Management',
                             icon: 'fa-user-shield',
@@ -631,185 +688,172 @@
                 {
                     name: 'Frontend',
                     icon: 'fa-desktop',
-                    description: 'React.js and React Native frontends with responsive design and Material UI components.',
+                    description: 'Modern frontend built with React.js and React Native',
                     iconClass: 'icon-frontend',
-                    phase: 'all',
+                    phase: '1',
                     children: [
-                        {
-                            name: 'Authentication Module',
-                            icon: 'fa-user-shield',
-                            description: 'Feature-rich authentication UI components for user registration and login.',
-                            iconClass: 'icon-module',
-                            phase: '1',
-                            children: [
-                                {
-                                    name: 'User Registration',
-                                    icon: 'fa-user-plus',
-                                    description: 'Complete registration form with email, password, company name, and role selection (dealer/supplier/admin).',
-                                    iconClass: 'icon-feature',
-                                    phase: '1',
-                                    status: 'completed'
-                                },
-                                {
-                                    name: 'User Login',
-                                    icon: 'fa-sign-in-alt',
-                                    description: 'Secure login form with validation and error handling.',
-                                    iconClass: 'icon-feature',
-                                    phase: '1',
-                                    status: 'completed'
-                                },
-                                {
-                                    name: 'Password Recovery',
-                                    icon: 'fa-key',
-                                    description: 'Password reset flow with email verification.',
-                                    iconClass: 'icon-feature',
-                                    phase: '1',
-                                    status: 'completed'
-                                },
-                                {
-                                    name: 'Auth Context Provider',
-                                    icon: 'fa-shield-alt',
-                                    description: 'React context for managing authentication state across the application.',
-                                    iconClass: 'icon-feature',
-                                    phase: '1',
-                                    status: 'completed'
-                                }
-                            ]
-                        },
-                        {
-                            name: 'White Label Module',
-                            icon: 'fa-palette',
-                            description: 'Multi-tenant white labeling solution for customizable UI branding.',
-                            iconClass: 'icon-module',
-                            phase: '1',
-                            children: [
-                                {
-                                    name: 'Tenant Theming',
-                                    icon: 'fa-brush',
-                                    description: 'Dynamic theme customization with tenant-specific colors, logos, and typography.',
-                                    iconClass: 'icon-feature',
-                                    phase: '1',
-                                    status: 'completed'
-                                },
-                                {
-                                    name: 'Theme Provider',
-                                    icon: 'fa-object-group',
-                                    description: 'Context-based theme provider with automatic tenant detection and theme application.',
-                                    iconClass: 'icon-feature',
-                                    phase: '1',
-                                    status: 'completed'
-                                },
-                                {
-                                    name: 'White Label Components',
-                                    icon: 'fa-puzzle-piece',
-                                    description: 'Pre-styled UI components that automatically adapt to tenant branding.',
-                                    iconClass: 'icon-feature',
-                                    phase: '1',
-                                    status: 'completed'
-                                },
-                                {
-                                    name: 'Admin Configuration',
-                                    icon: 'fa-sliders-h',
-                                    description: 'Administration interface for managing tenant white label configurations.',
-                                    iconClass: 'icon-feature',
-                                    phase: '1',
-                                    status: 'completed'
-                                }
-                            ]
-                        },
                         {
                             name: 'Web Application',
                             icon: 'fa-globe',
-                            description: 'React.js web application with responsive design.',
+                            description: 'React.js web application with responsive design',
                             iconClass: 'icon-module',
                             phase: '1',
                             children: [
                                 {
-                                    name: 'Dashboard',
-                                    icon: 'fa-tachometer-alt',
-                                    description: 'Customizable dashboard with key business metrics and widgets.',
-                                    iconClass: 'icon-feature',
-                                    phase: '1',
-                                    status: 'completed'
+                                    name: 'Authentication UI',
+                                    icon: 'fa-user-shield',
+                                    description: 'Complete authentication interface',
+                                    status: 'completed',
+                                    children: [
+                                        {
+                                            name: 'User Registration',
+                                            icon: 'fa-user-plus',
+                                            description: 'Registration form with company profile and role selection',
+                                            status: 'completed'
+                                        },
+                                        {
+                                            name: 'User Login',
+                                            icon: 'fa-sign-in-alt',
+                                            description: 'Secure login with validation',
+                                            status: 'completed'
+                                        },
+                                        {
+                                            name: 'Password Recovery',
+                                            icon: 'fa-key',
+                                            description: 'Password reset with email verification',
+                                            status: 'completed'
+                                        },
+                                        {
+                                            name: 'Auth Context Provider',
+                                            icon: 'fa-shield-alt',
+                                            description: 'React context for managing authentication state',
+                                            status: 'completed'
+                                        }
+                                    ]
                                 },
                                 {
-                                    name: 'Inventory Interface',
-                                    icon: 'fa-boxes',
-                                    description: 'Complete stock management interface with real-time updates.',
-                                    iconClass: 'icon-feature',
-                                    phase: '1',
-                                    status: 'completed'
+                                    name: 'Core Features',
+                                    icon: 'fa-cube',
+                                    description: 'Essential frontend functionality',
+                                    status: 'completed',
+                                    children: [
+                                        {
+                                            name: 'Dashboard',
+                                            icon: 'fa-tachometer-alt',
+                                            description: 'Interactive business dashboard',
+                                            status: 'completed'
+                                        },
+                                        {
+                                            name: 'User Management',
+                                            icon: 'fa-users',
+                                            description: 'User and role management interface',
+                                            status: 'completed'
+                                        },
+                                        {
+                                            name: 'Admin Panel',
+                                            icon: 'fa-cogs',
+                                            description: 'System administration interface',
+                                            status: 'completed'
+                                        }
+                                    ]
                                 },
                                 {
-                                    name: 'Sales Portal',
-                                    icon: 'fa-cash-register',
-                                    description: 'Quotation and order management interface for sales staff.',
-                                    iconClass: 'icon-feature',
-                                    phase: '1',
-                                    status: 'completed'
+                                    name: 'Business Modules',
+                                    icon: 'fa-briefcase',
+                                    description: 'Core business functionality',
+                                    status: 'in-progress',
+                                    children: [
+                                        {
+                                            name: 'Inventory Interface',
+                                            icon: 'fa-boxes',
+                                            description: 'Stock management with real-time updates',
+                                            status: 'completed'
+                                        },
+                                        {
+                                            name: 'Sales Portal',
+                                            icon: 'fa-cash-register',
+                                            description: 'Order and quotation management',
+                                            status: 'completed'
+                                        },
+                                        {
+                                            name: 'Reports & Analytics',
+                                            icon: 'fa-chart-bar',
+                                            description: 'Visual reports with export options',
+                                            status: 'in-progress'
+                                        }
+                                    ]
                                 },
                                 {
-                                    name: 'Admin Panel',
-                                    icon: 'fa-cogs',
-                                    description: 'Comprehensive administration interface for system management.',
-                                    iconClass: 'icon-feature',
+                                    name: 'White Label Module',
+                                    icon: 'fa-palette',
+                                    description: 'Multi-tenant UI customization',
                                     phase: '1',
-                                    status: 'completed'
-                                },
-                                {
-                                    name: 'Reports & Analytics',
-                                    icon: 'fa-chart-bar',
-                                    description: 'Visual reports and analytics with export capabilities.',
-                                    iconClass: 'icon-feature',
-                                    phase: '1',
-                                    status: 'completed'
+                                    status: 'completed',
+                                    children: [
+                                        {
+                                            name: 'Tenant Theming',
+                                            icon: 'fa-brush',
+                                            description: 'Dynamic theme customization',
+                                            status: 'completed'
+                                        },
+                                        {
+                                            name: 'Theme Provider',
+                                            icon: 'fa-object-group',
+                                            description: 'Context-based theme management',
+                                            status: 'completed'
+                                        },
+                                        {
+                                            name: 'White Label Components',
+                                            icon: 'fa-puzzle-piece',
+                                            description: 'Pre-styled UI components with tenant branding',
+                                            status: 'completed'
+                                        },
+                                        {
+                                            name: 'Admin Configuration',
+                                            icon: 'fa-sliders-h',
+                                            description: 'Theme and branding configuration interface',
+                                            status: 'completed'
+                                        }
+                                    ]
                                 }
                             ]
                         },
                         {
                             name: 'Mobile Application',
                             icon: 'fa-mobile-alt',
-                            description: 'React Native mobile application for iOS and Android.',
+                            description: 'React Native mobile application',
                             iconClass: 'icon-module',
                             phase: '2',
+                            status: 'in-progress',
                             children: [
                                 {
                                     name: 'Mobile Dashboard',
                                     icon: 'fa-tachometer-alt',
-                                    description: 'Key metrics and tasks optimized for mobile view.',
-                                    iconClass: 'icon-feature',
-                                    phase: '2',
+                                    description: 'Mobile-optimized metrics view',
                                     status: 'in-progress'
                                 },
                                 {
                                     name: 'Inventory Scanner',
                                     icon: 'fa-barcode',
-                                    description: 'Mobile barcode scanner for inventory management.',
-                                    iconClass: 'icon-feature',
-                                    phase: '2',
+                                    description: 'Mobile inventory management',
                                     status: 'in-progress'
                                 },
                                 {
                                     name: 'Field Sales Tool',
                                     icon: 'fa-user-tie',
-                                    description: 'Mobile sales tools for representatives in the field.',
-                                    iconClass: 'icon-feature',
-                                    phase: '2',
+                                    description: 'Mobile sales tools',
                                     status: 'planning'
                                 },
                                 {
                                     name: 'Push Notifications',
                                     icon: 'fa-bell',
-                                    description: 'Real-time alerts and notifications via Firebase.',
-                                    iconClass: 'icon-feature',
-                                    phase: '2',
+                                    description: 'Real-time alerts via Firebase',
                                     status: 'planning'
                                 },
                                 {
                                     name: 'Offline Mode',
                                     icon: 'fa-wifi',
-                                    description: 'Limited functionality when working offline with data sync.',
-                                    iconClass: 'icon-feature',
+                                    description: 'Offline functionality with sync',
                                     phase: '3',
                                     status: 'planning'
                                 }
@@ -818,39 +862,33 @@
                         {
                             name: 'Zalo Mini App',
                             icon: 'fa-comments',
-                            description: 'Zalo Mini App for customer orders and queries.',
+                            description: 'Zalo integration for orders',
                             iconClass: 'icon-module',
                             phase: '2',
+                            status: 'planning',
                             children: [
                                 {
                                     name: 'Customer Portal',
                                     icon: 'fa-user-circle',
-                                    description: 'Customer account management and order history within Zalo.',
-                                    iconClass: 'icon-feature',
-                                    phase: '2',
+                                    description: 'Customer management in Zalo',
                                     status: 'planning'
                                 },
                                 {
                                     name: 'Order Placement',
                                     icon: 'fa-shopping-bag',
-                                    description: 'Simple ordering interface optimized for Zalo Mini App.',
-                                    iconClass: 'icon-feature',
-                                    phase: '2',
+                                    description: 'Zalo-optimized ordering',
                                     status: 'planning'
                                 },
                                 {
                                     name: 'Status Tracking',
                                     icon: 'fa-truck-loading',
-                                    description: 'Real-time order status updates and notifications.',
-                                    iconClass: 'icon-feature',
-                                    phase: '2',
+                                    description: 'Order status notifications',
                                     status: 'planning'
                                 },
                                 {
                                     name: 'AI Chatbot',
                                     icon: 'fa-robot',
-                                    description: 'Intelligent chatbot for customer support and ordering within Zalo.',
-                                    iconClass: 'icon-feature',
+                                    description: 'Intelligent chatbot for customer support',
                                     phase: '3',
                                     status: 'planning'
                                 }
@@ -861,9 +899,9 @@
                 {
                     name: 'Infrastructure & DevOps',
                     icon: 'fa-cloud',
-                    description: 'Cloud infrastructure and DevOps pipelines.',
+                    description: 'Cloud infrastructure and DevOps automation.',
                     iconClass: 'icon-backend',
-                    phase: 'all',
+                    phase: '1',
                     children: [
                         {
                             name: 'Cloud Infrastructure',

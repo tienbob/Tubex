@@ -1,6 +1,9 @@
-const backendData = {
-    name: 'Backend',
-    icon: 'fa-server',
+// Updated: May 9, 2025
+const systemStatusData = {
+    name: 'System Status',
+    icon: 'fa-heartbeat',
+    lastUpdated: 'May 9, 2025',
+    version: '1.2.0',
     children: [
         {
             name: 'Server Configuration',

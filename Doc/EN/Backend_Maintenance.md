@@ -3,70 +3,42 @@
 ## Overview
 This document provides guidelines and best practices for maintaining the Tubex Backend system. It includes instructions for setup, troubleshooting, updating, and understanding the purpose and functionality of each component.
 
----
+Last Updated: May 2025
 
 ## 1. Prerequisites
 
 ### 1.1 Required Tools
 - **Node.js**: Version 16 or higher
-- **TypeScript**: Installed globally (`npm install -g typescript`)
-- **Docker**: For containerized services
-- **PostgreSQL**, **MongoDB**, and **Redis**: Installed locally or accessible via Docker
+- **TypeScript**: Version 4.9+
+- **Docker**: Latest stable version
+- **PostgreSQL**: Version 14
+- **MongoDB**: Version 6
+- **Redis**: Version 7
 - **AWS Account**: For SES email service
 - **OAuth Credentials**: Google and Facebook developer accounts
 - **Payment Gateway Access**: VNPay and Momo accounts
-- **Nodemon**: For development (`npm install -g nodemon`)
+- **Nodemon**: For development
 
 ### 1.2 Environment Variables
 Configure the following in your `.env` file:
 
-#### Server Configuration
-- `PORT`: Server port (default: 3000)
-- `NODE_ENV`: Environment (development/production)
-- `BASE_URL`: Backend base URL
-- `FRONTEND_URL`: Frontend application URL
-
-#### Database Configuration
-- `POSTGRES_HOST`: PostgreSQL host
-- `POSTGRES_PORT`: PostgreSQL port
-- `POSTGRES_DB`: Database name
-- `POSTGRES_USER`: Database user
-- `POSTGRES_PASSWORD`: Database password
-- `MONGODB_URI`: MongoDB connection URI
-- `REDIS_HOST`: Redis host
-- `REDIS_PORT`: Redis port
-
-#### Authentication
-- `JWT_SECRET`: Secret for JWT tokens
-- `JWT_EXPIRES_IN`: Token expiration time
-
-#### OAuth Configuration
-- `GOOGLE_CLIENT_ID`: Google OAuth client ID
-- `GOOGLE_CLIENT_SECRET`: Google OAuth client secret
-- `FACEBOOK_APP_ID`: Facebook OAuth app ID
-- `FACEBOOK_APP_SECRET`: Facebook OAuth app secret
-
-#### AWS Configuration
-- `AWS_REGION`: AWS region for services
-- `AWS_ACCESS_KEY_ID`: AWS access key
-- `AWS_SECRET_ACCESS_KEY`: AWS secret key
-- `EMAIL_FROM`: Default sender email for SES
-
-#### Payment Gateways
-- `VNPAY_MERCHANT_ID`: VNPay merchant ID
-- `VNPAY_SECURE_SECRET`: VNPay secure secret
-- `MOMO_PARTNER_CODE`: Momo partner code
-- `MOMO_ACCESS_KEY`: Momo access key
-- `MOMO_SECRET_KEY`: Momo secret key
-
-#### Additional Services
-- `ZALO_APP_ID`: Zalo messaging app ID
-- `ZALO_SECRET_KEY`: Zalo messaging secret key
-- `FIREBASE_PROJECT_ID`: Firebase project ID
-- `FIREBASE_PRIVATE_KEY`: Firebase private key
-- `FIREBASE_CLIENT_EMAIL`: Firebase client email
-
----
+```env
+NODE_ENV=development
+PORT=3000
+PG_HOST=localhost
+PG_PORT=5432
+PG_USER=postgres
+PG_PASSWORD=development
+PG_DATABASE=tubex
+MONGO_URI=mongodb://localhost:27017/tubex
+REDIS_HOST=localhost
+REDIS_PORT=6379
+JWT_SECRET=your_jwt_secret_key
+JWT_EXPIRES_IN=1d
+AWS_ACCESS_KEY_ID=your_aws_access_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+AWS_REGION=ap-southeast-1
+```
 
 ## 2. Setup Instructions
 
@@ -102,7 +74,21 @@ Configure the following in your `.env` file:
    npm start
    ```
 
----
+## 2. System Components
+
+### 2.1 Core Services (Implemented)
+- **Authentication Service**: JWT-based auth with OAuth2.0
+- **User Management**: CRUD operations for users and roles
+- **Inventory Management**: Stock tracking and updates
+- **Order Processing**: Order lifecycle management
+- **Company Verification**: Business validation system
+- **Email Service**: Transactional emails via AWS SES
+- **Cache Layer**: Redis-based caching system
+
+### 2.2 Services in Development
+- **Warehouse Management**: Multi-location inventory
+- **Product Management**: Product lifecycle and pricing
+- **Analytics Engine**: Reporting and insights
 
 ## 3. Component Overview
 
@@ -147,77 +133,74 @@ Configure the following in your `.env` file:
   - **Product**:
     - `routes.ts`: Manages product-related API endpoints.
 
----
+## 3. Maintenance Procedures
+
+### 3.1 Regular Maintenance Tasks
+- Daily database backups
+- Log rotation and cleanup
+- Cache invalidation checks
+- Performance monitoring
+- Security patch updates
+
+### 3.2 Database Maintenance
+```bash
+# PostgreSQL vacuum
+npm run db:vacuum
+
+# MongoDB index maintenance
+npm run mongo:maintain
+
+# Redis cache cleanup
+npm run cache:clean
+```
+
+### 3.3 Monitoring
+- CPU and memory usage
+- API response times
+- Database query performance
+- Cache hit rates
+- Error rates and patterns
 
 ## 4. Troubleshooting
 
 ### 4.1 Common Issues
-- **Database Connection Errors**:
-  - Ensure PostgreSQL, MongoDB, and Redis are running.
-  - Verify `.env` configuration.
-  - Check network connectivity and firewall settings.
-  - Verify database user permissions.
-  - Common error codes and solutions:
-    - ECONNREFUSED: Check if database service is running
-    - Authentication failed: Verify credentials in .env
-    - Too many connections: Check connection pool settings
+1. **Connection Issues**
+   - Check Docker container status
+   - Verify database connectivity
+   - Check Redis connection
+   
+2. **Performance Issues**
+   - Monitor query execution plans
+   - Check cache effectiveness
+   - Review API bottlenecks
 
-- **TypeScript Compilation Errors**:
-  - Run `npm run build` to identify issues.
-  - Check `tsconfig.json` for misconfigurations.
-  - Common fixes:
-    - Clear the dist folder: `rm -rf dist`
-    - Delete node_modules: `rm -rf node_modules && npm install`
-    - Check TypeScript version compatibility
+3. **Authentication Issues**
+   - Verify JWT secret
+   - Check OAuth configurations
+   - Review user permissions
 
-- **Docker Issues**:
-  - Run `docker-compose logs` to debug container issues.
-  - Common docker commands:
-    ```bash
-    # Restart all services
-    docker-compose down && docker-compose up -d
-    
-    # Check container status
-    docker-compose ps
-    
-    # View real-time logs
-    docker-compose logs -f
-    ```
+### 4.2 Logging
+- Application logs: `combined.log`
+- Error logs: `error.log`
+- Docker logs: `docker-compose logs`
 
-- **Memory Issues**:
-  - Check Node.js heap usage: `node --inspect`
-  - Monitor container memory: `docker stats`
-  - Adjust Node.js memory limit: `NODE_OPTIONS="--max-old-space-size=4096"`
+## 5. Deployment
 
-### 4.2 Logs and Monitoring
-- Application logs location:
-  - Error logs: `/logs/error.log`
-  - Combined logs: `/logs/combined.log`
-  - Access logs: `/logs/access.log`
-- Log rotation policy:
-  - Daily rotation
-  - Keep last 14 days
-  - Max size: 50MB per file
-- Log monitoring tools:
-  - Use `winston` for application logging
-  - ELK Stack integration (optional)
-  - Log levels: error, warn, info, debug
+### 5.1 Development
+```bash
+npm run dev
+```
 
-### 4.3 Performance Optimization
-- Database Optimization:
-  - Regular VACUUM for PostgreSQL
-  - Index optimization
-  - Query performance monitoring
-- Caching Strategy:
-  - Redis caching for:
-    - User sessions
-    - API responses
-    - Frequently accessed data
-  - Cache invalidation rules
-- Rate Limiting:
-  - Default: 100 requests per minute
-  - Configurable per endpoint
-  - IP-based and token-based limiting
+### 5.2 Staging
+```bash
+npm run build
+npm run start:staging
+```
+
+### 5.3 Production
+```bash
+docker-compose -f docker-compose.prod.yml up -d
+```
 
 ## 5. Backup and Recovery
 
@@ -257,6 +240,16 @@ Configure the following in your `.env` file:
   3. Restore configuration
   4. Validate system functionality
 
+### 7.1 Database Backups
+- Daily automated backups
+- Weekly full backups
+- Monthly archive backups
+
+### 7.2 Recovery Procedures
+- Point-in-time recovery
+- Transaction log replay
+- System state restoration
+
 ## 6. Security Measures
 
 ### 6.1 Access Control
@@ -287,6 +280,21 @@ Configure the following in your `.env` file:
   - Slack integration
   - SMS for critical alerts
 
+### 6.1 Implemented
+- JWT Authentication
+- Rate limiting
+- Input validation
+- SQL injection prevention
+- XSS protection
+- CORS configuration
+
+### 6.2 Regular Security Tasks
+- Dependency audits
+- Code security reviews
+- Access token rotation
+- SSL certificate renewal
+- Security patch updates
+
 ## 7. Scheduled Maintenance
 
 ### 7.1 Daily Tasks
@@ -305,11 +313,30 @@ Configure the following in your `.env` file:
 - Performance optimization
 - Dependency updates
 
+## 8. Performance Optimization
+
+### 8.1 Database
+- Index optimization
+- Query performance tuning
+- Regular VACUUM operations
+
+### 8.2 Application
+- Cache strategy review
+- API response optimization
+- Background job scheduling
+
 ## 8. Documentation Updates
 - Maintain changelog
 - Update API documentation
 - Record system modifications
 - Document configuration changes
+
+Maintain and update this documentation when:
+- Adding new features
+- Changing configurations
+- Updating dependencies
+- Modifying deployment procedures
+- Implementing new security measures
 
 ## 9. Support Contacts
 
