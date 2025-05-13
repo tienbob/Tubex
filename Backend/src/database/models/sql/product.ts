@@ -23,10 +23,11 @@ export class Product {
 
     @ManyToOne(() => Company)
     @JoinColumn({ name: 'supplier_id' })
-    supplier: Company;
-
-    @Column({ default: 'active' })
+    supplier: Company;    @Column({ default: 'active' })
     status: string;
+
+    @Column("jsonb", { nullable: true })
+    metadata: Record<string, any>;
 
     @CreateDateColumn({ name: 'created_at' })
     created_at: Date;
