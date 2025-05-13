@@ -25,6 +25,145 @@ const options: swaggerJsdoc.Options = {
     ],
     components: {
       schemas: {
+        // User Schema
+        User: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Unique identifier for the user'
+            },
+            email: {
+              type: 'string',
+              format: 'email',
+              description: 'Email address of the user'
+            },
+            password_hash: {
+              type: 'string',
+              description: 'Hashed password'
+            },
+            role: {
+              type: 'string',
+              enum: ['admin', 'manager', 'staff'],
+              description: 'Role of the user in the system'
+            },
+            status: {
+              type: 'string',
+              description: 'User account status'
+            },
+            company_id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'ID of the company the user belongs to'
+            },
+            metadata: {
+              type: 'object',
+              description: 'Additional metadata for the user'
+            },
+            created_at: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date and time when the user was created'
+            },
+            updated_at: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date and time when the user was last updated'
+            }
+          }
+        },
+        
+        // Company Schema
+        Company: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Unique identifier for the company'
+            },
+            name: {
+              type: 'string',
+              description: 'Name of the company'
+            },
+            type: {
+              type: 'string',
+              enum: ['dealer', 'supplier'],
+              description: 'Type of company'
+            },
+            tax_id: {
+              type: 'string',
+              description: 'Tax ID of the company'
+            },
+            business_license: {
+              type: 'string',
+              description: 'Business license number'
+            },
+            address: {
+              type: 'object',
+              properties: {
+                street: {
+                  type: 'string',
+                  description: 'Street address'
+                },
+                city: {
+                  type: 'string',
+                  description: 'City'
+                },
+                province: {
+                  type: 'string',
+                  description: 'Province or state'
+                },
+                postalCode: {
+                  type: 'string',
+                  description: 'Postal or ZIP code'
+                }
+              }
+            },
+            business_category: {
+              type: 'string',
+              description: 'Category of business'
+            },
+            employee_count: {
+              type: 'integer',
+              description: 'Number of employees'
+            },
+            year_established: {
+              type: 'integer',
+              description: 'Year the company was established'
+            },
+            contact_phone: {
+              type: 'string',
+              description: 'Contact phone number'
+            },
+            subscription_tier: {
+              type: 'string',
+              enum: ['free', 'basic', 'premium'],
+              description: 'Subscription tier of the company'
+            },
+            status: {
+              type: 'string',
+              enum: ['pending_verification', 'active', 'suspended', 'rejected'],
+              description: 'Status of the company'
+            },
+            metadata: {
+              type: 'object',
+              description: 'Additional metadata for the company'
+            },
+            created_at: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date and time when the company was created'
+            },
+            updated_at: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date and time when the company was last updated'
+            }
+          }
+        },
+        
         // Warehouse Schema
         Warehouse: {
           type: 'object',
@@ -83,15 +222,626 @@ const options: swaggerJsdoc.Options = {
               type: 'string',
               description: 'Additional notes about the warehouse'
             },
-            createdAt: {
+            metadata: {
+              type: 'object',
+              description: 'Additional metadata for the warehouse'
+            },
+            created_at: {
               type: 'string',
               format: 'date-time',
               description: 'Date and time when the warehouse was created'
             },
-            updatedAt: {
+            updated_at: {
               type: 'string',
               format: 'date-time',
               description: 'Date and time when the warehouse was last updated'
+            }
+          }
+        },
+
+        // Product Schema
+        Product: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Unique identifier for the product'
+            },
+            name: {
+              type: 'string',
+              description: 'Name of the product'
+            },
+            description: {
+              type: 'string',
+              description: 'Product description'
+            },
+            base_price: {
+              type: 'number',
+              description: 'Base price of the product'
+            },
+            unit: {
+              type: 'string',
+              description: 'Unit of measurement'
+            },
+            supplier_id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'ID of the supplier company'
+            },
+            status: {
+              type: 'string',
+              description: 'Product status'
+            },
+            metadata: {
+              type: 'object',
+              description: 'Additional metadata for the product'
+            },
+            created_at: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date and time when the product was created'
+            },
+            updated_at: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date and time when the product was last updated'
+            }
+          }
+        },
+
+        // Order Schema
+        Order: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Unique identifier for the order'
+            },
+            customerId: {
+              type: 'string',
+              format: 'uuid',
+              description: 'ID of the customer'
+            },
+            status: {
+              type: 'string',
+              enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'],
+              description: 'Order status'
+            },
+            paymentStatus: {
+              type: 'string',
+              enum: ['pending', 'paid', 'failed', 'refunded'],
+              description: 'Payment status'
+            },
+            paymentMethod: {
+              type: 'string',
+              description: 'Payment method'
+            },
+            totalAmount: {
+              type: 'number',
+              description: 'Total order amount'
+            },
+            deliveryAddress: {
+              type: 'object',
+              properties: {
+                street: {
+                  type: 'string',
+                  description: 'Street address'
+                },
+                city: {
+                  type: 'string',
+                  description: 'City'
+                },
+                province: {
+                  type: 'string',
+                  description: 'Province or state'
+                },
+                postalCode: {
+                  type: 'string',
+                  description: 'Postal or ZIP code'
+                }
+              },
+              description: 'Delivery address'
+            },
+            metadata: {
+              type: 'object',
+              description: 'Additional metadata for the order'
+            },
+            createdAt: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date and time when the order was created'
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date and time when the order was last updated'
+            }
+          }
+        },
+
+        // OrderItem Schema
+        OrderItem: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Unique identifier for the order item'
+            },
+            orderId: {
+              type: 'string',
+              format: 'uuid',
+              description: 'ID of the order'
+            },
+            productId: {
+              type: 'string',
+              format: 'uuid',
+              description: 'ID of the product'
+            },
+            quantity: {
+              type: 'number',
+              description: 'Quantity of the product'
+            },
+            unitPrice: {
+              type: 'number',
+              description: 'Unit price of the product'
+            },
+            discount: {
+              type: 'number',
+              description: 'Discount amount'
+            },
+            metadata: {
+              type: 'object',
+              description: 'Additional metadata for the order item'
+            }
+          }
+        },
+
+        // Inventory Schema
+        Inventory: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Unique identifier for the inventory item'
+            },
+            product_id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'ID of the product'
+            },
+            company_id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'ID of the company'
+            },
+            warehouse_id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'ID of the warehouse'
+            },
+            quantity: {
+              type: 'number',
+              description: 'Quantity of the product in inventory'
+            },
+            unit: {
+              type: 'string',
+              description: 'Unit of measurement'
+            },
+            min_threshold: {
+              type: 'number',
+              description: 'Minimum threshold for inventory level'
+            },
+            max_threshold: {
+              type: 'number',
+              description: 'Maximum threshold for inventory level'
+            },
+            reorder_point: {
+              type: 'number',
+              description: 'Reorder point for inventory'
+            },
+            reorder_quantity: {
+              type: 'number',
+              description: 'Quantity to reorder when reaching reorder point'
+            },
+            auto_reorder: {
+              type: 'boolean',
+              description: 'Whether auto-reorder is enabled'
+            },
+            last_reorder_date: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date and time when last reorder was placed'
+            },
+            metadata: {
+              type: 'object',
+              description: 'Additional metadata for the inventory item'
+            },
+            status: {
+              type: 'string',
+              description: 'Status of the inventory item'
+            },
+            created_at: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date and time when the inventory item was created'
+            },
+            updated_at: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date and time when the inventory item was last updated'
+            }
+          }
+        },
+
+        // Batch Schema
+        Batch: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Unique identifier for the batch'
+            },
+            batch_number: {
+              type: 'string',
+              description: 'Batch number'
+            },
+            product_id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'ID of the product'
+            },
+            warehouse_id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'ID of the warehouse'
+            },
+            quantity: {
+              type: 'number',
+              description: 'Quantity in the batch'
+            },
+            unit: {
+              type: 'string',
+              description: 'Unit of measurement'
+            },
+            manufacturing_date: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Manufacturing date of the batch'
+            },
+            expiry_date: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Expiry date of the batch'
+            },
+            metadata: {
+              type: 'object',
+              description: 'Additional metadata for the batch'
+            },
+            status: {
+              type: 'string',
+              description: 'Status of the batch'
+            },
+            created_at: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date and time when the batch was created'
+            },
+            updated_at: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date and time when the batch was last updated'
+            }
+          }
+        },
+
+        // UserAuditLog Schema
+        UserAuditLog: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Unique identifier for the audit log entry'
+            },
+            target_user_id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'ID of the target user'
+            },
+            performed_by_id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'ID of the user who performed the action'
+            },
+            action: {
+              type: 'string',
+              enum: ['role_update', 'status_update', 'removal'],
+              description: 'Type of action performed'
+            },
+            changes: {
+              type: 'object',
+              properties: {
+                previous: {
+                  type: 'object',
+                  properties: {
+                    role: {
+                      type: 'string',
+                      description: 'Previous role'
+                    },
+                    status: {
+                      type: 'string',
+                      description: 'Previous status'
+                    }
+                  }
+                },
+                new: {
+                  type: 'object',
+                  properties: {
+                    role: {
+                      type: 'string',
+                      description: 'New role'
+                    },
+                    status: {
+                      type: 'string',
+                      description: 'New status'
+                    }
+                  }
+                }
+              },
+              description: 'Changes made'
+            },
+            reason: {
+              type: 'string',
+              description: 'Reason for the change'
+            },
+            created_at: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date and time when the action was performed'
+            }
+          }
+        },
+
+        // OrderHistory Schema
+        OrderHistory: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Unique identifier for the order history entry'
+            },
+            order_id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'ID of the order'
+            },
+            user_id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'ID of the user who made the change'
+            },
+            previous_status: {
+              type: 'string',
+              description: 'Previous order status'
+            },
+            new_status: {
+              type: 'string',
+              description: 'New order status'
+            },
+            notes: {
+              type: 'string',
+              description: 'Notes about the change'
+            },
+            metadata: {
+              type: 'object',
+              description: 'Additional metadata for the order history entry'
+            },
+            created_at: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date and time when the change was made'
+            }
+          }
+        },
+
+        // MongoDB Models
+        MongoOrder: {
+          type: 'object',
+          properties: {
+            orderId: {
+              type: 'string',
+              description: 'Unique identifier for the order'
+            },
+            companyId: {
+              type: 'string',
+              description: 'ID of the company'
+            },
+            customerId: {
+              type: 'string',
+              description: 'ID of the customer'
+            },
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  productId: {
+                    type: 'string',
+                    description: 'ID of the product'
+                  },
+                  quantity: {
+                    type: 'number',
+                    description: 'Quantity of the product'
+                  },
+                  unitPrice: {
+                    type: 'number',
+                    description: 'Unit price of the product'
+                  },
+                  discount: {
+                    type: 'number',
+                    description: 'Discount amount'
+                  },
+                  metadata: {
+                    type: 'object',
+                    description: 'Additional metadata for the order item'
+                  }
+                }
+              }
+            },
+            status: {
+              type: 'string',
+              enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'],
+              description: 'Order status'
+            },
+            paymentStatus: {
+              type: 'string',
+              enum: ['pending', 'paid', 'failed', 'refunded'],
+              description: 'Payment status'
+            },
+            paymentMethod: {
+              type: 'string',
+              description: 'Payment method'
+            },
+            deliveryAddress: {
+              type: 'object',
+              properties: {
+                street: {
+                  type: 'string',
+                  description: 'Street address'
+                },
+                city: {
+                  type: 'string',
+                  description: 'City'
+                },
+                province: {
+                  type: 'string',
+                  description: 'Province or state'
+                },
+                postalCode: {
+                  type: 'string',
+                  description: 'Postal or ZIP code'
+                }
+              }
+            },
+            metadata: {
+              type: 'object',
+              description: 'Additional metadata for the order'
+            },
+            createdAt: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date and time when the order was created'
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date and time when the order was last updated'
+            }
+          }
+        },
+
+        // Analytics Schema
+        Analytics: {
+          type: 'object',
+          properties: {
+            eventType: {
+              type: 'string',
+              description: 'Type of analytics event'
+            },
+            companyId: {
+              type: 'string',
+              description: 'ID of the company'
+            },
+            userId: {
+              type: 'string',
+              description: 'ID of the user'
+            },
+            timestamp: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Time when the event occurred'
+            },
+            data: {
+              type: 'object',
+              description: 'Event data'
+            },
+            metadata: {
+              type: 'object',
+              description: 'Additional metadata for the analytics event'
+            }
+          }
+        },
+
+        // AuditLog Schema
+        AuditLog: {
+          type: 'object',
+          properties: {
+            action: {
+              type: 'string',
+              description: 'Type of action performed'
+            },
+            entityType: {
+              type: 'string',
+              description: 'Type of entity that was affected'
+            },
+            entityId: {
+              type: 'string',
+              description: 'ID of the entity that was affected'
+            },
+            companyId: {
+              type: 'string',
+              description: 'ID of the company'
+            },
+            userId: {
+              type: 'string',
+              description: 'ID of the user who performed the action'
+            },
+            changes: {
+              type: 'object',
+              description: 'Changes made'
+            },
+            timestamp: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Time when the action was performed'
+            }
+          }
+        },
+
+        // CustomerActivity Schema
+        CustomerActivity: {
+          type: 'object',
+          properties: {
+            customerId: {
+              type: 'string',
+              description: 'ID of the customer'
+            },
+            companyId: {
+              type: 'string',
+              description: 'ID of the company'
+            },
+            activityType: {
+              type: 'string',
+              description: 'Type of activity'
+            },
+            description: {
+              type: 'string',
+              description: 'Description of the activity'
+            },
+            metadata: {
+              type: 'object',
+              description: 'Additional metadata for the activity'
+            },
+            timestamp: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Time when the activity occurred'
             }
           }
         },
@@ -129,1082 +879,6 @@ const options: swaggerJsdoc.Options = {
                 refreshToken: {
                   type: 'string',
                   description: 'Token used to obtain new access tokens'
-                }
-              }
-            }
-          }
-        },
-        LoginRequest: {
-          type: 'object',
-          required: ['email', 'password'],
-          properties: {
-            email: {
-              type: 'string',
-              format: 'email',
-              example: 'user@example.com'
-            },
-            password: {
-              type: 'string',
-              format: 'password',
-              example: 'password123'
-            }
-          }
-        },
-        RegisterRequest: {
-          type: 'object',
-          required: ['email', 'password', 'companyName', 'role'],
-          properties: {
-            email: {
-              type: 'string',
-              format: 'email',
-              example: 'newuser@example.com'
-            },
-            password: {
-              type: 'string',
-              format: 'password',
-              example: 'securePassword123'
-            },
-            companyName: {
-              type: 'string',
-              example: 'Construction Ltd.'
-            },
-            role: {
-              type: 'string',
-              enum: ['admin', 'manager', 'staff', 'supplier', 'dealer'],
-              example: 'admin'
-            }
-          }
-        },
-        EmployeeRegistrationRequest: {
-          type: 'object',
-          required: ['email', 'password', 'firstName', 'lastName', 'invitationCode'],
-          properties: {
-            email: {
-              type: 'string', 
-              format: 'email',
-              example: 'employee@example.com'
-            },
-            password: {
-              type: 'string',
-              format: 'password',
-              example: 'securePassword123'
-            },
-            firstName: {
-              type: 'string',
-              example: 'John'
-            },
-            lastName: {
-              type: 'string',
-              example: 'Doe'
-            },
-            invitationCode: {
-              type: 'string',
-              example: 'ABCD1234'
-            },
-            role: {
-              type: 'string',
-              enum: ['admin', 'manager', 'staff'],
-              default: 'staff'
-            }
-          }
-        },
-        OAuthRegistrationCompletionRequest: {
-          type: 'object',
-          required: ['tempUserId', 'company'],
-          properties: {
-            tempUserId: {
-              type: 'string',
-              format: 'uuid'
-            },
-            company: {
-              type: 'object',
-              required: ['name', 'type', 'taxId', 'businessLicense', 'address'],
-              properties: {
-                name: {
-                  type: 'string',
-                  example: 'ABC Construction'
-                },
-                type: {
-                  type: 'string',
-                  enum: ['supplier', 'dealer'],
-                  example: 'dealer'
-                },
-                taxId: {
-                  type: 'string',
-                  example: 'TAX123456'
-                },
-                businessLicense: {
-                  type: 'string',
-                  example: 'BL789012'
-                },
-                address: {
-                  type: 'string',
-                  example: '123 Main St, City, Country'
-                }
-              }
-            },
-            userRole: {
-              type: 'string',
-              enum: ['admin', 'manager', 'staff'],
-              default: 'admin'
-            }
-          }
-        },
-        InvitationCodeRequest: {
-          type: 'object',
-          required: ['companyId'],
-          properties: {
-            companyId: {
-              type: 'string',
-              format: 'uuid'
-            }
-          }
-        },
-        InvitationCodeResponse: {
-          type: 'object',
-          properties: {
-            status: {
-              type: 'string',
-              example: 'success'
-            },
-            data: {
-              type: 'object',
-              properties: {
-                code: {
-                  type: 'string',
-                  example: 'ABCD1234'
-                },
-                expiresAt: {
-                  type: 'string',
-                  format: 'date-time'
-                },
-                companyName: {
-                  type: 'string'
-                }
-              }
-            }
-          }
-        },
-        CompanyVerificationRequest: {
-          type: 'object',
-          required: ['companyId', 'status'],
-          properties: {
-            companyId: {
-              type: 'string',
-              format: 'uuid'
-            },
-            status: {
-              type: 'string',
-              enum: ['active', 'rejected']
-            },
-            reason: {
-              type: 'string',
-              description: 'Required if status is rejected'
-            }
-          }
-        },
-        
-        // User Schemas
-        User: {
-          type: 'object',
-          properties: {
-            id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            email: {
-              type: 'string',
-              format: 'email'
-            },
-            firstName: {
-              type: 'string'
-            },
-            lastName: {
-              type: 'string'
-            },
-            role: {
-              type: 'string',
-              enum: ['admin', 'manager', 'staff', 'supplier', 'dealer']
-            },
-            status: {
-              type: 'string',
-              enum: ['active', 'inactive', 'pending', 'suspended']
-            },
-            company_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            created_at: {
-              type: 'string',
-              format: 'date-time'
-            },
-            updated_at: {
-              type: 'string',
-              format: 'date-time'
-            }
-          }
-        },
-        UserUpdateRequest: {
-          type: 'object',
-          properties: {
-            firstName: {
-              type: 'string'
-            },
-            lastName: {
-              type: 'string'
-            },
-            email: {
-              type: 'string',
-              format: 'email'
-            },
-            role: {
-              type: 'string',
-              enum: ['admin', 'manager', 'staff', 'supplier', 'dealer']
-            },
-            status: {
-              type: 'string',
-              enum: ['active', 'inactive', 'pending', 'suspended']
-            }
-          }
-        },
-        UserListResponse: {
-          type: 'object',
-          properties: {
-            status: {
-              type: 'string',
-              example: 'success'
-            },
-            data: {
-              type: 'array',
-              items: {
-                $ref: '#/components/schemas/User'
-              }
-            },
-            pagination: {
-              $ref: '#/components/schemas/PaginationResponse'
-            }
-          }
-        },
-        UserDetailResponse: {
-          type: 'object',
-          properties: {
-            status: {
-              type: 'string',
-              example: 'success'
-            },
-            data: {
-              $ref: '#/components/schemas/User'
-            }
-          }
-        },
-        
-        // Company Schemas
-        Company: {
-          type: 'object',
-          properties: {
-            id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            name: {
-              type: 'string'
-            },
-            type: {
-              type: 'string',
-              enum: ['supplier', 'dealer']
-            },
-            status: {
-              type: 'string',
-              enum: ['active', 'pending', 'rejected', 'suspended']
-            },
-            taxId: {
-              type: 'string'
-            },
-            businessLicense: {
-              type: 'string'
-            },
-            address: {
-              type: 'string'
-            },
-            created_at: {
-              type: 'string',
-              format: 'date-time'
-            },
-            updated_at: {
-              type: 'string',
-              format: 'date-time'
-            }
-          }
-        },
-        
-        // Product Schemas
-        Product: {
-          type: 'object',
-          properties: {
-            id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            name: {
-              type: 'string'
-            },
-            description: {
-              type: 'string'
-            },
-            base_price: {
-              type: 'number',
-              format: 'float'
-            },
-            unit: {
-              type: 'string'
-            },
-            supplier_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            status: {
-              type: 'string',
-              enum: ['active', 'inactive', 'out_of_stock']
-            },
-            created_at: {
-              type: 'string',
-              format: 'date-time'
-            },
-            updated_at: {
-              type: 'string',
-              format: 'date-time'
-            }
-          }
-        },
-        ProductCreateRequest: {
-          type: 'object',
-          required: ['name', 'base_price', 'unit'],
-          properties: {
-            name: {
-              type: 'string',
-              example: 'Steel Pipe 20mm'
-            },
-            description: {
-              type: 'string',
-              example: 'High-quality galvanized steel pipe'
-            },
-            base_price: {
-              type: 'number',
-              format: 'float',
-              example: 15.99
-            },
-            unit: {
-              type: 'string',
-              example: 'meter'
-            },
-            supplier_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            status: {
-              type: 'string',
-              enum: ['active', 'inactive', 'out_of_stock'],
-              default: 'active'
-            }
-          }
-        },
-        ProductUpdateRequest: {
-          type: 'object',
-          properties: {
-            name: {
-              type: 'string'
-            },
-            description: {
-              type: 'string'
-            },
-            base_price: {
-              type: 'number',
-              format: 'float'
-            },
-            unit: {
-              type: 'string'
-            },
-            status: {
-              type: 'string',
-              enum: ['active', 'inactive', 'out_of_stock']
-            }
-          }
-        },
-        ProductListResponse: {
-          type: 'object',
-          properties: {
-            status: {
-              type: 'string',
-              example: 'success'
-            },
-            data: {
-              type: 'array',
-              items: {
-                $ref: '#/components/schemas/Product'
-              }
-            },
-            pagination: {
-              $ref: '#/components/schemas/PaginationResponse'
-            }
-          }
-        },
-        ProductDetailResponse: {
-          type: 'object',
-          properties: {
-            status: {
-              type: 'string',
-              example: 'success'
-            },
-            data: {
-              $ref: '#/components/schemas/Product'
-            }
-          }
-        },
-        BulkStatusUpdateRequest: {
-          type: 'object',
-          required: ['productIds', 'status'],
-          properties: {
-            productIds: {
-              type: 'array',
-              items: {
-                type: 'string',
-                format: 'uuid'
-              },
-              description: 'List of product IDs to update'
-            },
-            status: {
-              type: 'string',
-              enum: ['active', 'inactive', 'out_of_stock'],
-              description: 'New status to apply to all selected products'
-            }
-          }
-        },
-        ProductPriceHistory: {
-          type: 'object',
-          properties: {
-            id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            product_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            price: {
-              type: 'number',
-              format: 'float'
-            },
-            effective_date: {
-              type: 'string',
-              format: 'date-time'
-            },
-            created_by: {
-              type: 'string',
-              format: 'uuid'
-            }
-          }
-        },
-        
-        // Order Schemas
-        Order: {
-          type: 'object',
-          properties: {
-            id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            customer_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            status: {
-              type: 'string',
-              enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled']
-            },
-            total_amount: {
-              type: 'number',
-              format: 'float'
-            },
-            shipping_address: {
-              type: 'string'
-            },
-            delivery_date: {
-              type: 'string',
-              format: 'date-time'
-            },
-            created_at: {
-              type: 'string',
-              format: 'date-time'
-            },
-            updated_at: {
-              type: 'string',
-              format: 'date-time'
-            },
-            items: {
-              type: 'array',
-              items: {
-                $ref: '#/components/schemas/OrderItem'
-              }
-            }
-          }
-        },
-        OrderItem: {
-          type: 'object',
-          properties: {
-            id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            order_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            product_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            quantity: {
-              type: 'number',
-              format: 'float'
-            },
-            unit_price: {
-              type: 'number',
-              format: 'float'
-            },
-            created_at: {
-              type: 'string',
-              format: 'date-time'
-            }
-          }
-        },
-        OrderCreateRequest: {
-          type: 'object',
-          required: ['items', 'shipping_address'],
-          properties: {
-            customer_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            shipping_address: {
-              type: 'string',
-              example: '123 Main St, City, Country'
-            },
-            delivery_date: {
-              type: 'string',
-              format: 'date-time'
-            },
-            items: {
-              type: 'array',
-              items: {
-                type: 'object',
-                required: ['product_id', 'quantity'],
-                properties: {
-                  product_id: {
-                    type: 'string',
-                    format: 'uuid'
-                  },
-                  quantity: {
-                    type: 'number',
-                    format: 'float'
-                  }
-                }
-              }
-            },
-            notes: {
-              type: 'string'
-            }
-          }
-        },
-        OrderUpdateRequest: {
-          type: 'object',
-          properties: {
-            status: {
-              type: 'string',
-              enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled']
-            },
-            shipping_address: {
-              type: 'string'
-            },
-            delivery_date: {
-              type: 'string',
-              format: 'date-time'
-            }
-          }
-        },
-        OrderListResponse: {
-          type: 'object',
-          properties: {
-            status: {
-              type: 'string',
-              example: 'success'
-            },
-            data: {
-              type: 'array',
-              items: {
-                $ref: '#/components/schemas/Order'
-              }
-            },
-            pagination: {
-              $ref: '#/components/schemas/PaginationResponse'
-            }
-          }
-        },
-        OrderDetailResponse: {
-          type: 'object',
-          properties: {
-            status: {
-              type: 'string',
-              example: 'success'
-            },
-            data: {
-              $ref: '#/components/schemas/Order'
-            }
-          }
-        },
-        OrderStatusUpdateRequest: {
-          type: 'object',
-          required: ['status'],
-          properties: {
-            status: {
-              type: 'string',
-              enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled']
-            },
-            notes: {
-              type: 'string',
-              description: 'Optional notes about the status change'
-            }
-          }
-        },
-        BulkProcessOrdersRequest: {
-          type: 'object',
-          required: ['orderIds', 'action'],
-          properties: {
-            orderIds: {
-              type: 'array',
-              items: {
-                type: 'string',
-                format: 'uuid'
-              }
-            },
-            action: {
-              type: 'string',
-              enum: ['confirm', 'process', 'ship', 'deliver', 'cancel']
-            },
-            notes: {
-              type: 'string'
-            }
-          }
-        },
-        
-        // Inventory Schemas
-        Inventory: {
-          type: 'object',
-          properties: {
-            id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            product_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            warehouse_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            quantity: {
-              type: 'number',
-              format: 'float'
-            },
-            batch_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            last_updated: {
-              type: 'string',
-              format: 'date-time'
-            }
-          }
-        },
-        InventoryCreateRequest: {
-          type: 'object',
-          required: ['product_id', 'warehouse_id', 'quantity'],
-          properties: {
-            product_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            warehouse_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            quantity: {
-              type: 'number',
-              format: 'float'
-            },
-            batch_id: {
-              type: 'string',
-              format: 'uuid'
-            }
-          }
-        },
-        InventoryUpdateRequest: {
-          type: 'object',
-          required: ['product_id', 'quantity'],
-          properties: {
-            product_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            warehouse_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            quantity: {
-              type: 'number',
-              format: 'float',
-              description: 'New quantity value or amount to adjust (when using adjust=true)'
-            },
-            batch_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            adjust: {
-              type: 'boolean',
-              description: 'If true, quantity value will be added/subtracted from current value instead of replacing it',
-              default: false
-            }
-          }
-        },
-        InventoryAdjustRequest: {
-          type: 'object',
-          required: ['adjustment'],
-          properties: {
-            adjustment: {
-              type: 'number',
-              format: 'float',
-              description: 'Amount to add (positive) or subtract (negative) from current quantity'
-            },
-            reason: {
-              type: 'string',
-              description: 'Reason for the adjustment'
-            },
-            reference: {
-              type: 'string',
-              description: 'Reference document ID (e.g., order ID)'
-            }
-          }
-        },
-        InventoryListResponse: {
-          type: 'object',
-          properties: {
-            status: {
-              type: 'string',
-              example: 'success'
-            },
-            data: {
-              type: 'array',
-              items: {
-                $ref: '#/components/schemas/Inventory'
-              }
-            },
-            pagination: {
-              $ref: '#/components/schemas/PaginationResponse'
-            }
-          }
-        },
-        InventoryDetailResponse: {
-          type: 'object',
-          properties: {
-            status: {
-              type: 'string',
-              example: 'success'
-            },
-            data: {
-              $ref: '#/components/schemas/Inventory'
-            }
-          }
-        },
-        ProductInventorySummary: {
-          type: 'object',
-          properties: {
-            product_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            product_name: {
-              type: 'string'
-            },
-            total_quantity: {
-              type: 'number',
-              format: 'float'
-            },
-            locations: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  warehouse_id: {
-                    type: 'string',
-                    format: 'uuid'
-                  },
-                  warehouse_name: {
-                    type: 'string'
-                  },
-                  quantity: {
-                    type: 'number',
-                    format: 'float'
-                  }
-                }
-              }
-            }
-          }
-        },
-        InventoryTransferRequest: {
-          type: 'object',
-          required: ['product_id', 'source_warehouse_id', 'destination_warehouse_id', 'quantity'],
-          properties: {
-            product_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            source_warehouse_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            destination_warehouse_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            batch_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            quantity: {
-              type: 'number',
-              format: 'float'
-            },
-            notes: {
-              type: 'string'
-            }
-          }
-        },
-        InventoryAuditLog: {
-          type: 'object',
-          properties: {
-            id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            inventory_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            product_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            warehouse_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            previous_quantity: {
-              type: 'number',
-              format: 'float'
-            },
-            new_quantity: {
-              type: 'number',
-              format: 'float'
-            },
-            change_type: {
-              type: 'string',
-              enum: ['addition', 'reduction', 'transfer_in', 'transfer_out', 'adjustment']
-            },
-            reference_id: {
-              type: 'string',
-              description: 'Reference to order ID or other document that caused the change'
-            },
-            created_by: {
-              type: 'string',
-              format: 'uuid'
-            },
-            created_at: {
-              type: 'string',
-              format: 'date-time'
-            }
-          }
-        },
-        LowStockResponse: {
-          type: 'object',
-          properties: {
-            status: {
-              type: 'string',
-              example: 'success'
-            },
-            data: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  product_id: {
-                    type: 'string',
-                    format: 'uuid'
-                  },
-                  product_name: {
-                    type: 'string'
-                  },
-                  current_quantity: {
-                    type: 'number',
-                    format: 'float'
-                  },
-                  threshold: {
-                    type: 'number',
-                    format: 'float'
-                  },
-                  warehouse_id: {
-                    type: 'string',
-                    format: 'uuid'
-                  },
-                  warehouse_name: {
-                    type: 'string'
-                  }
-                }
-              }
-            }
-          }
-        },
-        ExpiringBatchesResponse: {
-          type: 'object',
-          properties: {
-            status: {
-              type: 'string',
-              example: 'success'
-            },
-            data: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  batch_id: {
-                    type: 'string',
-                    format: 'uuid'
-                  },
-                  batch_number: {
-                    type: 'string'
-                  },
-                  product_id: {
-                    type: 'string',
-                    format: 'uuid'
-                  },
-                  product_name: {
-                    type: 'string'
-                  },
-                  expiry_date: {
-                    type: 'string',
-                    format: 'date'
-                  },
-                  remaining_days: {
-                    type: 'integer'
-                  },
-                  quantity: {
-                    type: 'number',
-                    format: 'float'
-                  },
-                  warehouse_id: {
-                    type: 'string',
-                    format: 'uuid'
-                  },
-                  warehouse_name: {
-                    type: 'string'
-                  }
-                }
-              }
-            }
-          }
-        },
-          // Warehouse schemas are already defined at the beginning of the file
-        
-        // Batch Schemas
-        Batch: {
-          type: 'object',
-          properties: {
-            id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            product_id: {
-              type: 'string',
-              format: 'uuid'
-            },
-            batch_number: {
-              type: 'string'
-            },
-            manufacturing_date: {
-              type: 'string',
-              format: 'date'
-            },
-            expiry_date: {
-              type: 'string',
-              format: 'date'
-            },
-            quantity: {
-              type: 'number',
-              format: 'float'
-            },
-            supplier_id: {
-              type: 'string',
-              format: 'uuid'
-            }
-          }
-        },
-        
-        // Company Verification Schemas
-        PendingVerificationResponse: {
-          type: 'object',
-          properties: {
-            status: {
-              type: 'string',
-              example: 'success'
-            },
-            data: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  company_id: {
-                    type: 'string',
-                    format: 'uuid'
-                  },
-                  company_name: {
-                    type: 'string'
-                  },
-                  company_type: {
-                    type: 'string',
-                    enum: ['supplier', 'dealer']
-                  },
-                  submitted_at: {
-                    type: 'string',
-                    format: 'date-time'
-                  },
-                  documents: {
-                    type: 'object',
-                    properties: {
-                      business_license: {
-                        type: 'string',
-                        format: 'uri'
-                      },
-                      tax_id: {
-                        type: 'string'
-                      },
-                      additional_docs: {
-                        type: 'array',
-                        items: {
-                          type: 'string',
-                          format: 'uri'
-                        }
-                      }
-                    }
-                  }
                 }
               }
             }
