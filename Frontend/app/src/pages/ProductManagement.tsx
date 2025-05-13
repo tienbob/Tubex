@@ -8,7 +8,6 @@ import {
   DialogContent,
   IconButton
 } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ProductList  from '../components/whitelabel/products/ProductList';
 import ProductForm from '../components/whitelabel/products/ProductForm';
