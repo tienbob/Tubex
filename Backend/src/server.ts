@@ -14,6 +14,23 @@ const startServer = async () => {
       if (!AppDataSource.isInitialized) {
         throw new Error('PostgreSQL database connection failed to initialize');
       }
+      
+      // Verify that critical entities are properly registered
+      try {
+        const entityNames = AppDataSource.entityMetadatas.map(metadata => metadata.name);
+        logger.info(`Registered entities: ${entityNames.join(', ')}`);
+        
+        // Check for essential entities
+        const requiredEntities = ['User', 'Company', 'Product', 'Order'];
+        const missingEntities = requiredEntities.filter(entity => !entityNames.includes(entity));
+        
+        if (missingEntities.length > 0) {
+          throw new Error(`Missing required entities: ${missingEntities.join(', ')}`);
+        }
+      } catch (entityError) {
+        logger.error('Entity registration error:', entityError);
+        throw entityError;
+      }
     } catch (dbError) {
       logger.error('Critical database connection error:', dbError);
       

@@ -62,7 +62,21 @@ export const connectDatabases = async () => {
         console.log('PostgreSQL connection already initialized');
         postgresConnected = true;
       } else {
+        // Force TypeORM to load all entity metadata before initializing
+        console.log('Loading entity metadata before connecting...');
+        
+        // Initialize TypeORM with explicit entities
         await AppDataSource.initialize();
+        
+        // Verify entities were properly loaded
+        const entityNames = AppDataSource.entityMetadatas.map(metadata => metadata.name);
+        console.log('Registered entities:', entityNames);
+        
+        // Verify User entity specifically
+        if (!entityNames.includes('User')) {
+          throw new Error('User entity metadata not registered properly');
+        }
+        
         console.log('PostgreSQL connected successfully via TypeORM');
         postgresConnected = true;
       }

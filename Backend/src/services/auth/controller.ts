@@ -116,9 +116,16 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
 };
 
 export const login = async (req: Request, res: Response, next: NextFunction) => {
-    const userRepository = AppDataSource.getRepository(User);
-
     try {
+        // Verify that database is initialized
+        if (!AppDataSource.isInitialized) {
+            console.error('Database connection not initialized');
+            throw new AppError(500, 'Database connection error. Please try again later.');
+        }
+        
+        const userRepository = AppDataSource.getRepository(User);
+        console.log('User repository initialized successfully');
+        
         const { email, password, rememberMe = false } = req.body;
         console.log(`Login attempt for email: ${email}`);
 
@@ -909,4 +916,64 @@ export const handleOAuthCallback = async (req: Request, res: Response) => {
         `userId=${user.id}&` +
         `email=${encodeURIComponent(user.email)}`
     );
+};
+
+/**
+ * Get pending employees for a company
+ * This endpoint returns employees who have registered but not verified their email
+ */
+export const getPendingEmployees = async (req: Request, res: Response, next: NextFunction) => {
+    const userRepository = AppDataSource.getRepository(User);
+    
+    try {
+        // Check if the user is authenticated and has appropriate permissions
+        if (!req.user) {
+            throw new AppError(401, 'Authentication required');
+        }
+        
+        // Get company ID (either from query param or from authenticated user)
+        const companyId = req.query.companyId || req.user.companyId;
+        
+        if (!companyId) {
+            throw new AppError(400, 'Company ID is required');
+        }
+        
+        // Check if the user has permission to view this company's employees
+        if (req.user.role !== 'admin' && req.user.companyId !== companyId) {
+            throw new AppError(403, 'You do not have permission to view employees from this company');
+        }
+        
+        // Query for pending employees
+        const pendingEmployees = await userRepository.find({
+            where: {
+                company_id: companyId as string,
+                status: 'pending'
+            },
+            select: ['id', 'email', 'role', 'status', 'created_at', 'metadata'],
+            order: {
+                created_at: 'DESC'
+            }
+        });
+        
+        // Format the response data
+        const formattedEmployees = pendingEmployees.map(employee => ({
+            id: employee.id,
+            email: employee.email,
+            role: employee.role,
+            status: employee.status,
+            firstName: employee.metadata?.firstName || '',
+            lastName: employee.metadata?.lastName || '',
+            createdAt: employee.created_at
+        }));
+        
+        res.status(200).json({
+            status: 'success',
+            data: {
+                employees: formattedEmployees,
+                count: formattedEmployees.length
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
 };

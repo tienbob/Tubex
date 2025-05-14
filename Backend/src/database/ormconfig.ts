@@ -3,8 +3,7 @@ import { config } from '../config';
 import { User } from './models/sql/user';
 import { Company } from './models/sql/company';
 import { Product } from './models/sql/product';
-import { Order } from './models/sql/order';
-import { OrderItem } from './models/sql/order';
+import { Order, OrderItem } from './models/sql/order';
 import { OrderHistory } from './models/sql/orderHistory';
 import { Inventory } from './models/sql/inventory';
 import { Warehouse } from './models/sql/warehouse';
@@ -18,8 +17,19 @@ export const AppDataSource = new DataSource({
   password: config.dbConfig.postgres.password,
   database: config.dbConfig.postgres.database,
   synchronize: false, // Disable in production
-  logging: config.nodeEnv === 'development',
-  entities: [User, Company, Product, Order, OrderItem, OrderHistory, Inventory, Warehouse, Batch],  migrations: [
+  logging: config.nodeEnv === 'development',  // Explicitly list all entities to ensure proper registration
+  entities: [
+    User, 
+    Company, 
+    Product, 
+    Order, 
+    OrderItem, 
+    OrderHistory, 
+    Inventory, 
+    Warehouse, 
+    Batch
+  ],
+  migrations: [
     // New organized migrations (one file per table)
     'src/database/migrations/1684000000000-CreateCompanyTable.ts',
     'src/database/migrations/1684000001000-CreateUserTable.ts',
@@ -29,6 +39,7 @@ export const AppDataSource = new DataSource({
     'src/database/migrations/1684000005000-CreateInventoryTable.ts',
     'src/database/migrations/1684000006000-CreateOrderTable.ts',
     'src/database/migrations/1684000007000-CreateOrderItemTable.ts',
+    'src/database/migrations/1715652854000-EnsureCompanyIdField.ts',
     'src/database/migrations/1684000008000-CreateOrderHistoryTable.ts',
     'src/database/migrations/1684000009000-CreateUserAuditLogTable.ts',
     

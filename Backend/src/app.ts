@@ -67,6 +67,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 // Routes
 app.use('/api/v1/auth', authRoutes);
+app.use('/v1/auth', authRoutes); // Support alternative path format
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/company/manage', userManagementRoutes); // New user management routes
 app.use('/api/v1/products', productRoutes);
@@ -82,6 +83,24 @@ app.get('/api/v1/health', (_req: Request, res: Response) => {
     environment: config.nodeEnv,
     timestamp: new Date().toISOString()
   });
+});
+
+// Add after routes are registered
+console.log('Available routes:');
+app._router.stack.forEach((middleware: any) => {
+  if (middleware.route) {
+    // Routes registered directly
+    console.log(`${Object.keys(middleware.route.methods).join(', ')} ${middleware.route.path}`);
+  } else if (middleware.name === 'router') {
+    // Router middleware
+    middleware.handle.stack.forEach((handler: any) => {
+      if (handler.route) {
+        const path = handler.route.path;
+        const methods = Object.keys(handler.route.methods).join(', ');
+        console.log(`${methods.toUpperCase()} ${middleware.regexp} ${path}`);
+      }
+    });
+  }
 });
 
 // Error handling

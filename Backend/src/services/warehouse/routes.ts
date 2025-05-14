@@ -18,7 +18,7 @@ warehouseRoutes.use(authenticate);
 
 /**
  * @swagger
- * /warehouse/company/{companyId}:
+ * /warehouses/company/{companyId}:
  *   get:
  *     summary: Get all warehouses for a company
  *     tags: [Warehouses]
@@ -78,7 +78,7 @@ warehouseRoutes.get(
 
 /**
  * @swagger
- * /warehouse/company/{companyId}/{warehouseId}:
+ * /warehouses/company/{companyId}/{warehouseId}:
  *   get:
  *     summary: Get a specific warehouse by ID
  *     tags: [Warehouses]
@@ -128,7 +128,7 @@ warehouseRoutes.get(
 
 /**
  * @swagger
- * /warehouse/company/{companyId}:
+ * /warehouses/company/{companyId}:
  *   post:
  *     summary: Create a new warehouse
  *     tags: [Warehouses]
@@ -207,7 +207,7 @@ warehouseRoutes.post(
 
 /**
  * @swagger
- * /warehouse/company/{companyId}/{warehouseId}:
+ * /warehouses/company/{companyId}/{warehouseId}:
  *   put:
  *     summary: Update a warehouse
  *     tags: [Warehouses]
@@ -294,7 +294,7 @@ warehouseRoutes.put(
 
 /**
  * @swagger
- * /warehouse/company/{companyId}/{warehouseId}:
+ * /warehouses/company/{companyId}/{warehouseId}:
  *   delete:
  *     summary: Delete a warehouse
  *     tags: [Warehouses]
@@ -347,7 +347,7 @@ warehouseRoutes.delete(
 
 /**
  * @swagger
- * /warehouse/company/{companyId}/{warehouseId}/capacity:
+ * /warehouses/company/{companyId}/{warehouseId}/capacity:
  *   get:
  *     summary: Get warehouse capacity usage information
  *     tags: [Warehouses]

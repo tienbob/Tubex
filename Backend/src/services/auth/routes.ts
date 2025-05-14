@@ -12,7 +12,8 @@ import {
   verifyCompany,
   registerEmployee,
   completeOAuthRegistration,
-  handleOAuthCallback
+  handleOAuthCallback,
+  getPendingEmployees
 } from './controller';
 import { 
   validateRegistration, 
@@ -449,5 +450,62 @@ router.post('/verify-company', authenticate, authorize('admin'), verifyCompany a
  *         description: Invalid input or invitation code
  */
 router.post('/register-employee', authLimiter, validateEmployeeRegistration, registerEmployee as RequestHandler);
+
+/**
+ * @swagger
+ * /auth/pending-employees:
+ *   get:
+ *     summary: Get pending employees for a company
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: companyId
+ *         schema:
+ *           type: string
+ *         description: The company ID to get pending employees for (optional, defaults to user's company)
+ *     responses:
+ *       200:
+ *         description: List of pending employees
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     employees:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           email:
+ *                             type: string
+ *                           role:
+ *                             type: string
+ *                           status:
+ *                             type: string
+ *                           firstName:
+ *                             type: string
+ *                           lastName:
+ *                             type: string
+ *                           createdAt:
+ *                             type: string
+ *                             format: date-time
+ *                     count:
+ *                       type: number
+ *       401:
+ *         description: Not authenticated
+ *       403:
+ *         description: Not authorized to view these employees
+ */
+router.get('/pending-employees', authenticate, getPendingEmployees as RequestHandler);
 
 export const authRoutes = router;
