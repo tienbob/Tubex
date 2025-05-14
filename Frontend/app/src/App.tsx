@@ -4,12 +4,19 @@ import {
   WhiteLabelLayout,
   WhiteLabelProvider
 } from './components/whitelabel';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-import AuthRoute from './components/auth/AuthRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import LoadingSpinner from './components/common/LoadingSpinner';
+import MockApiToggle from './components/common/MockApiToggle';
+import { MockDataProvider } from './contexts/MockDataContext';
+import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import { ThemeProvider as CustomThemeProvider } from './contexts/ThemeContext';
+import { CompanySettingsProvider } from './contexts/CompanySettingsContext';
+import defaultTheme from './config/theme';
 
 // Pages
 import Dashboard from './pages/Dashboard';
@@ -41,41 +48,81 @@ const queryClient = new QueryClient({
 
 const App: React.FC = () => {
   return (
-    <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <WhiteLabelProvider>
-            <WhiteLabelLayout>
-              <Suspense fallback={<LoadingSpinner />}>
-                <Routes>
-                  {/* Authentication Routes (accessible only when not logged in) */}
-                  <Route path="/login" element={<AuthRoute><Login /></AuthRoute>} />
-                  <Route path="/register" element={<AuthRoute><Register /></AuthRoute>} />
-                  <Route path="/forgot-password" element={<AuthRoute><ForgotPassword /></AuthRoute>} />
-                  <Route path="/reset-password" element={<AuthRoute><ResetPassword /></AuthRoute>} />
-                  <Route path="/join" element={<AuthRoute><Join /></AuthRoute>} />
-                  <Route path="/register/employee" element={<AuthRoute><Join /></AuthRoute>} />
-                  <Route path="/auth/pending-approval" element={<PendingApproval />} />
-                  <Route path="/auth/oauth-callback" element={<AuthRoute><Login /></AuthRoute>} />
-                  
-                  {/* Protected Routes (require authentication) */}
-                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                  <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                  <Route path="/analytics" element={<ProtectedRoute><AnalyticsDashboard /></ProtectedRoute>} />
-                  <Route path="/products" element={<ProtectedRoute><ProductManagement /></ProtectedRoute>} />
-                  <Route path="/inventory" element={<ProtectedRoute><InventoryManagement /></ProtectedRoute>} />
-                  <Route path="/orders" element={<ProtectedRoute><OrderManagement /></ProtectedRoute>} />
-                  <Route path="/warehouses" element={<ProtectedRoute><WarehouseManagement /></ProtectedRoute>} />
-                  <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
-                  <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                  
-                  {/* Fallback for unmatched routes - show 404 page */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
-            </WhiteLabelLayout>
-          </WhiteLabelProvider>
-        </BrowserRouter>
+    <ErrorBoundary>      
+      <QueryClientProvider client={queryClient}>        <CustomThemeProvider>
+          <ThemeProvider theme={defaultTheme}>
+            <CssBaseline />
+            <AuthProvider>
+              <Router>
+                <WhiteLabelProvider>
+                  <CompanySettingsProvider>
+                    <MockDataProvider>
+                    <WhiteLabelLayout>
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <Routes>
+                          {/* Public routes */}
+                          <Route path="/login" element={<Login />} />
+                          <Route path="/register" element={<Register />} />
+                          <Route path="/forgot-password" element={<ForgotPassword />} />
+                          <Route path="/auth/pending-approval" element={<PendingApproval />} />
+                          
+                          {/* Protected routes */}
+                          <Route path="/" element={
+                            <ProtectedRoute>
+                              <Navigate to="/dashboard" replace />
+                            </ProtectedRoute>
+                          } />
+                          <Route path="/dashboard" element={
+                            <ProtectedRoute>
+                              <Dashboard />
+                            </ProtectedRoute>
+                          } />
+                          <Route path="/products" element={
+                            <ProtectedRoute>
+                              <ProductManagement />
+                            </ProtectedRoute>
+                          } />
+                          <Route path="/inventory" element={
+                            <ProtectedRoute>
+                              <InventoryManagement />
+                            </ProtectedRoute>
+                          } />
+                          <Route path="/warehouses" element={
+                            <ProtectedRoute>
+                              <WarehouseManagement />
+                            </ProtectedRoute>
+                          } />
+                          <Route path="/orders" element={
+                            <ProtectedRoute>
+                              <OrderManagement />
+                            </ProtectedRoute>
+                          } />
+                          
+                          <Route path="/profile" element={
+                            <ProtectedRoute>
+                              <UserProfile />
+                            </ProtectedRoute>
+                          } />
+                          
+                          <Route path="/settings" element={
+                            <ProtectedRoute>
+                              <Settings />
+                            </ProtectedRoute>
+                          } />
+                          
+                          {/* 404 route */}
+                          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                        </Routes>
+                      </Suspense>
+                      {/* Add the mock API toggle component for development */}
+                      {process.env.NODE_ENV === 'development' && <MockApiToggle />}
+                    </WhiteLabelLayout>                  </MockDataProvider>
+                  </CompanySettingsProvider>
+                </WhiteLabelProvider>
+              </Router>
+            </AuthProvider>
+          </ThemeProvider>
+        </CustomThemeProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );

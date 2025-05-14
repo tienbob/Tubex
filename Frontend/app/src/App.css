@@ -1,3 +1,4 @@
+/* General app styles */
 .App {
   text-align: center;
 }
@@ -35,4 +36,221 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Dark Mode Styles - Applied when body has the .dark-mode class */
+body.dark-mode {
+  background-color: #121212;
+  color: #ffffff;
+}
+
+/* MUI Components in Dark Mode */
+body.dark-mode .MuiPaper-root {
+  background-color: #1e1e1e !important;
+  color: #ffffff !important;
+}
+
+body.dark-mode .MuiCard-root {
+  background-color: #2d2d2d !important;
+}
+
+body.dark-mode .MuiAppBar-root {
+  background-color: #272727 !important;
+}
+
+body.dark-mode .MuiListItem-root {
+  background-color: #2d2d2d !important;
+  color: #ffffff !important;
+}
+
+body.dark-mode .MuiTableCell-root {
+  color: #ffffff !important;
+  border-bottom-color: #444444 !important;
+}
+
+body.dark-mode .MuiTableHead-root .MuiTableCell-root {
+  background-color: #333333 !important;
+}
+
+body.dark-mode .MuiInputBase-input {
+  color: #ffffff !important;
+}
+
+body.dark-mode .MuiOutlinedInput-notchedOutline {
+  border-color: #555555 !important;
+}
+
+body.dark-mode .MuiInputLabel-root {
+  color: #bbbbbb !important;
+}
+
+body.dark-mode .MuiInput-underline:before {
+  border-bottom-color: #555555 !important;
+}
+
+body.dark-mode .MuiDivider-root {
+  background-color: #444444 !important;
+}
+
+body.dark-mode .MuiSelect-select {
+  color: #ffffff !important;
+}
+
+body.dark-mode .MuiMenuItem-root {
+  color: #ffffff !important;
+}
+
+body.dark-mode .MuiMenu-paper,
+body.dark-mode .MuiPopover-paper {
+  background-color: #2d2d2d !important;
+}
+
+body.dark-mode .MuiBackdrop-root {
+  background-color: rgba(0, 0, 0, 0.7) !important;
+}
+
+body.dark-mode .MuiTypography-colorTextSecondary {
+  color: #bbbbbb !important;
+}
+
+body.dark-mode .MuiButton-outlined {
+  border-color: #555555 !important;
+}
+
+body.dark-mode .MuiDrawer-paper {
+  background-color: #1e1e1e !important;
+}
+
+body.dark-mode .MuiAccordion-root {
+  background-color: #1e1e1e !important;
+}
+
+/* Additional text color rules for dark mode */
+body.dark-mode .MuiTypography-root {
+  color: #ffffff !important;
+}
+
+body.dark-mode .MuiTypography-colorTextSecondary {
+  color: #bbbbbb !important;
+}
+
+/* Make sure primary text elements are visible */
+body.dark-mode .MuiButton-root {
+  color: inherit;
+}
+
+body.dark-mode .MuiButton-contained {
+  color: #ffffff !important;
+}
+
+body.dark-mode .MuiButton-outlined {
+  color: #ffffff !important;
+  border-color: #555555 !important;
+}
+
+/* Make links more visible in dark mode */
+body.dark-mode a {
+  color: #90caf9 !important;
+}
+
+/* Make sure icons are visible */
+body.dark-mode .MuiSvgIcon-root {
+  color: inherit;
+}
+
+/* Fix form elements */
+body.dark-mode .MuiFormLabel-root {
+  color: #bbbbbb !important;
+}
+
+body.dark-mode .MuiFormLabel-root.Mui-focused {
+  color: #90caf9 !important;
+}
+
+body.dark-mode .MuiInputBase-root.Mui-disabled {
+  color: #777777 !important;
+}
+
+body.dark-mode .MuiSwitch-thumb {
+  background-color: #f5f5f5;
+}
+
+body.dark-mode .MuiSwitch-track {
+  background-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Additional dark mode text color fixes for specific components */
+
+/* Fix tab colors */
+body.dark-mode .MuiTab-root {
+  color: #bbbbbb !important;
+}
+
+body.dark-mode .MuiTab-root.Mui-selected {
+  color: #90caf9 !important;
+}
+
+/* Fix header and title text */
+body.dark-mode h1, 
+body.dark-mode h2,
+body.dark-mode h3, 
+body.dark-mode h4,
+body.dark-mode h5, 
+body.dark-mode h6 {
+  color: #ffffff !important;
+}
+
+/* Fix MUI buttons */
+body.dark-mode .MuiButton-text {
+  color: #90caf9 !important;
+}
+
+body.dark-mode .MuiButton-contained.MuiButton-containedPrimary {
+  background-color: #1976d2 !important;
+  color: #ffffff !important;
+}
+
+body.dark-mode .MuiButton-contained.MuiButton-containedSecondary {
+  background-color: #dc004e !important;
+  color: #ffffff !important;
+}
+
+body.dark-mode .MuiButton-outlined.MuiButton-outlinedPrimary {
+  color: #90caf9 !important;
+  border-color: rgba(144, 202, 249, 0.5) !important;
+}
+
+body.dark-mode .MuiButton-outlined.MuiButton-outlinedSecondary {
+  color: #f48fb1 !important;
+  border-color: rgba(244, 143, 177, 0.5) !important;
+}
+
+/* Fix badge colors */
+body.dark-mode .MuiBadge-colorPrimary {
+  background-color: #1976d2 !important;
+  color: #ffffff !important;
+}
+
+body.dark-mode .MuiBadge-colorSecondary {
+  background-color: #dc004e !important;
+  color: #ffffff !important;
+}
+
+/* Fix app bar and toolbar */
+body.dark-mode .MuiAppBar-colorPrimary {
+  background-color: #1e1e1e !important;
+  color: #ffffff !important;
+}
+
+body.dark-mode .MuiToolbar-root {
+  color: #ffffff !important;
+}
+
+/* Fix active and hover states */
+body.dark-mode .MuiListItem-root:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+body.dark-mode .MuiMenuItem-root:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
 }

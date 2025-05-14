@@ -13,7 +13,8 @@ import {
   IconButton,
   Tooltip,
   useTheme as useMuiTheme,
-  SelectChangeEvent
+  SelectChangeEvent,
+  Alert
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import TuneIcon from '@mui/icons-material/Tune';
@@ -26,15 +27,15 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { inventoryService } from '../../../services/api';
 
 interface InventoryListProps {
-  companyId?: string;
+  companyId: string; // Required parameter
   warehouseId?: string;
   onAdjustInventory?: (inventoryId: string) => void;
   onTransferInventory?: (inventoryId: string) => void;
   onAddInventory?: () => void;
   hideActions?: boolean;
   maxHeight?: number | string;
-  onInventorySelect: (inventoryId: string) => void;
-  onTransferClick: (product: { id: string; name: string }) => void;
+  onInventorySelect?: (inventoryId: string) => void;
+  onTransferClick?: (product: { id: string; name: string }) => void;
 }
 
 const InventoryList: React.FC<InventoryListProps> = ({
@@ -45,10 +46,14 @@ const InventoryList: React.FC<InventoryListProps> = ({
   onAddInventory,
   hideActions = false,
   maxHeight,
+  onInventorySelect,
+  onTransferClick,
 }) => {
+  // Theme hooks
   const { theme: whitelabelTheme } = useTheme();
   const muiTheme = useMuiTheme();
 
+  // All useState hooks must be called at the top level, before any conditional returns
   const [inventory, setInventory] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +82,11 @@ const InventoryList: React.FC<InventoryListProps> = ({
   };
 
   const fetchInventory = async () => {
+    if (!companyId) {
+      setError('Company ID is required');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     
@@ -85,14 +95,14 @@ const InventoryList: React.FC<InventoryListProps> = ({
         page: page + 1, // API uses 1-based page indexing
         limit: rowsPerPage,
         search: searchTerm || undefined,
-        warehouse_id: selectedWarehouse || undefined,
-        company_id: companyId || undefined,
-        sort_by: sortBy,
-        sort_direction: sortDirection,
+        warehouseId: selectedWarehouse || undefined, // Changed to match service parameters
+        companyId: companyId, // Ensure this matches the service parameter name
+        sortBy: sortBy, // Changed to match service parameters
+        sortDirection: sortDirection,
       };
       
       if (batchFilter) {
-        params.batch_id = batchFilter;
+        params.batchId = batchFilter; // Changed to camelCase to match service conventions
       }
       
       const response = await inventoryService.getInventory(params);
@@ -108,27 +118,31 @@ const InventoryList: React.FC<InventoryListProps> = ({
   
   const fetchWarehouses = async () => {
     if (warehouseId) return; // Don't fetch warehouses if one is specified
+    if (!companyId) {
+      console.error('Company ID is required to fetch warehouses');
+      return;
+    }
     
     try {
-      const params: any = {};
-      if (companyId) {
-        params.company_id = companyId;
-      }
-      
-      const response = await inventoryService.getWarehouses(params);
+      const response = await inventoryService.getWarehouses(companyId);
       setWarehouses(response.data || []);
     } catch (err: any) {
       console.error('Error fetching warehouses:', err);
     }
   };
   
+  // useEffect hooks must also be called at the top level
   useEffect(() => {
-    fetchWarehouses();
-  }, [companyId]);
+    if (companyId) {
+      fetchWarehouses();
+    }
+  }, [companyId, warehouseId]);
   
   useEffect(() => {
-    fetchInventory();
-  }, [page, rowsPerPage, selectedWarehouse, companyId, sortBy, sortDirection]);
+    if (companyId) {
+      fetchInventory();
+    }
+  }, [page, rowsPerPage, selectedWarehouse, companyId, sortBy, sortDirection, batchFilter, searchTerm]);
   
   const handleSearch = () => {
     setPage(0); // Reset to first page when searching
@@ -170,6 +184,17 @@ const InventoryList: React.FC<InventoryListProps> = ({
     
     return <Chip size="small" color={color} label={label} />;
   };
+  
+  // Validate the required companyId after all hooks are called
+  if (!companyId) {
+    return (
+      <Box sx={{ p: 2 }}>
+        <Alert severity="error">
+          Company ID is required to display inventory
+        </Alert>
+      </Box>
+    );
+  }
   
   // Define columns
   const columns: Column[] = [

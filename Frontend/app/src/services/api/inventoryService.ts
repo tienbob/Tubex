@@ -1,6 +1,5 @@
 import { get, post, put, patch } from './apiClient';
 import { AxiosError } from 'axios';
-import { API_BASE_URL } from '../../config';
 
 // Custom error class for API errors
 export class ApiError extends Error {
@@ -277,13 +276,14 @@ export const inventoryService = {
     }
   },
 
-  async getWarehouses(companyId: string): Promise<ApiResponse<Array<{ id: string; name: string }>>> {
+  async getWarehouses(companyId: string): Promise<ApiResponse<{ id: string; name: string }[]>> {
     try {
-      if (!companyId) {
-        throw new Error('Company ID is required');
+      if (!companyId || typeof companyId !== 'string') {
+        throw new Error('Invalid company ID');
       }
       
-      const response = await get<ApiResponse<Array<{ id: string; name: string }>>>(`/warehouses/company/${companyId}`);
+      // Use the get function from apiClient instead of axios
+      const response = await get<ApiResponse<{ id: string; name: string }[]>>(`/warehouses/company/${companyId}`);
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {

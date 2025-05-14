@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useLocation } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -24,6 +25,7 @@ import { orderService } from '../services/api';
 import OrderDetails from '../components/whitelabel/orders/OrderDetails';
 import CreateOrderForm from '../components/whitelabel/orders/CreateOrderForm';
 import { format } from 'date-fns';
+import { useAuth } from '../contexts/AuthContext';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -77,14 +79,62 @@ const OrderManagement: React.FC = () => {
     start: null,
     end: null,
   });
-  const [companyId, setCompanyId] = useState('current-company-id'); // Replace with actual company ID from context
+  
+  // Get company ID from auth context
+  const { user } = useAuth();
+  const [companyId, setCompanyId] = useState<string>('');
+  
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [actionOrderId, setActionOrderId] = useState<string | null>(null);
 
+  const location = useLocation();
+  const params = useParams();
+
+  // Set companyId from auth context when user data is available
+  useEffect(() => {
+    if (user && user.companyId) {
+      setCompanyId(user.companyId);
+    }
+  }, [user]);
+
   // Fetch orders when component mounts or filters change
   useEffect(() => {
-    fetchOrders();
-  }, [filterStatus, dateRange]);
+    if (companyId) {
+      fetchOrders();
+    }
+  }, [filterStatus, dateRange, companyId]);
+
+  // Parse query parameters and set up the correct view
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const action = queryParams.get('action');
+    const id = queryParams.get('id');
+    
+    if (action === 'create') {
+      setSelectedOrder(null);
+      setShowCreateForm(true);
+    } else if (id) {
+      // Fetch and show specific order
+      const fetchOrderDetails = async () => {
+        setLoading(true);
+        try {
+          const order = await orderService.getOrderById(id);
+          setSelectedOrder(order);
+          setShowCreateForm(false);
+        } catch (err: any) {
+          console.error('Error fetching order details:', err);
+          setError(err.message || 'Failed to load order details');
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchOrderDetails();
+    } else {
+      // Reset to list view
+      setSelectedOrder(null);
+      setShowCreateForm(false);
+    }
+  }, [location.search]);
 
   const fetchOrders = async () => {
     setLoading(true);

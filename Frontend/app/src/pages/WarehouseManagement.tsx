@@ -24,6 +24,7 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import { inventoryService, warehouseService } from '../services/api';
 import { InventoryItem } from '../services/api/inventoryService';
 import { Warehouse, ApiError } from '../services/api/warehouseService';
+import { useAuth } from '../contexts/AuthContext';
 
 const WarehouseManagement: React.FC = () => {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -33,11 +34,21 @@ const WarehouseManagement: React.FC = () => {
   const [newWarehouse, setNewWarehouse] = useState({ name: '', address: '', capacity: '' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const companyId = 'your-company-id'; // Replace with actual company ID from context
+  
+  // Get company ID from auth context
+  const { user } = useAuth();
+  const [companyId, setCompanyId] = useState<string>('');
+  
+  // Set companyId from auth context when user data is available
+  useEffect(() => {
+    if (user && user.companyId) {
+      setCompanyId(user.companyId);
+    }
+  }, [user]);
 
   useEffect(() => {
     fetchWarehouses();
-  }, []);
+  }, [companyId]); // Re-fetch when companyId changes
 
   useEffect(() => {
     if (selectedWarehouse) {

@@ -1,114 +1,321 @@
-import React, { useState } from 'react';
-import Box from '@mui/material/Box';
-import AppBar from '@mui/material/AppBar';
-import Toolbar from '@mui/material/Toolbar';
-import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
-import IconButton from '@mui/material/IconButton';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
-import AccountCircle from '@mui/icons-material/AccountCircle';
+import React, { useState, useEffect } from 'react';
+import {
+  AppBar,
+  Box,
+  Toolbar,
+  Typography,
+  Button,
+  IconButton,
+  Menu,
+  MenuItem,
+  Avatar,
+  Divider,
+  ListItemIcon,
+  useMediaQuery,
+  useTheme as useMuiTheme,
+  Drawer,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText
+} from '@mui/material';
+import {
+  Menu as MenuIcon,
+  Dashboard as DashboardIcon,
+  Inventory as InventoryIcon,
+  ShoppingCart as OrdersIcon,
+  Warehouse as WarehouseIcon,
+  Assessment as AnalyticsIcon,
+  Settings as SettingsIcon,
+  Logout as LogoutIcon,
+  Person as PersonIcon
+} from '@mui/icons-material';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 
 interface WhiteLabelHeaderProps {
   showLogo?: boolean;
-  showCompanyName?: boolean;
 }
 
 const WhiteLabelHeader: React.FC<WhiteLabelHeaderProps> = ({
   showLogo = true,
-  showCompanyName = true,
 }) => {
   const { theme } = useTheme();
-  const { isAuthenticated, logout } = useAuth();
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-
-  const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
+  const muiTheme = useMuiTheme();
+  const navigate = useNavigate();
+  
+  // PROBLEM #1: Remove duplicate auth declarations - use only one
+  const auth = useAuth();
+  const logout = auth.logout;
+  
+  const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'));
+  
+  // Debug - log auth state in header
+  useEffect(() => {
+    console.log("WhiteLabelHeader - Auth state:", { 
+      isAuthenticated: auth.isAuthenticated,
+      user: auth.user,
+      loading: auth.loading
+    });
+  }, [auth.isAuthenticated, auth.user, auth.loading]);
+  
+  // Determine if user is logged in, accounting for loading state
+  const userIsLoggedIn = auth.isAuthenticated && !auth.loading && !!auth.user;
+  
+  const handleUserMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setUserMenuAnchor(event.currentTarget);
   };
-
-  const handleClose = () => {
-    setAnchorEl(null);
+  
+  const handleUserMenuClose = () => {
+    setUserMenuAnchor(null);
   };
-
+  
   const handleLogout = () => {
+    handleUserMenuClose();
     logout();
-    handleClose();
+    navigate('/login');
   };
+  
+  const handleMobileMenuToggle = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+  
+  const navigationItems = [
+    { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+    { text: 'Products', icon: <InventoryIcon />, path: '/products' },
+    { text: 'Inventory', icon: <InventoryIcon />, path: '/inventory' },
+    { text: 'Orders', icon: <OrdersIcon />, path: '/orders' },
+    { text: 'Warehouses', icon: <WarehouseIcon />, path: '/warehouses' },
+    { text: 'Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
+  ];
 
-  return (
-    <AppBar position="static" color="primary">
-      <Toolbar>
-        {showLogo && (
-          <Box 
-            component="img"
-            sx={{
-              height: 40,
-              mr: 2
-            }}
-            alt={`${theme.companyName} logo`}
-            src={theme.logoUrl}
-          />
-        )}
-        {showCompanyName && (
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            {theme.companyName}
-          </Typography>
-        )}
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Button color="inherit" href="/">Home</Button>
-          
-          {isAuthenticated && (
+  const renderMobileMenu = () => (
+    <Drawer
+      anchor="right"
+      open={mobileMenuOpen}
+      onClose={handleMobileMenuToggle}
+    >
+      <Box
+        sx={{ width: 250 }}
+        role="presentation"
+        onClick={handleMobileMenuToggle}
+      >
+        <List>
+          {/* PROBLEM #2: Use userIsLoggedIn instead of isAuthenticated for consistency */}
+          {userIsLoggedIn ? (
             <>
-              <Button color="inherit" href="/dashboard">Dashboard</Button>
-              <Button color="inherit" href="/products">Products</Button>
-              <Button color="inherit" href="/orders">Orders</Button>
-              <Button color="inherit" href="/inventory">Inventory</Button>
+              {navigationItems.map((item) => (
+                <ListItem key={item.text} disablePadding>
+                  <ListItemButton onClick={() => navigate(item.path)}>
+                    <ListItemIcon>{item.icon}</ListItemIcon>
+                    <ListItemText primary={item.text} />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+              <Divider />
+              <ListItem disablePadding>
+                <ListItemButton onClick={() => navigate('/profile')}>
+                  <ListItemIcon><PersonIcon /></ListItemIcon>
+                  <ListItemText primary="Profile" />
+                </ListItemButton>
+              </ListItem>
+              <ListItem disablePadding>
+                <ListItemButton onClick={() => navigate('/settings')}>
+                  <ListItemIcon><SettingsIcon /></ListItemIcon>
+                  <ListItemText primary="Settings" />
+                </ListItemButton>
+              </ListItem>
+              <ListItem disablePadding>
+                <ListItemButton onClick={handleLogout}>
+                  <ListItemIcon><LogoutIcon /></ListItemIcon>
+                  <ListItemText primary="Logout" />
+                </ListItemButton>
+              </ListItem>
             </>
-          )}
-          
-          {isAuthenticated ? (
-            <div>
-              <IconButton
-                size="large"
-                aria-label="account of current user"
-                aria-controls="menu-appbar"
-                aria-haspopup="true"
-                onClick={handleMenu}
-                color="inherit"
-              >
-                <AccountCircle />
-              </IconButton>
-              <Menu
-                id="menu-appbar"
-                anchorEl={anchorEl}
-                anchorOrigin={{
-                  vertical: 'bottom',
-                  horizontal: 'right',
-                }}
-                keepMounted
-                transformOrigin={{
-                  vertical: 'top',
-                  horizontal: 'right',
-                }}
-                open={Boolean(anchorEl)}
-                onClose={handleClose}
-              >
-                <MenuItem onClick={handleClose}>Profile</MenuItem>
-                <MenuItem onClick={handleClose}>My Account</MenuItem>
-                <MenuItem onClick={handleLogout}>Logout</MenuItem>
-              </Menu>
-            </div>
           ) : (
             <>
-              <Button color="inherit" href="/login">Login</Button>
-              <Button color="inherit" href="/register">Register</Button>
+              <ListItem disablePadding>
+                <ListItemButton onClick={() => navigate('/login')}>
+                  <ListItemText primary="Login" />
+                </ListItemButton>
+              </ListItem>
+              <ListItem disablePadding>
+                <ListItemButton onClick={() => navigate('/register')}>
+                  <ListItemText primary="Register" />
+                </ListItemButton>
+              </ListItem>
             </>
           )}
-        </Box>
-      </Toolbar>
-    </AppBar>
+        </List>
+      </Box>
+    </Drawer>
+  );
+
+  return (
+    <>
+      <AppBar 
+        position="static" 
+        sx={{ 
+          bgcolor: theme.primaryColor || muiTheme.palette.primary.main,
+          color: 'white'
+        }}
+      >
+        <Toolbar>
+          {showLogo && (
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center',
+                mr: 2,
+                cursor: 'pointer'
+              }}
+              onClick={() => navigate('/')}
+            >
+              {theme.logoUrl ? (
+                <Box 
+                  component="img"
+                  sx={{
+                    height: 40,
+                    mr: 1
+                  }}
+                  alt={`${theme.companyName || 'Tubex'} logo`}
+                  src={theme.logoUrl}
+                />
+              ) : (
+                <Typography
+                  variant="h6"
+                  noWrap
+                  component="div"
+                  sx={{ display: { xs: 'none', sm: 'block' } }}
+                >
+                  {theme.companyName || 'Tubex'}
+                </Typography>
+              )}
+            </Box>
+          )}
+          
+          <Box sx={{ flexGrow: 1 }} />
+          
+          {!isMobile && userIsLoggedIn && (
+            <Box sx={{ display: 'flex' }}>
+              {navigationItems.map((item) => (
+                <Button
+                  key={item.text}
+                  sx={{ 
+                    color: 'white',
+                    display: 'block',
+                    textTransform: 'none' 
+                  }}
+                  onClick={() => navigate(item.path)}
+                >
+                  {item.text}
+                </Button>
+              ))}
+            </Box>
+          )}
+          
+          {userIsLoggedIn ? (
+            <Box sx={{ ml: 2 }}>
+              <IconButton
+                size="large"
+                onClick={handleUserMenuOpen}
+                color="inherit"
+                edge="end"
+              >
+                <Avatar 
+                  sx={{ width: 32, height: 32 }} 
+                  alt={auth.user?.firstName || 'User'}
+                >
+                  {/* PROBLEM #3: Fix user reference */}
+                  {auth.user?.firstName ? auth.user.firstName[0].toUpperCase() : 'U'}
+                </Avatar>
+              </IconButton>
+              <Menu
+                anchorEl={userMenuAnchor}
+                open={Boolean(userMenuAnchor)}
+                onClose={handleUserMenuClose}
+                transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+              >
+                <Box sx={{ p: 1.5 }}>
+                  <Typography variant="subtitle1">
+                    {auth.user?.firstName} {auth.user?.lastName}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {auth.user?.email}
+                  </Typography>
+                </Box>
+                <Divider />
+                <MenuItem onClick={() => { handleUserMenuClose(); navigate('/profile'); }}>
+                  <ListItemIcon>
+                    <PersonIcon fontSize="small" />
+                  </ListItemIcon>
+                  Profile
+                </MenuItem>
+                <MenuItem onClick={() => { handleUserMenuClose(); navigate('/settings'); }}>
+                  <ListItemIcon>
+                    <SettingsIcon fontSize="small" />
+                  </ListItemIcon>
+                  Settings
+                </MenuItem>
+                <Divider />
+                <MenuItem onClick={handleLogout}>
+                  <ListItemIcon>
+                    <LogoutIcon fontSize="small" />
+                  </ListItemIcon>
+                  Logout
+                </MenuItem>
+              </Menu>
+            </Box>
+          ) : (
+            // Only show login/register if we're certain user is not logged in
+            <Box>
+              <Button 
+                color="inherit" 
+                component={Link} 
+                to="/login"
+                sx={{ mr: 1 }}
+              >
+                Login
+              </Button>
+              <Button 
+                variant="contained" 
+                color="secondary" 
+                component={Link} 
+                to="/register"
+                sx={{ 
+                  bgcolor: theme.secondaryColor || muiTheme.palette.secondary.main,
+                  '&:hover': {
+                    bgcolor: theme.secondaryColor ? `${theme.secondaryColor}cc` : muiTheme.palette.secondary.dark
+                  }
+                }}
+              >
+                Register
+              </Button>
+            </Box>
+          )}
+          
+          {isMobile && (
+            <IconButton
+              size="large"
+              edge="end"
+              color="inherit"
+              aria-label="menu"
+              sx={{ ml: 1 }}
+              onClick={handleMobileMenuToggle}
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
+        </Toolbar>
+      </AppBar>
+      
+      {renderMobileMenu()}
+    </>
   );
 };
 

@@ -46,6 +46,7 @@ const InventoryTransferModal: React.FC<InventoryTransferModalProps> = ({
   const [fetchingWarehouses, setFetchingWarehouses] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [sourceQuantityAvailable, setSourceQuantityAvailable] = useState<number | null>(null);
+  const [isConnectionError, setIsConnectionError] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -63,12 +64,27 @@ const InventoryTransferModal: React.FC<InventoryTransferModalProps> = ({
 
   const fetchWarehouses = async () => {
     setFetchingWarehouses(true);
+    setApiError(null);
+    setIsConnectionError(false);
+    
     try {
+      // Ensure companyId is a string before making the API call
+      if (!companyId || typeof companyId !== 'string') {
+        throw new Error('Invalid company ID');
+      }
+      
       const response = await inventoryService.getWarehouses(companyId);
       setWarehouses(response.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching warehouses:', error);
-      setApiError('Failed to load warehouses. Please try again.');
+      
+      // Check if it's a connection error
+      if (error.message?.includes('Connection') || error.response?.status === 500) {
+        setIsConnectionError(true);
+        setApiError('Database connection error. Please try again later.');
+      } else {
+        setApiError(`Failed to load warehouses: ${error.message || 'Unknown error'}`);
+      }
     } finally {
       setFetchingWarehouses(false);
     }

@@ -155,9 +155,15 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
         contactPhone
       }
     };
-    
-    try {
+      try {
+      console.log('About to register company with data:', {
+        email: registrationData.email,
+        company: registrationData.company
+      });
+      
       const response = await authService.registerCompany(registrationData);
+      
+      console.log('Registration successful, response:', response);
       
       if (response.data) {
         // Call success callback if provided

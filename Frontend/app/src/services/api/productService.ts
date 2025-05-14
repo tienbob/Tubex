@@ -14,6 +14,19 @@ export class ApiError extends Error {
   }
 }
 
+// Add the ApiResponse interface definition
+export interface ApiResponse<T> {
+  data: T;
+  status?: string;
+  message?: string;
+  pagination?: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -313,6 +326,27 @@ export const productService = {
       if (error instanceof AxiosError) {
         throw new ApiError(
           error.response?.data?.message || `Failed to update price for product: ${productId}`,
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
+  },
+
+  async getProductCategories(companyId: string): Promise<ApiResponse<ProductCategory[]>> {
+    try {
+      if (!companyId || typeof companyId !== 'string') {
+        throw new Error('Invalid company ID');
+      }
+      
+      // Use the get function from apiClient
+      const response = await get<ApiResponse<ProductCategory[]>>(`/companies/${companyId}/product-categories`);
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || 'Failed to fetch product categories',
           error.response?.status || 500,
           error.response?.data
         );

@@ -17,98 +17,57 @@ import {
 import { Visibility, VisibilityOff, Google, Facebook } from '@mui/icons-material';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../../services/api/authService';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface LoginProps {
   onLoginSuccess?: (userData: any) => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
+  const { login } = useAuth();
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Add missing state variables
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Form state
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+  // Use the 'from' state if available, or default to '/dashboard'
+  const from = location.state?.from || '/dashboard';
   
-  // UI state
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-    // Extract redirect URL from query parameters if present
-  React.useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const redirect = params.get('redirect');
-    if (redirect) {
-      // Store the redirect URL for use after login
-      localStorage.setItem('redirectAfterLogin', redirect);
-    }
-  }, [location]);
-
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Input validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email.trim()) {
-      setError('Email is required');
-      return;
-    }
-    if (!emailRegex.test(email.trim())) {
-      setError('Please enter a valid email address');
-      return;
-    }
-    if (!password) {
-      setError('Password is required');
-      return;
-    }
-    
     setLoading(true);
     setError(null);
     
     try {
-      const response = await authService.login({
-        email: email.trim(),
-        password
-      });
+      console.log('Login attempt with:', { email: formData.email });
+      const response = await login(formData.email, formData.password);
+      console.log('Login response:', response);
       
-      if (!response || !response.data) {
-        setError('Login failed. No response from server.');
-        return;
-      }
-
-      if (!response.data.accessToken) {
-        setError('Login failed. Authentication token not received.');
-        return;
-      }
-
-      // Store auth tokens
-      authService.setToken(response.data.accessToken);
-      localStorage.setItem('refreshToken', response.data.refreshToken);
-      
-      // If the component has a callback, call it
-      if (onLoginSuccess) {
-        onLoginSuccess(response.data);
-      }
-      
-      // Redirect to the stored URL or dashboard
-      const redirectTo = localStorage.getItem('redirectAfterLogin') || '/dashboard';
-      localStorage.removeItem('redirectAfterLogin'); // Clean up
-      navigate(redirectTo);
-    } catch (err: any) {
-      // Handle specific error cases
-      if (err.response?.status === 401) {
-        setError('Invalid email or password');
-      } else if (err.response?.status === 403) {
-        setError('Your account is not active. Please check your email for verification instructions.');
-      } else if (err.response?.status === 429) {
-        setError('Too many login attempts. Please try again later.');
-      } else if (!navigator.onLine) {
-        setError('No internet connection. Please check your network and try again.');
+      // Verify we got necessary data
+      if (response?.data?.userId || response?.userId) {
+        console.log('Login successful, redirecting to:', from);
+        
+        // Give time for auth context to update
+        setTimeout(() => {
+          if (onLoginSuccess) {
+            onLoginSuccess(response.data || response);
+          } else {
+            navigate(from);
+          }
+        }, 100);
       } else {
-        setError(err.message || 'Login failed. Please check your credentials and try again.');
+        throw new Error('Invalid login response');
       }
+    } catch (err: any) {
       console.error('Login error:', err);
+      setError(err.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
@@ -148,7 +107,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           </Alert>
         )}
         
-        <Box component="form" onSubmit={handleLogin} sx={{ mt: 2 }}>
+        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
           <TextField
             margin="normal"
             required
@@ -158,8 +117,8 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             name="email"
             autoComplete="email"
             autoFocus
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             disabled={loading}
           />
           
@@ -172,8 +131,8 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             id="password"
             autoComplete="current-password"
             type={showPassword ? 'text' : 'password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            value={formData.password}
+            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
             disabled={loading}
             InputProps={{
               endAdornment: (

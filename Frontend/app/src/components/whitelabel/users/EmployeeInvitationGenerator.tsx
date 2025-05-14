@@ -42,11 +42,11 @@ const EmployeeInvitationGenerator: React.FC<EmployeeInvitationGeneratorProps> = 
     setLoading(true);
     setError(null);
 
-    try {
-      const response = await authService.generateInvitationCode({ companyId });
+    try {      const response = await authService.generateInvitationCode({ companyId });
       setInvitationCode(response.data.code);
-      setExpiresAt(response.data.expiresAt);
-      setCompanyName(response.data.companyName);
+      setExpiresAt(response.data.expiresIn);
+      // Company name is not provided in the backend response, so we're not setting it
+      setCompanyName("Your Company");
       
       if (onInvitationGenerated) {
         onInvitationGenerated(response.data.code);
@@ -77,19 +77,30 @@ const EmployeeInvitationGenerator: React.FC<EmployeeInvitationGeneratorProps> = 
   const handleSnackbarClose = () => {
     setSnackbarOpen(false);
   };
-
   const formatExpiryDate = (dateString: string) => {
     try {
+      // If the string is in the format "X days", just return it as is
+      if (dateString.includes('days')) {
+        return dateString;
+      }
+      
+      // Otherwise try to parse it as a date
       const date = new Date(dateString);
       return format(date, 'MMM dd, yyyy HH:mm:ss');
     } catch (e) {
       return dateString;
     }
   };
-
   const isExpired = (dateString: string | null) => {
     if (!dateString) return false;
+    
     try {
+      // If the string is in the format "X days", it's not expired
+      if (dateString.includes('days')) {
+        return false;
+      }
+      
+      // Otherwise try to parse it as a date
       const date = new Date(dateString);
       return isAfter(new Date(), date);
     } catch (e) {
@@ -160,17 +171,17 @@ const EmployeeInvitationGenerator: React.FC<EmployeeInvitationGeneratorProps> = 
               ),
             }}
             sx={{ mb: 2 }}
-          />
-
-          {expiresAt && (
+          />          {expiresAt && (
             <Typography 
               variant="body2" 
-              color={isExpired(expiresAt) ? 'error' : 'text.secondary'}
+              color="text.secondary"
               sx={{ mb: 2 }}
             >
-              {isExpired(expiresAt) 
-                ? `This code has expired on ${formatExpiryDate(expiresAt)}`
-                : `This code will expire on ${formatExpiryDate(expiresAt)}`}
+              {expiresAt.includes('days') 
+                ? `This code will expire in ${formatExpiryDate(expiresAt)}`
+                : isExpired(expiresAt) 
+                  ? `This code has expired on ${formatExpiryDate(expiresAt)}`
+                  : `This code will expire on ${formatExpiryDate(expiresAt)}`}
             </Typography>
           )}
 

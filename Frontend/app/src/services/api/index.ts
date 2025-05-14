@@ -11,13 +11,12 @@ export { productService } from './productService';
 export { orderService } from './orderService';
 export { inventoryService } from './inventoryService';
 export { authService } from './authService';
-
-// Export additional services
 export { companyVerificationService } from './companyVerificationService';
 export * from './userManagementService';
 export { default as userManagementService } from './userManagementService';
 export { warehouseService } from './warehouseService';
 export { batchService } from './batchService';
 export { reportService } from './reportService';
+export { dashboardService } from './dashboardService';
 
 // Add additional service exports here as needed

@@ -1,17 +1,16 @@
+import axios, { AxiosError } from 'axios';
 import { get, post, put, del } from './apiClient';
-import { AxiosError } from 'axios';
 
-// Custom error class for API errors
-export class ApiError extends Error {
-  status: number;
-  data: any;
-  
-  constructor(message: string, status: number, data?: any) {
-    super(message);
-    this.name = 'ApiError';
-    this.status = status;
-    this.data = data;
-  }
+export interface ApiResponse<T> {
+  data: T;
+  status?: string;
+  message?: string;
+  pagination?: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }
 
 export interface ContactInfo {
@@ -78,242 +77,98 @@ export interface PaginationResponse<T> {
   };
 }
 
-/**
- * Warehouse Management Service - Handles operations related to warehouses
- */
-export const warehouseService = {
-  /**
-   * Get all warehouses for a company with optional filtering
-   */
-  getWarehouses: async (companyId: string, params: WarehouseListParams = {}): Promise<PaginationResponse<Warehouse>> => {
-    try {
-      if (!companyId) {
-        throw new Error('Company ID is required');
-      }
-      
-      const response = await get<{data: {warehouses: Warehouse[], pagination: any}}>(`/warehouse/company/${companyId}`, { params });
-      return {
-        data: response.data.data.warehouses,
-        pagination: response.data.data.pagination
-      };
-    } catch (error) {
-      if (error instanceof AxiosError) {
-        throw new ApiError(
-          error.response?.data?.message || 'Failed to fetch warehouses',
-          error.response?.status || 500,
-          error.response?.data
-        );
-      }
-      throw error;
-    }
-  },
+export class ApiError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
 
-  /**
-   * Get a specific warehouse by ID
-   */
-  getWarehouse: async (companyId: string, warehouseId: string): Promise<Warehouse> => {
-    try {
-      if (!companyId || !warehouseId) {
-        throw new Error('Company ID and Warehouse ID are required');
-      }
-      
-      const response = await get<{status: string, data: Warehouse}>(`/warehouse/company/${companyId}/${warehouseId}`);
-      return response.data.data;
-    } catch (error) {
-      if (error instanceof AxiosError) {
-        throw new ApiError(
-          error.response?.data?.message || `Failed to fetch warehouse: ${warehouseId}`,
-          error.response?.status || 500,
-          error.response?.data
-        );
-      }
-      throw error;
+class WarehouseService {
+  async getWarehouses(companyId: string): Promise<ApiResponse<Warehouse[]>> {
+    // Enhanced validation to prevent empty API calls
+    if (!companyId || typeof companyId !== 'string' || companyId.trim() === '') {
+      console.error('Invalid or empty companyId provided to getWarehouses:', companyId);
+      return Promise.reject(new ApiError('Valid company ID is required'));
     }
-  },
-  /**
-   * Create a new warehouse for a company
-   */
-  createWarehouse: async (companyId: string, data: WarehouseCreateInput): Promise<Warehouse> => {
+    
+    // Use get from apiClient instead of axios
     try {
-      if (!companyId) {
-        throw new Error('Company ID is required');
-      }
-      
-      // Input validation
-      if (!data.name || data.name.trim() === '') {
-        throw new Error('Warehouse name is required');
-      }
-      
-      if (!data.address || data.address.trim() === '') {
-        throw new Error('Warehouse address is required');
-      }
-      
-      const response = await post<{status: string, data: Warehouse}>(`/warehouse/company/${companyId}`, {
-        name: data.name,
-        address: data.address,
-        capacity: data.capacity,
-        contactInfo: data.contactInfo,
-        type: data.type,
-        notes: data.notes
-      });
-      
-      return response.data.data;
-    } catch (error) {
-      if (error instanceof AxiosError) {
-        throw new ApiError(
-          error.response?.data?.message || 'Failed to create warehouse',
-          error.response?.status || 500,
-          error.response?.data
-        );
-      }
-      throw error;
-    }
-  },
-  /**
-   * Update an existing warehouse
-   */
-  updateWarehouse: async (companyId: string, warehouseId: string, data: WarehouseUpdateInput): Promise<Warehouse> => {
-    try {
-      if (!companyId || !warehouseId) {
-        throw new Error('Company ID and Warehouse ID are required');
-      }
-      
-      if (Object.keys(data).length === 0) {
-        throw new Error('No update data provided');
-      }
-      
-      // Input validation for capacity if provided
-      if (data.capacity !== undefined && (typeof data.capacity !== 'number' || data.capacity <= 0)) {
-        throw new Error('Warehouse capacity must be a positive number');
-      }
-      
-      const response = await put<{status: string, data: Warehouse}>(
-        `/warehouse/company/${companyId}/${warehouseId}`, 
-        {
-          name: data.name,
-          address: data.address,
-          capacity: data.capacity,
-          contactInfo: data.contactInfo,
-          type: data.type,
-          status: data.status,
-          notes: data.notes
-        }
-      );
-      return response.data.data;
-    } catch (error) {
-      if (error instanceof AxiosError) {
-        throw new ApiError(
-          error.response?.data?.message || `Failed to update warehouse: ${warehouseId}`,
-          error.response?.status || 500,
-          error.response?.data
-        );
-      }
-      throw error;
-    }
-  },
-  /**
-   * Delete a warehouse
-   */
-  deleteWarehouse: async (companyId: string, warehouseId: string): Promise<void> => {
-    try {
-      if (!companyId || !warehouseId) {
-        throw new Error('Company ID and Warehouse ID are required');
-      }
-      
-      await del(`/warehouse/company/${companyId}/${warehouseId}`);
-    } catch (error) {
-      if (error instanceof AxiosError) {
-        throw new ApiError(
-          error.response?.data?.message || `Failed to delete warehouse: ${warehouseId}`,
-          error.response?.status || 500,
-          error.response?.data
-        );
-      }
-      throw error;
-    }
-  },
-  /**
-   * Change warehouse status (active, inactive, under_maintenance)
-   */
-  updateWarehouseStatus: async (
-    companyId: string,
-    warehouseId: string, 
-    status: 'active' | 'inactive' | 'under_maintenance'
-  ): Promise<Warehouse> => {
-    try {
-      if (!companyId || !warehouseId) {
-        throw new Error('Company ID and Warehouse ID are required');
-      }
-      
-      const validStatuses = ['active', 'inactive', 'under_maintenance'];
-      if (!validStatuses.includes(status)) {
-        throw new Error('Invalid status. Must be one of: active, inactive, under_maintenance');
-      }
-      
-      // Using the general update endpoint with only status field
-      const response = await put<{status: string, data: Warehouse}>(
-        `/warehouse/company/${companyId}/${warehouseId}`, 
-        { status }
-      );
-      return response.data.data;
-    } catch (error) {
-      if (error instanceof AxiosError) {
-        throw new ApiError(
-          error.response?.data?.message || `Failed to update warehouse status: ${warehouseId}`,
-          error.response?.status || 500,
-          error.response?.data
-        );
-      }
-      throw error;
-    }
-  },
-  /**
-   * Get inventory inside a specific warehouse
-   */
-  getWarehouseInventory: async (companyId: string, warehouseId: string, params: { page?: number; limit?: number; } = {}): Promise<any> => {
-    try {
-      if (!companyId || !warehouseId) {
-        throw new Error('Company ID and Warehouse ID are required');
-      }
-      
-      // Note: This endpoint might need to be updated if inventory service has changed
-      // Currently assuming we still use the inventory service endpoint
-      const response = await get(`/inventory/warehouse/${warehouseId}`, { params });
+      const response = await get<ApiResponse<Warehouse[]>>(`/warehouses/company/${companyId}`);
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
-        throw new ApiError(
-          error.response?.data?.message || `Failed to fetch inventory for warehouse: ${warehouseId}`,
-          error.response?.status || 500,
-          error.response?.data
-        );
-      }
-      throw error;
-    }
-  },
-  
-  /**
-   * Get warehouse capacity usage information
-   */
-  getCapacityUsage: async (companyId: string, warehouseId: string): Promise<{warehouse: Warehouse, capacityUsage: CapacityUsage}> => {
-    try {
-      if (!companyId || !warehouseId) {
-        throw new Error('Company ID and Warehouse ID are required');
-      }
-      
-      const response = await get<{status: string, data: {warehouse: Warehouse, capacityUsage: CapacityUsage}}>(
-        `/warehouse/company/${companyId}/${warehouseId}/capacity`
-      );
-      return response.data.data;
-    } catch (error) {
-      if (error instanceof AxiosError) {
-        throw new ApiError(
-          error.response?.data?.message || `Failed to fetch capacity usage for warehouse: ${warehouseId}`,
-          error.response?.status || 500,
-          error.response?.data
-        );
+        throw new ApiError(error.response?.data?.message || 'Failed to fetch warehouses');
       }
       throw error;
     }
   }
-};
+
+  getWarehouse(companyId: string, warehouseId: string): Promise<ApiResponse<Warehouse>> {
+    if (!warehouseId || typeof warehouseId !== 'string') {
+      return Promise.reject(new ApiError('Valid warehouse ID is required'));
+    }
+    
+    // Use get from apiClient instead of direct axios call
+    return get<ApiResponse<Warehouse>>(`/warehouses/${warehouseId}`)
+      .then(response => response.data)
+      .catch(error => {
+        if (error instanceof AxiosError) {
+          throw new ApiError(error.response?.data?.message || `Failed to fetch warehouse: ${warehouseId}`);
+        }
+        throw error;
+      });
+  }
+
+  createWarehouse(companyId: string, data: WarehouseCreateInput): Promise<ApiResponse<Warehouse>> {
+    if (!companyId || typeof companyId !== 'string' || companyId.trim() === '') {
+      return Promise.reject(new ApiError('Valid company ID is required'));
+    }
+    
+    // Use post from apiClient instead of direct axios call
+    return post<ApiResponse<Warehouse>>(`/warehouses/company/${companyId}`, data)
+      .then(response => response.data)
+      .catch(error => {
+        if (error instanceof AxiosError) {
+          throw new ApiError(error.response?.data?.message || 'Failed to create warehouse');
+        }
+        throw error;
+      });
+  }
+
+  async updateWarehouse(companyId: string, warehouseId: string, data: WarehouseUpdateInput): Promise<ApiResponse<Warehouse>> {
+    if (!warehouseId || typeof warehouseId !== 'string') {
+      return Promise.reject(new ApiError('Valid warehouse ID is required'));
+    }
+    
+    // Use put from apiClient instead of direct axios call
+    try {
+      const response = await put<ApiResponse<Warehouse>>(`/warehouses/${warehouseId}`, data);
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(error.response?.data?.message || `Failed to update warehouse: ${warehouseId}`);
+      }
+      throw error;
+    }
+  }
+
+  async deleteWarehouse(companyId: string, warehouseId: string): Promise<ApiResponse<void>> {
+    if (!warehouseId || typeof warehouseId !== 'string') {
+      return Promise.reject(new ApiError('Valid warehouse ID is required'));
+    }
+    
+    // Use del from apiClient instead of direct axios call
+    try {
+      const response = await del<ApiResponse<void>>(`/warehouses/${warehouseId}`);
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(error.response?.data?.message || `Failed to delete warehouse: ${warehouseId}`);
+      }
+      throw error;
+    }
+  }
+}
+
+export const warehouseService = new WarehouseService();

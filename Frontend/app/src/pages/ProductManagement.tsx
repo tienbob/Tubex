@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -11,11 +12,42 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ProductList  from '../components/whitelabel/products/ProductList';
 import ProductForm from '../components/whitelabel/products/ProductForm';
+import { useAuth } from '../contexts/AuthContext';
 
 const ProductManagement: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-  const [companyId, setCompanyId] = useState('current-company-id'); // Replace with actual company ID from your auth context
+  const location = useLocation();
+  
+  // Get company ID from auth context
+  const { user } = useAuth();
+  const [companyId, setCompanyId] = useState<string>('');
+  
+  // Set companyId from auth context when user data is available
+  useEffect(() => {
+    if (user && user.companyId) {
+      setCompanyId(user.companyId);
+    }
+  }, [user]);
+
+  // Parse query parameters
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const action = queryParams.get('action');
+    const id = queryParams.get('id');
+    
+    if (action === 'create') {
+      setShowAddForm(true);
+      setSelectedProductId(null);
+    } else if (id) {
+      setSelectedProductId(id);
+      setShowAddForm(false);
+    } else {
+      // Reset to list view if no params
+      setShowAddForm(false);
+      setSelectedProductId(null);
+    }
+  }, [location.search]);
 
   const handleAddProduct = () => {
     setShowAddForm(true);

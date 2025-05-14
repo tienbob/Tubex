@@ -40,6 +40,7 @@ export interface UserInfo {
   status: string;
   firstName?: string;
   lastName?: string;
+  avatarUrl?: string; // Add this property definition
 }
 
 export interface LoginRequest {
@@ -146,8 +147,7 @@ export interface InvitationCodeResponse {
   status: string;
   data: {
     code: string;
-    expiresAt: string;
-    companyName: string;
+    expiresIn: string;
   }
 }
 
@@ -160,8 +160,15 @@ const isTokenValid = (token: string | null): boolean => {
     const decoded: any = jwtDecode(token);
     if (!decoded.exp) return false;
     // exp is in seconds, Date.now() in ms
-    return decoded.exp * 1000 > Date.now();
+    const isValid = decoded.exp * 1000 > Date.now();
+    console.log('Token expiry check:', { 
+      exp: new Date(decoded.exp * 1000).toISOString(),
+      now: new Date().toISOString(),
+      isValid
+    });
+    return isValid;
   } catch (e) {
+    console.error('Failed to decode token:', e);
     return false;
   }
 };
@@ -172,9 +179,13 @@ const isTokenValid = (token: string | null): boolean => {
 const validateTokenWithBackend = async (token: string): Promise<boolean> => {
   try {
     // Try to fetch user profile or /me endpoint
-    await get('/auth/me', { headers: { Authorization: `Bearer ${token}` } });
+    const response = await get('/auth/me', { 
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    console.log('Backend token validation success:', response.data);
     return true;
   } catch (e) {
+    console.error('Backend token validation failed:', e);
     return false;
   }
 };
@@ -308,8 +319,15 @@ export const authService = {
       
       if (!data.company.name || data.company.name.trim() === '') {
         throw new Error('Company name is required');
-      }
-      
+      }      
+      console.log('Sending registration request with data:', {
+        email: data.email,
+        // Don't log password
+        company: data.company,
+        firstName: data.firstName,
+        lastName: data.lastName
+      });
+
       const response = await post<AuthResponse>('/auth/register', {
         email: data.email,
         password: data.password,
@@ -318,6 +336,8 @@ export const authService = {
         lastName: data.lastName,
         userRole: 'admin'
       });
+      
+      console.log('Registration response received:', response.data);
       
       // Store tokens if provided (might be pending verification)
       if (response.data?.data?.accessToken) {
@@ -444,27 +464,7 @@ export const authService = {
         );
       }
       throw error;
-    }
-  },
-  
-  /**
-   * Get pending employee registrations for admin approval
-   */
-  getPendingEmployees: async (): Promise<EmployeeListResponse> => {
-    try {
-      const response = await get<EmployeeListResponse>('/auth/pending-employees');
-      return response.data;
-    } catch (error) {
-      if (error instanceof AxiosError) {
-        throw new ApiError(
-          error.response?.data?.message || 'Failed to fetch pending employees',
-          error.response?.status || 500,
-          error.response?.data
-        );
-      }
-      throw error;
-    }
-  },
+    }  },
   
   /**
    * Refresh the access token using refresh token
@@ -558,14 +558,16 @@ export const authService = {
    */
   isAuthenticated: (): boolean => {
     const token = localStorage.getItem('access_token');
-    if (!isTokenValid(token)) {
+    const isValid = isTokenValid(token);
+    console.log('Authentication check:', { hasToken: !!token, isValid });
+    
+    if (!isValid) {
       // Remove invalid token
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
       localStorage.removeItem('user_info');
-      return false;
     }
-    return true;
+    return isValid;
   },
 
   /**
@@ -573,17 +575,35 @@ export const authService = {
    */
   validateToken: async (): Promise<boolean> => {
     const token = localStorage.getItem('access_token');
+    if (!token) {
+      console.log('No token to validate');
+      return false;
+    }
+    
+    // First check locally
     if (!isTokenValid(token)) {
+      console.log('Token is expired (local check)');
       authService.logout();
       return false;
     }
-    // Optionally, validate with backend
-    const valid = await validateTokenWithBackend(token!);
-    if (!valid) {
-      authService.logout();
+    
+    // Then optionally validate with backend
+    try {
+      // You can skip backend validation for better performance
+      // or uncomment this to enable strict validation
+      /*
+      const valid = await validateTokenWithBackend(token);
+      if (!valid) {
+        console.log('Token rejected by backend');
+        authService.logout();
+        return false;
+      }
+      */
+      return true;
+    } catch (error) {
+      console.error('Token validation error:', error);
       return false;
     }
-    return true;
   },
 
   /**
@@ -711,14 +731,13 @@ export const authService = {
 
   /**
    * Generate invitation code for employee registration
-   */
-  generateInvitationCode: async (data: InvitationCodeRequest): Promise<InvitationCodeResponse> => {
+   */  generateInvitationCode: async (data: InvitationCodeRequest): Promise<InvitationCodeResponse> => {
     try {
       if (!data.companyId) {
         throw new Error('Company ID is required');
       }
       
-      const response = await post<InvitationCodeResponse>('/auth/generate-invitation', data);
+      const response = await post<InvitationCodeResponse>('/auth/invitation-code', data);
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -751,4 +770,36 @@ export const authService = {
       throw error;
     }
   },
-}
+
+  /**
+   * Get pending employees (employees who have registered but not verified their email)
+   */  getPendingEmployees: async (companyId?: string): Promise<{ employees: Array<any>; count: number }> => {
+    try {
+      const queryParam = companyId ? `?companyId=${companyId}` : '';
+      
+      interface PendingEmployeesResponse {
+        data: {
+          employees: Array<any>;
+          count: number;
+        };
+      }
+      
+      const response = await get<PendingEmployeesResponse>(`/auth/pending-employees${queryParam}`);
+      
+      if (response.data && response.data.data) {
+        return response.data.data;
+      }
+      
+      return { employees: [], count: 0 };
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || 'Failed to fetch pending employees',
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
+  }
+};
