@@ -1,7 +1,7 @@
 # Tubex Database Structure Documentation
 
-**Document Version:** 1.0  
-**Last Updated:** May 13, 2025  
+**Document Version:** 2.0  
+**Last Updated:** May 16, 2025  
 **Author:** Technical Team
 
 ## Table of Contents
@@ -317,14 +317,50 @@ Tracks customer interactions with the system.
 - `metadata` (Mixed): Additional metadata
 - `timestamp` (Date, Indexed): When the activity occurred
 
+### Current Migrations
+
+Tubex now uses an organized, table-centric migration structure where each table has its own dedicated migration file:
+
+1. `1684000000000-CreateCompanyTable.ts`: Comprehensive Company table creation
+2. `1684000001000-CreateUserTable.ts`: User table with complete structure
+3. `1684000002000-CreateProductTable.ts`: Product catalog table
+4. `1684000003000-CreateWarehouseTable.ts`: Warehouse management
+5. `1684000004000-CreateBatchTable.ts`: Inventory batch tracking
+6. `1684000005000-CreateInventoryTable.ts`: Inventory management
+7. `1684000006000-CreateOrderTable.ts`: Order processing
+8. `1684000007000-CreateOrderItemTable.ts`: Order line items
+9. `1684000008000-CreateOrderHistoryTable.ts`: Order status history
+10. `1684000009000-CreateUserAuditLogTable.ts`: User activity auditing
+11. `1684000010000-CreateQuoteTable.ts`: Quote management
+12. `1684000011000-CreateQuoteItemTable.ts`: Quote line items
+13. `1684000012000-CreatePriceListTable.ts`: Price list management
+14. `1684000013000-CreatePriceItemTable.ts`: Individual price items
+15. `1684000014000-CreatePaymentTable.ts`: Payment processing
+16. `1684000015000-CreateInvoiceTable.ts`: Invoice management
+17. `1684000016000-CreateInvoiceItemTable.ts`: Invoice line items
+18. `1684000017000-CreateNotificationTable.ts`: System notifications
+19. `1684000018000-CreateActivityLogTable.ts`: General activity logging
+20. `1684000019000-CreateSettingsTable.ts`: System and company settings
+
 ## Redis Implementation
 
-Redis is used for:
+Redis is used for the following purposes:
 
-1. **Session Management**: Storing user session data
-2. **Caching**: Improving performance by caching frequently accessed data
-3. **Rate Limiting**: Preventing abuse of the API
-4. **Job Queues**: Managing asynchronous tasks
+1. Session Management
+   - Key pattern: `session:{sessionId}`
+   - TTL: 24 hours
+
+2. Rate Limiting
+   - Key pattern: `ratelimit:{ip}:{endpoint}`
+   - TTL: 1 hour
+
+3. Cache
+   - Key pattern: `cache:{entity}:{id}`
+   - TTL: 5-60 minutes
+
+4. Real-time Notifications
+   - Key pattern: `notifications:{userId}`
+   - TTL: None (cleared on read)
 
 ### Key Structures
 
@@ -362,36 +398,1298 @@ Tubex now uses an organized, table-centric migration structure where each table 
 8. `1684000007000-CreateOrderItemTable.ts`: Order line items
 9. `1684000008000-CreateOrderHistoryTable.ts`: Order status history
 10. `1684000009000-CreateUserAuditLogTable.ts`: User activity auditing
+11. `1684000010000-CreateQuoteTable.ts`: Quote management
+12. `1684000011000-CreateQuoteItemTable.ts`: Quote line items
+13. `1684000012000-CreatePriceListTable.ts`: Price list management
+14. `1684000013000-CreatePriceItemTable.ts`: Individual price items
+15. `1684000014000-CreatePaymentTable.ts`: Payment processing
+16. `1684000015000-CreateInvoiceTable.ts`: Invoice management
+17. `1684000016000-CreateInvoiceItemTable.ts`: Invoice line items
+18. `1684000017000-CreateNotificationTable.ts`: System notifications
+19. `1684000018000-CreateActivityLogTable.ts`: General activity logging
+20. `1684000019000-CreateSettingsTable.ts`: System and company settings
 
-This structure replaces the previous approach where migrations were split across multiple files by feature. The new approach provides several benefits:
+New tables added since last update:
 
-- **Clarity**: One table per file makes it easier to understand the database structure
-- **Maintainability**: Changes to a table are contained in a single file
-- **Documentation**: Each migration serves as documentation for the table structure
-- **Simplified Troubleshooting**: Easier to identify and fix issues related to a specific table
+#### Quote Table (quotes)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `quote_number` (VARCHAR): Unique quote identifier
+- `company_id` (UUID, FK): Reference to company
+- `customer_id` (UUID, FK): Reference to customer
+- `subtotal` (DECIMAL): Quote subtotal
+- `tax_total` (DECIMAL): Total tax amount
+- `discount_total` (DECIMAL): Total discounts
+- `total` (DECIMAL): Final total amount
+- `issue_date` (TIMESTAMP): Quote issue date
+- `valid_until` (TIMESTAMP): Quote validity date
+- `status` (VARCHAR): Quote status (draft, sent, accepted, declined, expired, converted)
+- `notes` (TEXT, Nullable): Additional notes
+- `terms_conditions` (TEXT, Nullable): Terms and conditions
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
 
-## Backup and Recovery Procedures
+**Relationships:**
+- Many-to-One with Companies (`company_id` → Companies.`id`)
+- One-to-Many with QuoteItems (Quotes.`id` → QuoteItems.`quote_id`)
 
-### Backup Strategy
+#### Quote Items Table (quote_items)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `quote_id` (UUID, FK): Reference to quote
+- `product_id` (UUID, FK): Reference to product
+- `quantity` (DECIMAL): Quantity quoted
+- `unit_price` (DECIMAL): Unit price
+- `discount` (DECIMAL, Nullable): Item discount
+- `tax` (DECIMAL, Nullable): Item tax
+- `total` (DECIMAL): Line item total
+- `notes` (TEXT, Nullable): Item-specific notes
+- `created_at` (TIMESTAMP): Creation timestamp
 
-1. **PostgreSQL**: Daily full backups with point-in-time recovery
-2. **MongoDB**: Daily full backups and oplog-based incremental backups
-3. **Redis**: RDB snapshots and AOF logs
+**Relationships:**
+- Many-to-One with Quotes (`quote_id` → Quotes.`id`)
+- Many-to-One with Products (`product_id` → Products.`id`)
 
-### Backup Locations
+#### Price List Table (price_lists)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `company_id` (UUID, FK): Reference to company
+- `name` (VARCHAR): Price list name
+- `description` (TEXT, Nullable): Price list description
+- `type` (VARCHAR): Price list type (standard, customer_specific, promotion)
+- `valid_from` (TIMESTAMP): Start date
+- `valid_until` (TIMESTAMP, Nullable): End date
+- `status` (VARCHAR): Status (active, inactive, draft)
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
 
-Backups are stored in:
-- Primary location: Cloud storage bucket
-- Secondary location: Offsite encrypted storage
+**Relationships:**
+- Many-to-One with Companies (`company_id` → Companies.`id`)
+- One-to-Many with PriceListItems (PriceLists.`id` → PriceListItems.`price_list_id`)
 
-### Recovery Process
+#### Payment Table (payments)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `order_id` (UUID, FK, Nullable): Reference to order
+- `invoice_id` (UUID, FK, Nullable): Reference to invoice
+- `amount` (DECIMAL): Payment amount
+- `currency` (VARCHAR): Payment currency
+- `method` (VARCHAR): Payment method (bank_transfer, credit_card, vnpay, momo)
+- `status` (VARCHAR): Payment status (pending, completed, failed, refunded)
+- `transaction_id` (VARCHAR, Nullable): External transaction ID
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
 
-1. Stop application services
-2. Restore database from backup
-3. Verify data integrity
-4. Apply any pending migrations
-5. Restart services
+**Relationships:**
+- Many-to-One with Orders (`order_id` → Orders.`id`)
+- Many-to-One with Invoices (`invoice_id` → Invoices.`id`)
 
-### Disaster Recovery Testing
+### MongoDB Collections Update
 
-Scheduled quarterly DR tests ensure backup integrity and procedure effectiveness.
+New collections added:
+
+#### Analytics Events Collection
+**Fields:**
+- `eventId` (String, Indexed): Unique event identifier
+- `eventType` (String, Indexed): Type of event
+- `companyId` (String, Indexed): Company identifier
+- `userId` (String, Indexed): User identifier
+- `timestamp` (Date, Indexed): Event timestamp
+- `metadata` (Mixed): Event metadata
+- `context` (Object): Event context information
+
+#### User Sessions Collection
+**Fields:**
+- `sessionId` (String, Indexed): Session identifier
+- `userId` (String, Indexed): User identifier
+- `companyId` (String, Indexed): Company identifier
+- `startTime` (Date): Session start time
+- `lastActivity` (Date): Last activity timestamp
+- `device` (Object): Device information
+- `location` (Object): Geographic location data
+
+## Redis Implementation
+
+Redis is used for the following purposes:
+
+1. Session Management
+   - Key pattern: `session:{sessionId}`
+   - TTL: 24 hours
+
+2. Rate Limiting
+   - Key pattern: `ratelimit:{ip}:{endpoint}`
+   - TTL: 1 hour
+
+3. Cache
+   - Key pattern: `cache:{entity}:{id}`
+   - TTL: 5-60 minutes
+
+4. Real-time Notifications
+   - Key pattern: `notifications:{userId}`
+   - TTL: None (cleared on read)
+
+### Key Structures
+
+- **Session Data**: `session:{sessionId}`
+- **Cache Keys**: `cache:{entityType}:{id}`
+- **Rate Limiting**: `rateLimit:{ip}:{endpoint}`
+
+## Data Migration Strategy
+
+Tubex uses a migration-based approach to manage database schema changes:
+
+1. **Migration Files**: Located in `src/database/migrations/`
+2. **Naming Convention**: 
+   - Timestamp-prefixed files for sequential execution
+   - One file per table for clean organization
+3. **Running Migrations**: Executed via TypeORM CLI
+
+### Migration Command
+
+```
+npm run typeorm -- migration:run -d src/database/ormconfig.ts
+```
+
+### Current Migrations
+
+Tubex now uses an organized, table-centric migration structure where each table has its own dedicated migration file:
+
+1. `1684000000000-CreateCompanyTable.ts`: Comprehensive Company table creation
+2. `1684000001000-CreateUserTable.ts`: User table with complete structure
+3. `1684000002000-CreateProductTable.ts`: Product catalog table
+4. `1684000003000-CreateWarehouseTable.ts`: Warehouse management
+5. `1684000004000-CreateBatchTable.ts`: Inventory batch tracking
+6. `1684000005000-CreateInventoryTable.ts`: Inventory management
+7. `1684000006000-CreateOrderTable.ts`: Order processing
+8. `1684000007000-CreateOrderItemTable.ts`: Order line items
+9. `1684000008000-CreateOrderHistoryTable.ts`: Order status history
+10. `1684000009000-CreateUserAuditLogTable.ts`: User activity auditing
+11. `1684000010000-CreateQuoteTable.ts`: Quote management
+12. `1684000011000-CreateQuoteItemTable.ts`: Quote line items
+13. `1684000012000-CreatePriceListTable.ts`: Price list management
+14. `1684000013000-CreatePriceItemTable.ts`: Individual price items
+15. `1684000014000-CreatePaymentTable.ts`: Payment processing
+16. `1684000015000-CreateInvoiceTable.ts`: Invoice management
+17. `1684000016000-CreateInvoiceItemTable.ts`: Invoice line items
+18. `1684000017000-CreateNotificationTable.ts`: System notifications
+19. `1684000018000-CreateActivityLogTable.ts`: General activity logging
+20. `1684000019000-CreateSettingsTable.ts`: System and company settings
+
+New tables added since last update:
+
+#### Quote Table (quotes)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `quote_number` (VARCHAR): Unique quote identifier
+- `company_id` (UUID, FK): Reference to company
+- `customer_id` (UUID, FK): Reference to customer
+- `subtotal` (DECIMAL): Quote subtotal
+- `tax_total` (DECIMAL): Total tax amount
+- `discount_total` (DECIMAL): Total discounts
+- `total` (DECIMAL): Final total amount
+- `issue_date` (TIMESTAMP): Quote issue date
+- `valid_until` (TIMESTAMP): Quote validity date
+- `status` (VARCHAR): Quote status (draft, sent, accepted, declined, expired, converted)
+- `notes` (TEXT, Nullable): Additional notes
+- `terms_conditions` (TEXT, Nullable): Terms and conditions
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
+
+**Relationships:**
+- Many-to-One with Companies (`company_id` → Companies.`id`)
+- One-to-Many with QuoteItems (Quotes.`id` → QuoteItems.`quote_id`)
+
+#### Quote Items Table (quote_items)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `quote_id` (UUID, FK): Reference to quote
+- `product_id` (UUID, FK): Reference to product
+- `quantity` (DECIMAL): Quantity quoted
+- `unit_price` (DECIMAL): Unit price
+- `discount` (DECIMAL, Nullable): Item discount
+- `tax` (DECIMAL, Nullable): Item tax
+- `total` (DECIMAL): Line item total
+- `notes` (TEXT, Nullable): Item-specific notes
+- `created_at` (TIMESTAMP): Creation timestamp
+
+**Relationships:**
+- Many-to-One with Quotes (`quote_id` → Quotes.`id`)
+- Many-to-One with Products (`product_id` → Products.`id`)
+
+#### Price List Table (price_lists)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `company_id` (UUID, FK): Reference to company
+- `name` (VARCHAR): Price list name
+- `description` (TEXT, Nullable): Price list description
+- `type` (VARCHAR): Price list type (standard, customer_specific, promotion)
+- `valid_from` (TIMESTAMP): Start date
+- `valid_until` (TIMESTAMP, Nullable): End date
+- `status` (VARCHAR): Status (active, inactive, draft)
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
+
+**Relationships:**
+- Many-to-One with Companies (`company_id` → Companies.`id`)
+- One-to-Many with PriceListItems (PriceLists.`id` → PriceListItems.`price_list_id`)
+
+#### Payment Table (payments)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `order_id` (UUID, FK, Nullable): Reference to order
+- `invoice_id` (UUID, FK, Nullable): Reference to invoice
+- `amount` (DECIMAL): Payment amount
+- `currency` (VARCHAR): Payment currency
+- `method` (VARCHAR): Payment method (bank_transfer, credit_card, vnpay, momo)
+- `status` (VARCHAR): Payment status (pending, completed, failed, refunded)
+- `transaction_id` (VARCHAR, Nullable): External transaction ID
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
+
+**Relationships:**
+- Many-to-One with Orders (`order_id` → Orders.`id`)
+- Many-to-One with Invoices (`invoice_id` → Invoices.`id`)
+
+### MongoDB Collections Update
+
+New collections added:
+
+#### Analytics Events Collection
+**Fields:**
+- `eventId` (String, Indexed): Unique event identifier
+- `eventType` (String, Indexed): Type of event
+- `companyId` (String, Indexed): Company identifier
+- `userId` (String, Indexed): User identifier
+- `timestamp` (Date, Indexed): Event timestamp
+- `metadata` (Mixed): Event metadata
+- `context` (Object): Event context information
+
+#### User Sessions Collection
+**Fields:**
+- `sessionId` (String, Indexed): Session identifier
+- `userId` (String, Indexed): User identifier
+- `companyId` (String, Indexed): Company identifier
+- `startTime` (Date): Session start time
+- `lastActivity` (Date): Last activity timestamp
+- `device` (Object): Device information
+- `location` (Object): Geographic location data
+
+## Redis Implementation
+
+Redis is used for the following purposes:
+
+1. Session Management
+   - Key pattern: `session:{sessionId}`
+   - TTL: 24 hours
+
+2. Rate Limiting
+   - Key pattern: `ratelimit:{ip}:{endpoint}`
+   - TTL: 1 hour
+
+3. Cache
+   - Key pattern: `cache:{entity}:{id}`
+   - TTL: 5-60 minutes
+
+4. Real-time Notifications
+   - Key pattern: `notifications:{userId}`
+   - TTL: None (cleared on read)
+
+### Key Structures
+
+- **Session Data**: `session:{sessionId}`
+- **Cache Keys**: `cache:{entityType}:{id}`
+- **Rate Limiting**: `rateLimit:{ip}:{endpoint}`
+
+## Data Migration Strategy
+
+Tubex uses a migration-based approach to manage database schema changes:
+
+1. **Migration Files**: Located in `src/database/migrations/`
+2. **Naming Convention**: 
+   - Timestamp-prefixed files for sequential execution
+   - One file per table for clean organization
+3. **Running Migrations**: Executed via TypeORM CLI
+
+### Migration Command
+
+```
+npm run typeorm -- migration:run -d src/database/ormconfig.ts
+```
+
+### Current Migrations
+
+Tubex now uses an organized, table-centric migration structure where each table has its own dedicated migration file:
+
+1. `1684000000000-CreateCompanyTable.ts`: Comprehensive Company table creation
+2. `1684000001000-CreateUserTable.ts`: User table with complete structure
+3. `1684000002000-CreateProductTable.ts`: Product catalog table
+4. `1684000003000-CreateWarehouseTable.ts`: Warehouse management
+5. `1684000004000-CreateBatchTable.ts`: Inventory batch tracking
+6. `1684000005000-CreateInventoryTable.ts`: Inventory management
+7. `1684000006000-CreateOrderTable.ts`: Order processing
+8. `1684000007000-CreateOrderItemTable.ts`: Order line items
+9. `1684000008000-CreateOrderHistoryTable.ts`: Order status history
+10. `1684000009000-CreateUserAuditLogTable.ts`: User activity auditing
+11. `1684000010000-CreateQuoteTable.ts`: Quote management
+12. `1684000011000-CreateQuoteItemTable.ts`: Quote line items
+13. `1684000012000-CreatePriceListTable.ts`: Price list management
+14. `1684000013000-CreatePriceItemTable.ts`: Individual price items
+15. `1684000014000-CreatePaymentTable.ts`: Payment processing
+16. `1684000015000-CreateInvoiceTable.ts`: Invoice management
+17. `1684000016000-CreateInvoiceItemTable.ts`: Invoice line items
+18. `1684000017000-CreateNotificationTable.ts`: System notifications
+19. `1684000018000-CreateActivityLogTable.ts`: General activity logging
+20. `1684000019000-CreateSettingsTable.ts`: System and company settings
+
+New tables added since last update:
+
+#### Quote Table (quotes)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `quote_number` (VARCHAR): Unique quote identifier
+- `company_id` (UUID, FK): Reference to company
+- `customer_id` (UUID, FK): Reference to customer
+- `subtotal` (DECIMAL): Quote subtotal
+- `tax_total` (DECIMAL): Total tax amount
+- `discount_total` (DECIMAL): Total discounts
+- `total` (DECIMAL): Final total amount
+- `issue_date` (TIMESTAMP): Quote issue date
+- `valid_until` (TIMESTAMP): Quote validity date
+- `status` (VARCHAR): Quote status (draft, sent, accepted, declined, expired, converted)
+- `notes` (TEXT, Nullable): Additional notes
+- `terms_conditions` (TEXT, Nullable): Terms and conditions
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
+
+**Relationships:**
+- Many-to-One with Companies (`company_id` → Companies.`id`)
+- One-to-Many with QuoteItems (Quotes.`id` → QuoteItems.`quote_id`)
+
+#### Quote Items Table (quote_items)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `quote_id` (UUID, FK): Reference to quote
+- `product_id` (UUID, FK): Reference to product
+- `quantity` (DECIMAL): Quantity quoted
+- `unit_price` (DECIMAL): Unit price
+- `discount` (DECIMAL, Nullable): Item discount
+- `tax` (DECIMAL, Nullable): Item tax
+- `total` (DECIMAL): Line item total
+- `notes` (TEXT, Nullable): Item-specific notes
+- `created_at` (TIMESTAMP): Creation timestamp
+
+**Relationships:**
+- Many-to-One with Quotes (`quote_id` → Quotes.`id`)
+- Many-to-One with Products (`product_id` → Products.`id`)
+
+#### Price List Table (price_lists)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `company_id` (UUID, FK): Reference to company
+- `name` (VARCHAR): Price list name
+- `description` (TEXT, Nullable): Price list description
+- `type` (VARCHAR): Price list type (standard, customer_specific, promotion)
+- `valid_from` (TIMESTAMP): Start date
+- `valid_until` (TIMESTAMP, Nullable): End date
+- `status` (VARCHAR): Status (active, inactive, draft)
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
+
+**Relationships:**
+- Many-to-One with Companies (`company_id` → Companies.`id`)
+- One-to-Many with PriceListItems (PriceLists.`id` → PriceListItems.`price_list_id`)
+
+#### Payment Table (payments)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `order_id` (UUID, FK, Nullable): Reference to order
+- `invoice_id` (UUID, FK, Nullable): Reference to invoice
+- `amount` (DECIMAL): Payment amount
+- `currency` (VARCHAR): Payment currency
+- `method` (VARCHAR): Payment method (bank_transfer, credit_card, vnpay, momo)
+- `status` (VARCHAR): Payment status (pending, completed, failed, refunded)
+- `transaction_id` (VARCHAR, Nullable): External transaction ID
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
+
+**Relationships:**
+- Many-to-One with Orders (`order_id` → Orders.`id`)
+- Many-to-One with Invoices (`invoice_id` → Invoices.`id`)
+
+### MongoDB Collections Update
+
+New collections added:
+
+#### Analytics Events Collection
+**Fields:**
+- `eventId` (String, Indexed): Unique event identifier
+- `eventType` (String, Indexed): Type of event
+- `companyId` (String, Indexed): Company identifier
+- `userId` (String, Indexed): User identifier
+- `timestamp` (Date, Indexed): Event timestamp
+- `metadata` (Mixed): Event metadata
+- `context` (Object): Event context information
+
+#### User Sessions Collection
+**Fields:**
+- `sessionId` (String, Indexed): Session identifier
+- `userId` (String, Indexed): User identifier
+- `companyId` (String, Indexed): Company identifier
+- `startTime` (Date): Session start time
+- `lastActivity` (Date): Last activity timestamp
+- `device` (Object): Device information
+- `location` (Object): Geographic location data
+
+## Redis Implementation
+
+Redis is used for the following purposes:
+
+1. Session Management
+   - Key pattern: `session:{sessionId}`
+   - TTL: 24 hours
+
+2. Rate Limiting
+   - Key pattern: `ratelimit:{ip}:{endpoint}`
+   - TTL: 1 hour
+
+3. Cache
+   - Key pattern: `cache:{entity}:{id}`
+   - TTL: 5-60 minutes
+
+4. Real-time Notifications
+   - Key pattern: `notifications:{userId}`
+   - TTL: None (cleared on read)
+
+### Key Structures
+
+- **Session Data**: `session:{sessionId}`
+- **Cache Keys**: `cache:{entityType}:{id}`
+- **Rate Limiting**: `rateLimit:{ip}:{endpoint}`
+
+## Data Migration Strategy
+
+Tubex uses a migration-based approach to manage database schema changes:
+
+1. **Migration Files**: Located in `src/database/migrations/`
+2. **Naming Convention**: 
+   - Timestamp-prefixed files for sequential execution
+   - One file per table for clean organization
+3. **Running Migrations**: Executed via TypeORM CLI
+
+### Migration Command
+
+```
+npm run typeorm -- migration:run -d src/database/ormconfig.ts
+```
+
+### Current Migrations
+
+Tubex now uses an organized, table-centric migration structure where each table has its own dedicated migration file:
+
+1. `1684000000000-CreateCompanyTable.ts`: Comprehensive Company table creation
+2. `1684000001000-CreateUserTable.ts`: User table with complete structure
+3. `1684000002000-CreateProductTable.ts`: Product catalog table
+4. `1684000003000-CreateWarehouseTable.ts`: Warehouse management
+5. `1684000004000-CreateBatchTable.ts`: Inventory batch tracking
+6. `1684000005000-CreateInventoryTable.ts`: Inventory management
+7. `1684000006000-CreateOrderTable.ts`: Order processing
+8. `1684000007000-CreateOrderItemTable.ts`: Order line items
+9. `1684000008000-CreateOrderHistoryTable.ts`: Order status history
+10. `1684000009000-CreateUserAuditLogTable.ts`: User activity auditing
+11. `1684000010000-CreateQuoteTable.ts`: Quote management
+12. `1684000011000-CreateQuoteItemTable.ts`: Quote line items
+13. `1684000012000-CreatePriceListTable.ts`: Price list management
+14. `1684000013000-CreatePriceItemTable.ts`: Individual price items
+15. `1684000014000-CreatePaymentTable.ts`: Payment processing
+16. `1684000015000-CreateInvoiceTable.ts`: Invoice management
+17. `1684000016000-CreateInvoiceItemTable.ts`: Invoice line items
+18. `1684000017000-CreateNotificationTable.ts`: System notifications
+19. `1684000018000-CreateActivityLogTable.ts`: General activity logging
+20. `1684000019000-CreateSettingsTable.ts`: System and company settings
+
+New tables added since last update:
+
+#### Quote Table (quotes)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `quote_number` (VARCHAR): Unique quote identifier
+- `company_id` (UUID, FK): Reference to company
+- `customer_id` (UUID, FK): Reference to customer
+- `subtotal` (DECIMAL): Quote subtotal
+- `tax_total` (DECIMAL): Total tax amount
+- `discount_total` (DECIMAL): Total discounts
+- `total` (DECIMAL): Final total amount
+- `issue_date` (TIMESTAMP): Quote issue date
+- `valid_until` (TIMESTAMP): Quote validity date
+- `status` (VARCHAR): Quote status (draft, sent, accepted, declined, expired, converted)
+- `notes` (TEXT, Nullable): Additional notes
+- `terms_conditions` (TEXT, Nullable): Terms and conditions
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
+
+**Relationships:**
+- Many-to-One with Companies (`company_id` → Companies.`id`)
+- One-to-Many with QuoteItems (Quotes.`id` → QuoteItems.`quote_id`)
+
+#### Quote Items Table (quote_items)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `quote_id` (UUID, FK): Reference to quote
+- `product_id` (UUID, FK): Reference to product
+- `quantity` (DECIMAL): Quantity quoted
+- `unit_price` (DECIMAL): Unit price
+- `discount` (DECIMAL, Nullable): Item discount
+- `tax` (DECIMAL, Nullable): Item tax
+- `total` (DECIMAL): Line item total
+- `notes` (TEXT, Nullable): Item-specific notes
+- `created_at` (TIMESTAMP): Creation timestamp
+
+**Relationships:**
+- Many-to-One with Quotes (`quote_id` → Quotes.`id`)
+- Many-to-One with Products (`product_id` → Products.`id`)
+
+#### Price List Table (price_lists)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `company_id` (UUID, FK): Reference to company
+- `name` (VARCHAR): Price list name
+- `description` (TEXT, Nullable): Price list description
+- `type` (VARCHAR): Price list type (standard, customer_specific, promotion)
+- `valid_from` (TIMESTAMP): Start date
+- `valid_until` (TIMESTAMP, Nullable): End date
+- `status` (VARCHAR): Status (active, inactive, draft)
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
+
+**Relationships:**
+- Many-to-One with Companies (`company_id` → Companies.`id`)
+- One-to-Many with PriceListItems (PriceLists.`id` → PriceListItems.`price_list_id`)
+
+#### Payment Table (payments)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `order_id` (UUID, FK, Nullable): Reference to order
+- `invoice_id` (UUID, FK, Nullable): Reference to invoice
+- `amount` (DECIMAL): Payment amount
+- `currency` (VARCHAR): Payment currency
+- `method` (VARCHAR): Payment method (bank_transfer, credit_card, vnpay, momo)
+- `status` (VARCHAR): Payment status (pending, completed, failed, refunded)
+- `transaction_id` (VARCHAR, Nullable): External transaction ID
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
+
+**Relationships:**
+- Many-to-One with Orders (`order_id` → Orders.`id`)
+- Many-to-One with Invoices (`invoice_id` → Invoices.`id`)
+
+### MongoDB Collections Update
+
+New collections added:
+
+#### Analytics Events Collection
+**Fields:**
+- `eventId` (String, Indexed): Unique event identifier
+- `eventType` (String, Indexed): Type of event
+- `companyId` (String, Indexed): Company identifier
+- `userId` (String, Indexed): User identifier
+- `timestamp` (Date, Indexed): Event timestamp
+- `metadata` (Mixed): Event metadata
+- `context` (Object): Event context information
+
+#### User Sessions Collection
+**Fields:**
+- `sessionId` (String, Indexed): Session identifier
+- `userId` (String, Indexed): User identifier
+- `companyId` (String, Indexed): Company identifier
+- `startTime` (Date): Session start time
+- `lastActivity` (Date): Last activity timestamp
+- `device` (Object): Device information
+- `location` (Object): Geographic location data
+
+## Redis Implementation
+
+Redis is used for the following purposes:
+
+1. Session Management
+   - Key pattern: `session:{sessionId}`
+   - TTL: 24 hours
+
+2. Rate Limiting
+   - Key pattern: `ratelimit:{ip}:{endpoint}`
+   - TTL: 1 hour
+
+3. Cache
+   - Key pattern: `cache:{entity}:{id}`
+   - TTL: 5-60 minutes
+
+4. Real-time Notifications
+   - Key pattern: `notifications:{userId}`
+   - TTL: None (cleared on read)
+
+### Key Structures
+
+- **Session Data**: `session:{sessionId}`
+- **Cache Keys**: `cache:{entityType}:{id}`
+- **Rate Limiting**: `rateLimit:{ip}:{endpoint}`
+
+## Data Migration Strategy
+
+Tubex uses a migration-based approach to manage database schema changes:
+
+1. **Migration Files**: Located in `src/database/migrations/`
+2. **Naming Convention**: 
+   - Timestamp-prefixed files for sequential execution
+   - One file per table for clean organization
+3. **Running Migrations**: Executed via TypeORM CLI
+
+### Migration Command
+
+```
+npm run typeorm -- migration:run -d src/database/ormconfig.ts
+```
+
+### Current Migrations
+
+Tubex now uses an organized, table-centric migration structure where each table has its own dedicated migration file:
+
+1. `1684000000000-CreateCompanyTable.ts`: Comprehensive Company table creation
+2. `1684000001000-CreateUserTable.ts`: User table with complete structure
+3. `1684000002000-CreateProductTable.ts`: Product catalog table
+4. `1684000003000-CreateWarehouseTable.ts`: Warehouse management
+5. `1684000004000-CreateBatchTable.ts`: Inventory batch tracking
+6. `1684000005000-CreateInventoryTable.ts`: Inventory management
+7. `1684000006000-CreateOrderTable.ts`: Order processing
+8. `1684000007000-CreateOrderItemTable.ts`: Order line items
+9. `1684000008000-CreateOrderHistoryTable.ts`: Order status history
+10. `1684000009000-CreateUserAuditLogTable.ts`: User activity auditing
+11. `1684000010000-CreateQuoteTable.ts`: Quote management
+12. `1684000011000-CreateQuoteItemTable.ts`: Quote line items
+13. `1684000012000-CreatePriceListTable.ts`: Price list management
+14. `1684000013000-CreatePriceItemTable.ts`: Individual price items
+15. `1684000014000-CreatePaymentTable.ts`: Payment processing
+16. `1684000015000-CreateInvoiceTable.ts`: Invoice management
+17. `1684000016000-CreateInvoiceItemTable.ts`: Invoice line items
+18. `1684000017000-CreateNotificationTable.ts`: System notifications
+19. `1684000018000-CreateActivityLogTable.ts`: General activity logging
+20. `1684000019000-CreateSettingsTable.ts`: System and company settings
+
+New tables added since last update:
+
+#### Quote Table (quotes)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `quote_number` (VARCHAR): Unique quote identifier
+- `company_id` (UUID, FK): Reference to company
+- `customer_id` (UUID, FK): Reference to customer
+- `subtotal` (DECIMAL): Quote subtotal
+- `tax_total` (DECIMAL): Total tax amount
+- `discount_total` (DECIMAL): Total discounts
+- `total` (DECIMAL): Final total amount
+- `issue_date` (TIMESTAMP): Quote issue date
+- `valid_until` (TIMESTAMP): Quote validity date
+- `status` (VARCHAR): Quote status (draft, sent, accepted, declined, expired, converted)
+- `notes` (TEXT, Nullable): Additional notes
+- `terms_conditions` (TEXT, Nullable): Terms and conditions
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
+
+**Relationships:**
+- Many-to-One with Companies (`company_id` → Companies.`id`)
+- One-to-Many with QuoteItems (Quotes.`id` → QuoteItems.`quote_id`)
+
+#### Quote Items Table (quote_items)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `quote_id` (UUID, FK): Reference to quote
+- `product_id` (UUID, FK): Reference to product
+- `quantity` (DECIMAL): Quantity quoted
+- `unit_price` (DECIMAL): Unit price
+- `discount` (DECIMAL, Nullable): Item discount
+- `tax` (DECIMAL, Nullable): Item tax
+- `total` (DECIMAL): Line item total
+- `notes` (TEXT, Nullable): Item-specific notes
+- `created_at` (TIMESTAMP): Creation timestamp
+
+**Relationships:**
+- Many-to-One with Quotes (`quote_id` → Quotes.`id`)
+- Many-to-One with Products (`product_id` → Products.`id`)
+
+#### Price List Table (price_lists)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `company_id` (UUID, FK): Reference to company
+- `name` (VARCHAR): Price list name
+- `description` (TEXT, Nullable): Price list description
+- `type` (VARCHAR): Price list type (standard, customer_specific, promotion)
+- `valid_from` (TIMESTAMP): Start date
+- `valid_until` (TIMESTAMP, Nullable): End date
+- `status` (VARCHAR): Status (active, inactive, draft)
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
+
+**Relationships:**
+- Many-to-One with Companies (`company_id` → Companies.`id`)
+- One-to-Many with PriceListItems (PriceLists.`id` → PriceListItems.`price_list_id`)
+
+#### Payment Table (payments)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `order_id` (UUID, FK, Nullable): Reference to order
+- `invoice_id` (UUID, FK, Nullable): Reference to invoice
+- `amount` (DECIMAL): Payment amount
+- `currency` (VARCHAR): Payment currency
+- `method` (VARCHAR): Payment method (bank_transfer, credit_card, vnpay, momo)
+- `status` (VARCHAR): Payment status (pending, completed, failed, refunded)
+- `transaction_id` (VARCHAR, Nullable): External transaction ID
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
+
+**Relationships:**
+- Many-to-One with Orders (`order_id` → Orders.`id`)
+- Many-to-One with Invoices (`invoice_id` → Invoices.`id`)
+
+### MongoDB Collections Update
+
+New collections added:
+
+#### Analytics Events Collection
+**Fields:**
+- `eventId` (String, Indexed): Unique event identifier
+- `eventType` (String, Indexed): Type of event
+- `companyId` (String, Indexed): Company identifier
+- `userId` (String, Indexed): User identifier
+- `timestamp` (Date, Indexed): Event timestamp
+- `metadata` (Mixed): Event metadata
+- `context` (Object): Event context information
+
+#### User Sessions Collection
+**Fields:**
+- `sessionId` (String, Indexed): Session identifier
+- `userId` (String, Indexed): User identifier
+- `companyId` (String, Indexed): Company identifier
+- `startTime` (Date): Session start time
+- `lastActivity` (Date): Last activity timestamp
+- `device` (Object): Device information
+- `location` (Object): Geographic location data
+
+## Redis Implementation
+
+Redis is used for the following purposes:
+
+1. Session Management
+   - Key pattern: `session:{sessionId}`
+   - TTL: 24 hours
+
+2. Rate Limiting
+   - Key pattern: `ratelimit:{ip}:{endpoint}`
+   - TTL: 1 hour
+
+3. Cache
+   - Key pattern: `cache:{entity}:{id}`
+   - TTL: 5-60 minutes
+
+4. Real-time Notifications
+   - Key pattern: `notifications:{userId}`
+   - TTL: None (cleared on read)
+
+### Key Structures
+
+- **Session Data**: `session:{sessionId}`
+- **Cache Keys**: `cache:{entityType}:{id}`
+- **Rate Limiting**: `rateLimit:{ip}:{endpoint}`
+
+## Data Migration Strategy
+
+Tubex uses a migration-based approach to manage database schema changes:
+
+1. **Migration Files**: Located in `src/database/migrations/`
+2. **Naming Convention**: 
+   - Timestamp-prefixed files for sequential execution
+   - One file per table for clean organization
+3. **Running Migrations**: Executed via TypeORM CLI
+
+### Migration Command
+
+```
+npm run typeorm -- migration:run -d src/database/ormconfig.ts
+```
+
+### Current Migrations
+
+Tubex now uses an organized, table-centric migration structure where each table has its own dedicated migration file:
+
+1. `1684000000000-CreateCompanyTable.ts`: Comprehensive Company table creation
+2. `1684000001000-CreateUserTable.ts`: User table with complete structure
+3. `1684000002000-CreateProductTable.ts`: Product catalog table
+4. `1684000003000-CreateWarehouseTable.ts`: Warehouse management
+5. `1684000004000-CreateBatchTable.ts`: Inventory batch tracking
+6. `1684000005000-CreateInventoryTable.ts`: Inventory management
+7. `1684000006000-CreateOrderTable.ts`: Order processing
+8. `1684000007000-CreateOrderItemTable.ts`: Order line items
+9. `1684000008000-CreateOrderHistoryTable.ts`: Order status history
+10. `1684000009000-CreateUserAuditLogTable.ts`: User activity auditing
+11. `1684000010000-CreateQuoteTable.ts`: Quote management
+12. `1684000011000-CreateQuoteItemTable.ts`: Quote line items
+13. `1684000012000-CreatePriceListTable.ts`: Price list management
+14. `1684000013000-CreatePriceItemTable.ts`: Individual price items
+15. `1684000014000-CreatePaymentTable.ts`: Payment processing
+16. `1684000015000-CreateInvoiceTable.ts`: Invoice management
+17. `1684000016000-CreateInvoiceItemTable.ts`: Invoice line items
+18. `1684000017000-CreateNotificationTable.ts`: System notifications
+19. `1684000018000-CreateActivityLogTable.ts`: General activity logging
+20. `1684000019000-CreateSettingsTable.ts`: System and company settings
+
+New tables added since last update:
+
+#### Quote Table (quotes)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `quote_number` (VARCHAR): Unique quote identifier
+- `company_id` (UUID, FK): Reference to company
+- `customer_id` (UUID, FK): Reference to customer
+- `subtotal` (DECIMAL): Quote subtotal
+- `tax_total` (DECIMAL): Total tax amount
+- `discount_total` (DECIMAL): Total discounts
+- `total` (DECIMAL): Final total amount
+- `issue_date` (TIMESTAMP): Quote issue date
+- `valid_until` (TIMESTAMP): Quote validity date
+- `status` (VARCHAR): Quote status (draft, sent, accepted, declined, expired, converted)
+- `notes` (TEXT, Nullable): Additional notes
+- `terms_conditions` (TEXT, Nullable): Terms and conditions
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
+
+**Relationships:**
+- Many-to-One with Companies (`company_id` → Companies.`id`)
+- One-to-Many with QuoteItems (Quotes.`id` → QuoteItems.`quote_id`)
+
+#### Quote Items Table (quote_items)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `quote_id` (UUID, FK): Reference to quote
+- `product_id` (UUID, FK): Reference to product
+- `quantity` (DECIMAL): Quantity quoted
+- `unit_price` (DECIMAL): Unit price
+- `discount` (DECIMAL, Nullable): Item discount
+- `tax` (DECIMAL, Nullable): Item tax
+- `total` (DECIMAL): Line item total
+- `notes` (TEXT, Nullable): Item-specific notes
+- `created_at` (TIMESTAMP): Creation timestamp
+
+**Relationships:**
+- Many-to-One with Quotes (`quote_id` → Quotes.`id`)
+- Many-to-One with Products (`product_id` → Products.`id`)
+
+#### Price List Table (price_lists)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `company_id` (UUID, FK): Reference to company
+- `name` (VARCHAR): Price list name
+- `description` (TEXT, Nullable): Price list description
+- `type` (VARCHAR): Price list type (standard, customer_specific, promotion)
+- `valid_from` (TIMESTAMP): Start date
+- `valid_until` (TIMESTAMP, Nullable): End date
+- `status` (VARCHAR): Status (active, inactive, draft)
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
+
+**Relationships:**
+- Many-to-One with Companies (`company_id` → Companies.`id`)
+- One-to-Many with PriceListItems (PriceLists.`id` → PriceListItems.`price_list_id`)
+
+#### Payment Table (payments)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `order_id` (UUID, FK, Nullable): Reference to order
+- `invoice_id` (UUID, FK, Nullable): Reference to invoice
+- `amount` (DECIMAL): Payment amount
+- `currency` (VARCHAR): Payment currency
+- `method` (VARCHAR): Payment method (bank_transfer, credit_card, vnpay, momo)
+- `status` (VARCHAR): Payment status (pending, completed, failed, refunded)
+- `transaction_id` (VARCHAR, Nullable): External transaction ID
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
+
+**Relationships:**
+- Many-to-One with Orders (`order_id` → Orders.`id`)
+- Many-to-One with Invoices (`invoice_id` → Invoices.`id`)
+
+### MongoDB Collections Update
+
+New collections added:
+
+#### Analytics Events Collection
+**Fields:**
+- `eventId` (String, Indexed): Unique event identifier
+- `eventType` (String, Indexed): Type of event
+- `companyId` (String, Indexed): Company identifier
+- `userId` (String, Indexed): User identifier
+- `timestamp` (Date, Indexed): Event timestamp
+- `metadata` (Mixed): Event metadata
+- `context` (Object): Event context information
+
+#### User Sessions Collection
+**Fields:**
+- `sessionId` (String, Indexed): Session identifier
+- `userId` (String, Indexed): User identifier
+- `companyId` (String, Indexed): Company identifier
+- `startTime` (Date): Session start time
+- `lastActivity` (Date): Last activity timestamp
+- `device` (Object): Device information
+- `location` (Object): Geographic location data
+
+## Redis Implementation
+
+Redis is used for the following purposes:
+
+1. Session Management
+   - Key pattern: `session:{sessionId}`
+   - TTL: 24 hours
+
+2. Rate Limiting
+   - Key pattern: `ratelimit:{ip}:{endpoint}`
+   - TTL: 1 hour
+
+3. Cache
+   - Key pattern: `cache:{entity}:{id}`
+   - TTL: 5-60 minutes
+
+4. Real-time Notifications
+   - Key pattern: `notifications:{userId}`
+   - TTL: None (cleared on read)
+
+### Key Structures
+
+- **Session Data**: `session:{sessionId}`
+- **Cache Keys**: `cache:{entityType}:{id}`
+- **Rate Limiting**: `rateLimit:{ip}:{endpoint}`
+
+## Data Migration Strategy
+
+Tubex uses a migration-based approach to manage database schema changes:
+
+1. **Migration Files**: Located in `src/database/migrations/`
+2. **Naming Convention**: 
+   - Timestamp-prefixed files for sequential execution
+   - One file per table for clean organization
+3. **Running Migrations**: Executed via TypeORM CLI
+
+### Migration Command
+
+```
+npm run typeorm -- migration:run -d src/database/ormconfig.ts
+```
+
+### Current Migrations
+
+Tubex now uses an organized, table-centric migration structure where each table has its own dedicated migration file:
+
+1. `1684000000000-CreateCompanyTable.ts`: Comprehensive Company table creation
+2. `1684000001000-CreateUserTable.ts`: User table with complete structure
+3. `1684000002000-CreateProductTable.ts`: Product catalog table
+4. `1684000003000-CreateWarehouseTable.ts`: Warehouse management
+5. `1684000004000-CreateBatchTable.ts`: Inventory batch tracking
+6. `1684000005000-CreateInventoryTable.ts`: Inventory management
+7. `1684000006000-CreateOrderTable.ts`: Order processing
+8. `1684000007000-CreateOrderItemTable.ts`: Order line items
+9. `1684000008000-CreateOrderHistoryTable.ts`: Order status history
+10. `1684000009000-CreateUserAuditLogTable.ts`: User activity auditing
+11. `1684000010000-CreateQuoteTable.ts`: Quote management
+12. `1684000011000-CreateQuoteItemTable.ts`: Quote line items
+13. `1684000012000-CreatePriceListTable.ts`: Price list management
+14. `1684000013000-CreatePriceItemTable.ts`: Individual price items
+15. `1684000014000-CreatePaymentTable.ts`: Payment processing
+16. `1684000015000-CreateInvoiceTable.ts`: Invoice management
+17. `1684000016000-CreateInvoiceItemTable.ts`: Invoice line items
+18. `1684000017000-CreateNotificationTable.ts`: System notifications
+19. `1684000018000-CreateActivityLogTable.ts`: General activity logging
+20. `1684000019000-CreateSettingsTable.ts`: System and company settings
+
+New tables added since last update:
+
+#### Quote Table (quotes)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `quote_number` (VARCHAR): Unique quote identifier
+- `company_id` (UUID, FK): Reference to company
+- `customer_id` (UUID, FK): Reference to customer
+- `subtotal` (DECIMAL): Quote subtotal
+- `tax_total` (DECIMAL): Total tax amount
+- `discount_total` (DECIMAL): Total discounts
+- `total` (DECIMAL): Final total amount
+- `issue_date` (TIMESTAMP): Quote issue date
+- `valid_until` (TIMESTAMP): Quote validity date
+- `status` (VARCHAR): Quote status (draft, sent, accepted, declined, expired, converted)
+- `notes` (TEXT, Nullable): Additional notes
+- `terms_conditions` (TEXT, Nullable): Terms and conditions
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
+
+**Relationships:**
+- Many-to-One with Companies (`company_id` → Companies.`id`)
+- One-to-Many with QuoteItems (Quotes.`id` → QuoteItems.`quote_id`)
+
+#### Quote Items Table (quote_items)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `quote_id` (UUID, FK): Reference to quote
+- `product_id` (UUID, FK): Reference to product
+- `quantity` (DECIMAL): Quantity quoted
+- `unit_price` (DECIMAL): Unit price
+- `discount` (DECIMAL, Nullable): Item discount
+- `tax` (DECIMAL, Nullable): Item tax
+- `total` (DECIMAL): Line item total
+- `notes` (TEXT, Nullable): Item-specific notes
+- `created_at` (TIMESTAMP): Creation timestamp
+
+**Relationships:**
+- Many-to-One with Quotes (`quote_id` → Quotes.`id`)
+- Many-to-One with Products (`product_id` → Products.`id`)
+
+#### Price List Table (price_lists)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `company_id` (UUID, FK): Reference to company
+- `name` (VARCHAR): Price list name
+- `description` (TEXT, Nullable): Price list description
+- `type` (VARCHAR): Price list type (standard, customer_specific, promotion)
+- `valid_from` (TIMESTAMP): Start date
+- `valid_until` (TIMESTAMP, Nullable): End date
+- `status` (VARCHAR): Status (active, inactive, draft)
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
+
+**Relationships:**
+- Many-to-One with Companies (`company_id` → Companies.`id`)
+- One-to-Many with PriceListItems (PriceLists.`id` → PriceListItems.`price_list_id`)
+
+#### Payment Table (payments)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `order_id` (UUID, FK, Nullable): Reference to order
+- `invoice_id` (UUID, FK, Nullable): Reference to invoice
+- `amount` (DECIMAL): Payment amount
+- `currency` (VARCHAR): Payment currency
+- `method` (VARCHAR): Payment method (bank_transfer, credit_card, vnpay, momo)
+- `status` (VARCHAR): Payment status (pending, completed, failed, refunded)
+- `transaction_id` (VARCHAR, Nullable): External transaction ID
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
+
+**Relationships:**
+- Many-to-One with Orders (`order_id` → Orders.`id`)
+- Many-to-One with Invoices (`invoice_id` → Invoices.`id`)
+
+### MongoDB Collections Update
+
+New collections added:
+
+#### Analytics Events Collection
+**Fields:**
+- `eventId` (String, Indexed): Unique event identifier
+- `eventType` (String, Indexed): Type of event
+- `companyId` (String, Indexed): Company identifier
+- `userId` (String, Indexed): User identifier
+- `timestamp` (Date, Indexed): Event timestamp
+- `metadata` (Mixed): Event metadata
+- `context` (Object): Event context information
+
+#### User Sessions Collection
+**Fields:**
+- `sessionId` (String, Indexed): Session identifier
+- `userId` (String, Indexed): User identifier
+- `companyId` (String, Indexed): Company identifier
+- `startTime` (Date): Session start time
+- `lastActivity` (Date): Last activity timestamp
+- `device` (Object): Device information
+- `location` (Object): Geographic location data
+
+## Redis Implementation
+
+Redis is used for the following purposes:
+
+1. Session Management
+   - Key pattern: `session:{sessionId}`
+   - TTL: 24 hours
+
+2. Rate Limiting
+   - Key pattern: `ratelimit:{ip}:{endpoint}`
+   - TTL: 1 hour
+
+3. Cache
+   - Key pattern: `cache:{entity}:{id}`
+   - TTL: 5-60 minutes
+
+4. Real-time Notifications
+   - Key pattern: `notifications:{userId}`
+   - TTL: None (cleared on read)
+
+### Key Structures
+
+- **Session Data**: `session:{sessionId}`
+- **Cache Keys**: `cache:{entityType}:{id}`
+- **Rate Limiting**: `rateLimit:{ip}:{endpoint}`
+
+## Data Migration Strategy
+
+Tubex uses a migration-based approach to manage database schema changes:
+
+1. **Migration Files**: Located in `src/database/migrations/`
+2. **Naming Convention**: 
+   - Timestamp-prefixed files for sequential execution
+   - One file per table for clean organization
+3. **Running Migrations**: Executed via TypeORM CLI
+
+### Migration Command
+
+```
+npm run typeorm -- migration:run -d src/database/ormconfig.ts
+```
+
+### Current Migrations
+
+Tubex now uses an organized, table-centric migration structure where each table has its own dedicated migration file:
+
+1. `1684000000000-CreateCompanyTable.ts`: Comprehensive Company table creation
+2. `1684000001000-CreateUserTable.ts`: User table with complete structure
+3. `1684000002000-CreateProductTable.ts`: Product catalog table
+4. `1684000003000-CreateWarehouseTable.ts`: Warehouse management
+5. `1684000004000-CreateBatchTable.ts`: Inventory batch tracking
+6. `1684000005000-CreateInventoryTable.ts`: Inventory management
+7. `1684000006000-CreateOrderTable.ts`: Order processing
+8. `1684000007000-CreateOrderItemTable.ts`: Order line items
+9. `1684000008000-CreateOrderHistoryTable.ts`: Order status history
+10. `1684000009000-CreateUserAuditLogTable.ts`: User activity auditing
+11. `1684000010000-CreateQuoteTable.ts`: Quote management
+12. `1684000011000-CreateQuoteItemTable.ts`: Quote line items
+13. `1684000012000-CreatePriceListTable.ts`: Price list management
+14. `1684000013000-CreatePriceItemTable.ts`: Individual price items
+15. `1684000014000-CreatePaymentTable.ts`: Payment processing
+16. `1684000015000-CreateInvoiceTable.ts`: Invoice management
+17. `1684000016000-CreateInvoiceItemTable.ts`: Invoice line items
+18. `1684000017000-CreateNotificationTable.ts`: System notifications
+19. `1684000018000-CreateActivityLogTable.ts`: General activity logging
+20. `1684000019000-CreateSettingsTable.ts`: System and company settings
+
+New tables added since last update:
+
+#### Quote Table (quotes)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `quote_number` (VARCHAR): Unique quote identifier
+- `company_id` (UUID, FK): Reference to company
+- `customer_id` (UUID, FK): Reference to customer
+- `subtotal` (DECIMAL): Quote subtotal
+- `tax_total` (DECIMAL): Total tax amount
+- `discount_total` (DECIMAL): Total discounts
+- `total` (DECIMAL): Final total amount
+- `issue_date` (TIMESTAMP): Quote issue date
+- `valid_until` (TIMESTAMP): Quote validity date
+- `status` (VARCHAR): Quote status (draft, sent, accepted, declined, expired, converted)
+- `notes` (TEXT, Nullable): Additional notes
+- `terms_conditions` (TEXT, Nullable): Terms and conditions
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
+
+**Relationships:**
+- Many-to-One with Companies (`company_id` → Companies.`id`)
+- One-to-Many with QuoteItems (Quotes.`id` → QuoteItems.`quote_id`)
+
+#### Quote Items Table (quote_items)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `quote_id` (UUID, FK): Reference to quote
+- `product_id` (UUID, FK): Reference to product
+- `quantity` (DECIMAL): Quantity quoted
+- `unit_price` (DECIMAL): Unit price
+- `discount` (DECIMAL, Nullable): Item discount
+- `tax` (DECIMAL, Nullable): Item tax
+- `total` (DECIMAL): Line item total
+- `notes` (TEXT, Nullable): Item-specific notes
+- `created_at` (TIMESTAMP): Creation timestamp
+
+**Relationships:**
+- Many-to-One with Quotes (`quote_id` → Quotes.`id`)
+- Many-to-One with Products (`product_id` → Products.`id`)
+
+#### Price List Table (price_lists)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `company_id` (UUID, FK): Reference to company
+- `name` (VARCHAR): Price list name
+- `description` (TEXT, Nullable): Price list description
+- `type` (VARCHAR): Price list type (standard, customer_specific, promotion)
+- `valid_from` (TIMESTAMP): Start date
+- `valid_until` (TIMESTAMP, Nullable): End date
+- `status` (VARCHAR): Status (active, inactive, draft)
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
+
+**Relationships:**
+- Many-to-One with Companies (`company_id` → Companies.`id`)
+- One-to-Many with PriceListItems (PriceLists.`id` → PriceListItems.`price_list_id`)
+
+#### Payment Table (payments)
+**Columns:**
+- `id` (UUID, PK): Unique identifier
+- `order_id` (UUID, FK, Nullable): Reference to order
+- `invoice_id` (UUID, FK, Nullable): Reference to invoice
+- `amount` (DECIMAL): Payment amount
+- `currency` (VARCHAR): Payment currency
+- `method` (VARCHAR): Payment method (bank_transfer, credit_card, vnpay, momo)
+- `status` (VARCHAR): Payment status (pending, completed, failed, refunded)
+- `transaction_id` (VARCHAR, Nullable): External transaction ID
+- `metadata` (JSONB, Nullable): Additional metadata
+- `created_at` (TIMESTAMP): Creation timestamp
+- `updated_at` (TIMESTAMP): Last update timestamp
+
+**Relationships:**
+- Many-to-One with Orders (`order_id` → Orders.`id`)
+- Many-to-One with Invoices (`invoice_id` → Invoices.`id`)
+
+### MongoDB Collections Update
+
+New collections added:
+
+#### Analytics Events Collection
+**Fields:**
+- `eventId` (String, Indexed): Unique event identifier
+- `eventType` (String, Indexed): Type of event
+- `companyId` (String, Indexed): Company identifier
+- `userId` (String, Indexed): User identifier
+- `timestamp` (Date, Indexed): Event timestamp
+- `metadata` (Mixed): Event metadata
+- `context` (Object): Event context information
+
+#### User Sessions Collection
+**Fields:**
+- `sessionId` (String, Indexed): Session identifier
+- `userId` (String, Indexed): User identifier
+- `companyId` (String, Indexed): Company identifier
+- `startTime` (Date): Session start time
+- `lastActivity` (Date): Last activity timestamp
+- `device` (Object): Device information
+- `location` (Object): Geographic location data
