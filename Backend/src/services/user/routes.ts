@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { getAllUsers, getUserById, updateUser, deleteUser } from './controller';
 import { validateUserUpdate } from './validators';
 import { authenticate } from '../../middleware/auth';
+import { asyncHandler } from '../../middleware/asyncHandler';
 
 const router = Router();
 
@@ -13,58 +14,35 @@ router.use(authenticate);
  * @swagger
  * /users:
  *   get:
- *     summary: List all users
- *     description: Retrieve a list of all users accessible to the authenticated user
+ *     summary: Get all users
  *     tags: [Users]
- *     security:
- *       - bearerAuth: []
  *     parameters:
- *       - in: query
- *         name: page
+ *       - name: page
+ *         in: query
  *         schema:
  *           type: integer
- *           minimum: 1
- *           default: 1
- *         description: Page number
- *       - in: query
- *         name: limit
+ *         description: Page number for pagination
+ *       - name: limit
+ *         in: query
  *         schema:
  *           type: integer
- *           minimum: 1
- *           maximum: 100
- *           default: 20
- *         description: Items per page
- *       - in: query
- *         name: role
- *         schema:
- *           type: string
- *           enum: [admin, manager, staff, supplier, dealer]
- *         description: Filter users by role
- *       - in: query
- *         name: search
- *         schema:
- *           type: string
- *         description: Search by name or email
+ *         description: Number of items per page
  *     responses:
  *       200:
- *         description: A paginated list of users
+ *         description: List of users
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 data:
- *                   type: object
- *                   properties:
- *                     users:
- *                       type: array
- *                       items:
- *                         $ref: '#/components/schemas/User'
- *                     pagination:
- *                       $ref: '#/components/schemas/Pagination'
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   email:
+ *                     type: string
+ *                   role:
+ *                     type: string
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:

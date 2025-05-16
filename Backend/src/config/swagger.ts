@@ -361,19 +361,77 @@ const options: swaggerJsdoc.Options = {
           }
         },
 
-        // OrderItem Schema
-        OrderItem: {
+        // Quote Schema
+        Quote: {
           type: 'object',
           properties: {
             id: {
               type: 'string',
               format: 'uuid',
-              description: 'Unique identifier for the order item'
+              description: 'Unique identifier for the quote'
             },
-            orderId: {
+            customerId: {
               type: 'string',
               format: 'uuid',
-              description: 'ID of the order'
+              description: 'ID of the customer who created the quote'
+            },
+            createdById: {
+              type: 'string',
+              format: 'uuid',
+              description: 'ID of the user who created the quote'
+            },
+            quoteNumber: {
+              type: 'string',
+              description: 'Unique quote number'
+            },
+            status: {
+              type: 'string',
+              enum: ['DRAFT', 'ACCEPTED', 'REJECTED', 'EXPIRED', 'CONVERTED'],
+              description: 'Status of the quote'
+            },
+            totalAmount: {
+              type: 'number',
+              description: 'Total amount of the quote'
+            },
+            validUntil: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Validity date of the quote'
+            },
+            deliveryAddress: {
+              type: 'string',
+              description: 'Delivery address for the quote'
+            },
+            metadata: {
+              type: 'object',
+              description: 'Additional metadata for the quote'
+            },
+            createdAt: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date and time when the quote was created'
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Date and time when the quote was last updated'
+            }
+          }
+        },
+
+        // QuoteItem Schema
+        QuoteItem: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Unique identifier for the quote item'
+            },
+            quoteId: {
+              type: 'string',
+              format: 'uuid',
+              description: 'ID of the associated quote'
             },
             productId: {
               type: 'string',
@@ -390,151 +448,49 @@ const options: swaggerJsdoc.Options = {
             },
             discount: {
               type: 'number',
-              description: 'Discount amount'
+              description: 'Discount applied to the product'
+            },
+            notes: {
+              type: 'string',
+              description: 'Additional notes for the quote item'
+            }
+          }
+        },
+
+        // OrderItem Schema
+        OrderItem: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              format: 'uuid',
+              description: 'Unique identifier for the order item'
+            },
+            orderId: {
+              type: 'string',
+              format: 'uuid',
+              description: 'ID of the associated order'
+            },
+            productId: {
+              type: 'string',
+              format: 'uuid',
+              description: 'ID of the product'
+            },
+            quantity: {
+              type: 'number',
+              description: 'Quantity of the product'
+            },
+            unitPrice: {
+              type: 'number',
+              description: 'Unit price of the product'
+            },
+            discount: {
+              type: 'number',
+              description: 'Discount applied to the product'
             },
             metadata: {
               type: 'object',
               description: 'Additional metadata for the order item'
-            }
-          }
-        },
-
-        // Inventory Schema
-        Inventory: {
-          type: 'object',
-          properties: {
-            id: {
-              type: 'string',
-              format: 'uuid',
-              description: 'Unique identifier for the inventory item'
-            },
-            product_id: {
-              type: 'string',
-              format: 'uuid',
-              description: 'ID of the product'
-            },
-            company_id: {
-              type: 'string',
-              format: 'uuid',
-              description: 'ID of the company'
-            },
-            warehouse_id: {
-              type: 'string',
-              format: 'uuid',
-              description: 'ID of the warehouse'
-            },
-            quantity: {
-              type: 'number',
-              description: 'Quantity of the product in inventory'
-            },
-            unit: {
-              type: 'string',
-              description: 'Unit of measurement'
-            },
-            min_threshold: {
-              type: 'number',
-              description: 'Minimum threshold for inventory level'
-            },
-            max_threshold: {
-              type: 'number',
-              description: 'Maximum threshold for inventory level'
-            },
-            reorder_point: {
-              type: 'number',
-              description: 'Reorder point for inventory'
-            },
-            reorder_quantity: {
-              type: 'number',
-              description: 'Quantity to reorder when reaching reorder point'
-            },
-            auto_reorder: {
-              type: 'boolean',
-              description: 'Whether auto-reorder is enabled'
-            },
-            last_reorder_date: {
-              type: 'string',
-              format: 'date-time',
-              description: 'Date and time when last reorder was placed'
-            },
-            metadata: {
-              type: 'object',
-              description: 'Additional metadata for the inventory item'
-            },
-            status: {
-              type: 'string',
-              description: 'Status of the inventory item'
-            },
-            created_at: {
-              type: 'string',
-              format: 'date-time',
-              description: 'Date and time when the inventory item was created'
-            },
-            updated_at: {
-              type: 'string',
-              format: 'date-time',
-              description: 'Date and time when the inventory item was last updated'
-            }
-          }
-        },
-
-        // Batch Schema
-        Batch: {
-          type: 'object',
-          properties: {
-            id: {
-              type: 'string',
-              format: 'uuid',
-              description: 'Unique identifier for the batch'
-            },
-            batch_number: {
-              type: 'string',
-              description: 'Batch number'
-            },
-            product_id: {
-              type: 'string',
-              format: 'uuid',
-              description: 'ID of the product'
-            },
-            warehouse_id: {
-              type: 'string',
-              format: 'uuid',
-              description: 'ID of the warehouse'
-            },
-            quantity: {
-              type: 'number',
-              description: 'Quantity in the batch'
-            },
-            unit: {
-              type: 'string',
-              description: 'Unit of measurement'
-            },
-            manufacturing_date: {
-              type: 'string',
-              format: 'date-time',
-              description: 'Manufacturing date of the batch'
-            },
-            expiry_date: {
-              type: 'string',
-              format: 'date-time',
-              description: 'Expiry date of the batch'
-            },
-            metadata: {
-              type: 'object',
-              description: 'Additional metadata for the batch'
-            },
-            status: {
-              type: 'string',
-              description: 'Status of the batch'
-            },
-            created_at: {
-              type: 'string',
-              format: 'date-time',
-              description: 'Date and time when the batch was created'
-            },
-            updated_at: {
-              type: 'string',
-              format: 'date-time',
-              description: 'Date and time when the batch was last updated'
             }
           }
         },
@@ -1005,6 +961,10 @@ const options: swaggerJsdoc.Options = {
       {
         name: 'Health',
         description: 'System health and monitoring endpoints'
+      },
+      {
+        name: 'Quotes',
+        description: 'Quote management operations'
       }
     ],
     paths: {
@@ -1027,14 +987,131 @@ const options: swaggerJsdoc.Options = {
             }
           }
         }
+      },
+      '/quotes': {
+        post: {
+          summary: 'Create a new quote',
+          tags: ['Quotes'],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/Quote'
+                }
+              }
+            }
+          },
+          responses: {
+            201: {
+              description: 'Quote created successfully'
+            }
+          }
+        },
+        get: {
+          summary: 'Get all quotes',
+          tags: ['Quotes'],
+          responses: {
+            200: {
+              description: 'List of quotes'
+            }
+          }
+        }
+      },
+      '/quotes/{id}': {
+        get: {
+          summary: 'Get a quote by ID',
+          tags: ['Quotes'],
+          parameters: [
+            {
+              name: 'id',
+              in: 'path',
+              required: true,
+              schema: {
+                type: 'string'
+              }
+            }
+          ],
+          responses: {
+            200: {
+              description: 'Quote details'
+            }
+          }
+        },
+        put: {
+          summary: 'Update a quote',
+          tags: ['Quotes'],
+          parameters: [
+            {
+              name: 'id',
+              in: 'path',
+              required: true,
+              schema: {
+                type: 'string'
+              }
+            }
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/Quote'
+                }
+              }
+            }
+          },
+          responses: {
+            200: {
+              description: 'Quote updated successfully'
+            }
+          }
+        },
+        delete: {
+          summary: 'Delete a quote',
+          tags: ['Quotes'],
+          parameters: [
+            {
+              name: 'id',
+              in: 'path',
+              required: true,
+              schema: {
+                type: 'string'
+              }
+            }
+          ],
+          responses: {
+            200: {
+              description: 'Quote deleted successfully'
+            }
+          }
+        }
+      },
+      '/quotes/{id}/convert': {
+        post: {
+          summary: 'Convert a quote to an order',
+          tags: ['Quotes'],
+          parameters: [
+            {
+              name: 'id',
+              in: 'path',
+              required: true,
+              schema: {
+                type: 'string'
+              }
+            }
+          ],
+          responses: {
+            201: {
+              description: 'Quote converted to order successfully'
+            }
+          }
+        }
       }
     }
   },
   apis: [
-    './src/services/**/routes.ts',
-    './src/services/**/controller.ts',
-    './src/services/**/*.routes.ts',
-    './src/services/**/*.controller.ts',
+    './src/services/**/*.ts', // Include all TypeScript files in services folder and subfolders
     './src/app.ts'
   ]
 };

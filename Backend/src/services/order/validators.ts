@@ -1,8 +1,8 @@
-import { ValidationSchema } from '../../middleware/validation';
+import { ValidationSchema } from '../../middleware/validationHandler';
 import Joi from 'joi';
 import { OrderStatus, PaymentStatus } from '../../database/models/sql/order';
 
-export const orderValidators = {
+export const orderValidators: Record<string, ValidationSchema> = {
     createOrder: {
         body: Joi.object({
             items: Joi.array().items(
@@ -25,7 +25,7 @@ export const orderValidators = {
                 purchaseOrderNumber: Joi.string()
             }).optional()
         })
-    } as ValidationSchema,
+    },
 
     updateOrder: {
         body: Joi.object({
@@ -41,12 +41,12 @@ export const orderValidators = {
             }),
             metadata: Joi.object().unknown(true)
         }).min(1)
-    } as ValidationSchema,
+    },
 
     bulkProcessOrders: {
         body: Joi.object({
             orderIds: Joi.array().items(Joi.string().uuid()).min(1).required(),
             status: Joi.string().valid(...Object.values(OrderStatus)).required()
         })
-    } as ValidationSchema
+    }
 };

@@ -1,6 +1,6 @@
 import { Router, RequestHandler } from 'express';
 import { authenticate } from '../../middleware/auth';
-import { validateRequest } from '../../middleware/validation';
+import { validationHandler } from '../../middleware/validationHandler';
 import {
     getAllWarehouses,
     getWarehouseById,
@@ -18,9 +18,79 @@ warehouseRoutes.use(authenticate);
 
 /**
  * @swagger
+ * tags:
+ *   name: Warehouses
+ *   description: Warehouse management and operations
+ */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Warehouse:
+ *       type: object
+ *       required:
+ *         - name
+ *         - address
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         companyId:
+ *           type: string
+ *           format: uuid
+ *         name:
+ *           type: string
+ *         code:
+ *           type: string
+ *         type:
+ *           type: string
+ *           enum: [main, secondary, distribution, storage]
+ *         status:
+ *           type: string
+ *           enum: [active, inactive, maintenance]
+ *         address:
+ *           type: object
+ *           properties:
+ *             street:
+ *               type: string
+ *             city:
+ *               type: string
+ *             province:
+ *               type: string
+ *             postalCode:
+ *               type: string
+ *             country:
+ *               type: string
+ *         capacity:
+ *           type: number
+ *         currentUsage:
+ *           type: number
+ *         contactInfo:
+ *           type: object
+ *           properties:
+ *             name:
+ *               type: string
+ *             phone:
+ *               type: string
+ *             email:
+ *               type: string
+ *         notes:
+ *           type: string
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ */
+
+/**
+ * @swagger
  * /warehouses/company/{companyId}:
  *   get:
- *     summary: Get all warehouses for a company
+ *     summary: List company warehouses
+ *     description: Get a list of all warehouses for a specific company
  *     tags: [Warehouses]
  *     security:
  *       - bearerAuth: []
@@ -31,106 +101,29 @@ warehouseRoutes.use(authenticate);
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Company ID
  *       - in: query
- *         name: page
+ *         name: type
  *         schema:
- *           type: integer
- *           default: 1
- *         description: Page number for pagination
+ *           type: string
+ *           enum: [main, secondary, distribution, storage]
  *       - in: query
- *         name: limit
+ *         name: status
  *         schema:
- *           type: integer
- *           default: 20
- *         description: Number of warehouses per page
+ *           type: string
+ *           enum: [active, inactive, maintenance]
  *     responses:
  *       200:
- *         description: List of warehouses
+ *         description: List of warehouses retrieved
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 data:
- *                   type: object
- *                   properties:
- *                     warehouses:
- *                       type: array
- *                       items:
- *                         $ref: '#/components/schemas/Warehouse'
- *                     pagination:
- *                       $ref: '#/components/schemas/Pagination'
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       403:
- *         $ref: '#/components/responses/Forbidden'
- *       500:
- *         $ref: '#/components/responses/ServerError'
- */
-warehouseRoutes.get(
-    '/company/:companyId',
-    getAllWarehouses as RequestHandler
-);
-
-/**
- * @swagger
- * /warehouses/company/{companyId}/{warehouseId}:
- *   get:
- *     summary: Get a specific warehouse by ID
- *     tags: [Warehouses]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: companyId
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: Company ID
- *       - in: path
- *         name: warehouseId
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: Warehouse ID
- *     responses:
- *       200:
- *         description: Warehouse details
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 data:
- *                   $ref: '#/components/schemas/Warehouse'
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       403:
- *         $ref: '#/components/responses/Forbidden'
- *       404:
- *         $ref: '#/components/responses/NotFound'
- *       500:
- *         $ref: '#/components/responses/ServerError'
- */
-warehouseRoutes.get(
-    '/company/:companyId/:warehouseId',
-    getWarehouseById as RequestHandler
-);
-
-/**
- * @swagger
- * /warehouses/company/{companyId}:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Warehouse'
+ *   
  *   post:
- *     summary: Create a new warehouse
+ *     summary: Create warehouse
+ *     description: Create a new warehouse for a company
  *     tags: [Warehouses]
  *     security:
  *       - bearerAuth: []
@@ -141,7 +134,6 @@ warehouseRoutes.get(
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Company ID
  *     requestBody:
  *       required: true
  *       content:
@@ -154,13 +146,31 @@ warehouseRoutes.get(
  *             properties:
  *               name:
  *                 type: string
- *                 description: Warehouse name
- *               address:
+ *               code:
  *                 type: string
- *                 description: Warehouse address
+ *               type:
+ *                 type: string
+ *                 enum: [main, secondary, distribution, storage]
+ *               address:
+ *                 type: object
+ *                 required:
+ *                   - street
+ *                   - city
+ *                   - province
+ *                   - postalCode
+ *                 properties:
+ *                   street:
+ *                     type: string
+ *                   city:
+ *                     type: string
+ *                   province:
+ *                     type: string
+ *                   postalCode:
+ *                     type: string
+ *                   country:
+ *                     type: string
  *               capacity:
  *                 type: number
- *                 description: Warehouse storage capacity
  *               contactInfo:
  *                 type: object
  *                 properties:
@@ -170,11 +180,6 @@ warehouseRoutes.get(
  *                     type: string
  *                   email:
  *                     type: string
- *                     format: email
- *               type:
- *                 type: string
- *                 enum: [main, secondary, distribution, storage]
- *                 default: storage
  *               notes:
  *                 type: string
  *     responses:
@@ -183,33 +188,15 @@ warehouseRoutes.get(
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 data:
- *                   $ref: '#/components/schemas/Warehouse'
- *       400:
- *         $ref: '#/components/responses/BadRequest'
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       403:
- *         $ref: '#/components/responses/Forbidden'
- *       500:
- *         $ref: '#/components/responses/ServerError'
+ *               $ref: '#/components/schemas/Warehouse'
  */
-warehouseRoutes.post(
-    '/company/:companyId',
-    validateRequest(warehouseValidators.createWarehouse),
-    createWarehouse as RequestHandler
-);
 
 /**
  * @swagger
  * /warehouses/company/{companyId}/{warehouseId}:
- *   put:
- *     summary: Update a warehouse
+ *   get:
+ *     summary: Get warehouse details
+ *     description: Get detailed information about a specific warehouse
  *     tags: [Warehouses]
  *     security:
  *       - bearerAuth: []
@@ -220,14 +207,39 @@ warehouseRoutes.post(
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Company ID
  *       - in: path
  *         name: warehouseId
  *         required: true
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Warehouse ID
+ *     responses:
+ *       200:
+ *         description: Warehouse details retrieved
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Warehouse'
+ *   
+ *   put:
+ *     summary: Update warehouse
+ *     description: Update details of a specific warehouse
+ *     tags: [Warehouses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: companyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: path
+ *         name: warehouseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
  *     requestBody:
  *       required: true
  *       content:
@@ -237,13 +249,27 @@ warehouseRoutes.post(
  *             properties:
  *               name:
  *                 type: string
- *                 description: Warehouse name
- *               address:
+ *               type:
  *                 type: string
- *                 description: Warehouse address
+ *                 enum: [main, secondary, distribution, storage]
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive, maintenance]
+ *               address:
+ *                 type: object
+ *                 properties:
+ *                   street:
+ *                     type: string
+ *                   city:
+ *                     type: string
+ *                   province:
+ *                     type: string
+ *                   postalCode:
+ *                     type: string
+ *                   country:
+ *                     type: string
  *               capacity:
  *                 type: number
- *                 description: Warehouse storage capacity
  *               contactInfo:
  *                 type: object
  *                 properties:
@@ -253,13 +279,6 @@ warehouseRoutes.post(
  *                     type: string
  *                   email:
  *                     type: string
- *                     format: email
- *               type:
- *                 type: string
- *                 enum: [main, secondary, distribution, storage]
- *               status:
- *                 type: string
- *                 enum: [active, inactive, under_maintenance]
  *               notes:
  *                 type: string
  *     responses:
@@ -268,35 +287,11 @@ warehouseRoutes.post(
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 data:
- *                   $ref: '#/components/schemas/Warehouse'
- *       400:
- *         $ref: '#/components/responses/BadRequest'
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       403:
- *         $ref: '#/components/responses/Forbidden'
- *       404:
- *         $ref: '#/components/responses/NotFound'
- *       500:
- *         $ref: '#/components/responses/ServerError'
- */
-warehouseRoutes.put(
-    '/company/:companyId/:warehouseId',
-    validateRequest(warehouseValidators.updateWarehouse),
-    updateWarehouse as RequestHandler
-);
-
-/**
- * @swagger
- * /warehouses/company/{companyId}/{warehouseId}:
+ *               $ref: '#/components/schemas/Warehouse'
+ *   
  *   delete:
- *     summary: Delete a warehouse
+ *     summary: Delete warehouse
+ *     description: Delete a specific warehouse (only if empty)
  *     tags: [Warehouses]
  *     security:
  *       - bearerAuth: []
@@ -307,49 +302,25 @@ warehouseRoutes.put(
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Company ID
  *       - in: path
  *         name: warehouseId
  *         required: true
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Warehouse ID
  *     responses:
  *       200:
  *         description: Warehouse deleted successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 message:
- *                   type: string
- *                   example: Warehouse deleted successfully
  *       400:
  *         description: Cannot delete warehouse with existing inventory
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       403:
- *         $ref: '#/components/responses/Forbidden'
- *       404:
- *         $ref: '#/components/responses/NotFound'
- *       500:
- *         $ref: '#/components/responses/ServerError'
  */
-warehouseRoutes.delete(
-    '/company/:companyId/:warehouseId',
-    deleteWarehouse as RequestHandler
-);
 
 /**
  * @swagger
  * /warehouses/company/{companyId}/{warehouseId}/capacity:
  *   get:
- *     summary: Get warehouse capacity usage information
+ *     summary: Get warehouse capacity
+ *     description: Get detailed capacity usage information for a warehouse
  *     tags: [Warehouses]
  *     security:
  *       - bearerAuth: []
@@ -360,50 +331,57 @@ warehouseRoutes.delete(
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Company ID
  *       - in: path
  *         name: warehouseId
  *         required: true
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Warehouse ID
  *     responses:
  *       200:
- *         description: Warehouse capacity usage details
+ *         description: Warehouse capacity information retrieved
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 data:
- *                   type: object
- *                   properties:
- *                     warehouse:
- *                       $ref: '#/components/schemas/Warehouse'
- *                     capacityUsage:
- *                       type: object
- *                       properties:
- *                         totalCapacity:
- *                           type: number
- *                         currentUsage:
- *                           type: number
- *                         availableCapacity:
- *                           type: number
- *                         utilizationPercentage:
- *                           type: number
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       403:
- *         $ref: '#/components/responses/Forbidden'
- *       404:
- *         $ref: '#/components/responses/NotFound'
- *       500:
- *         $ref: '#/components/responses/ServerError'
+ *                 totalCapacity:
+ *                   type: number
+ *                 currentUsage:
+ *                   type: number
+ *                 availableCapacity:
+ *                   type: number
+ *                 utilizationPercentage:
+ *                   type: number
  */
+
+warehouseRoutes.get(
+    '/company/:companyId',
+    getAllWarehouses as RequestHandler
+);
+
+warehouseRoutes.get(
+    '/company/:companyId/:warehouseId',
+    getWarehouseById as RequestHandler
+);
+
+warehouseRoutes.post(
+    '/company/:companyId',
+    validationHandler(warehouseValidators.createWarehouse),
+    createWarehouse as RequestHandler
+);
+
+warehouseRoutes.put(
+    '/company/:companyId/:warehouseId',
+    validationHandler(warehouseValidators.updateWarehouse),
+    updateWarehouse as RequestHandler
+);
+
+warehouseRoutes.delete(
+    '/company/:companyId/:warehouseId',
+    deleteWarehouse as RequestHandler
+);
+
 warehouseRoutes.get(
     '/company/:companyId/:warehouseId/capacity',
     getCapacityUsage as RequestHandler

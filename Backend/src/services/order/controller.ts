@@ -44,7 +44,7 @@ export const orderController = {
         if (!req.user) throw new AppError(401, 'Authentication required');
         
         const { items, deliveryAddress, paymentMethod } = req.body;
-        const customerId = req.user.id;
+        const companyId = req.user.companyId;
 
         // Check if database connection is initialized
         if (!AppDataSource.isInitialized) {
@@ -110,11 +110,10 @@ export const orderController = {
                     { productId: item.productId },
                     { quantity: () => `quantity - ${item.quantity}` }
                 );
-            }
-
-            // Create order
+            }            // Create order
             const order = new Order();
-            order.customerId = customerId;
+            order.customerId = companyId; // Use customerId for backward compatibility
+            order.companyId = companyId; // Also set companyId for the new schema
             order.status = OrderStatus.PENDING;
             order.paymentStatus = PaymentStatus.PENDING;
             order.paymentMethod = paymentMethod;
@@ -139,15 +138,17 @@ export const orderController = {
         
         const { id } = req.params;
         const updates = req.body;
-        const customerId = req.user.id;
+        const companyId = req.user.companyId;
 
         const queryRunner = AppDataSource.createQueryRunner();
         await queryRunner.connect();
-        await queryRunner.startTransaction();
-
-        try {
+        await queryRunner.startTransaction();        try {
+            // Try to find by either companyId or customerId for backward compatibility
             const order = await queryRunner.manager.findOne(Order, {
-                where: { id, customerId },
+                where: [
+                    { id, companyId }, // Try with companyId
+                    { id, customerId: companyId } // Try with customerId
+                ],
                 relations: ['items'],
                 lock: { mode: "pessimistic_write" }
             });
@@ -227,16 +228,20 @@ export const orderController = {
         } finally {
             await queryRunner.release();
         }
-    },
-
-    async getOrder(req: Request, res: Response) {
+    },    async getOrder(req: Request, res: Response) {
         if (!req.user) throw new AppError(401, 'Authentication required');
         
         const { id } = req.params;
-        const customerId = req.user.id;
+        const userRole = req.user.role;
+        const userCompanyId = req.user.companyId;
+        
+        // Support both routes: the general route and the company-specific route
+        // For company-specific route, get companyId from params
+        const targetCompanyId = req.params.companyId || null;
 
+        // First, get the order without filters to check permissions
         const order = await AppDataSource.getRepository(Order).findOne({
-            where: { id, customerId },
+            where: { id },
             relations: ['items', 'items.product']
         });
 
@@ -244,20 +249,72 @@ export const orderController = {
             throw new AppError(404, 'Order not found');
         }
 
-        res.json(order);
-    },
+        // Check access permissions based on role
+        if (userRole === 'dealer' && order.companyId !== userCompanyId) {
+            // Dealers can only view their own orders
+            throw new AppError(403, 'Access denied: You can only view your company\'s orders');
+        } else if (userRole === 'supplier') {
+            // Suppliers can only view orders that contain their products
+            const hasSupplierProducts = order.items.some(item => 
+                item.product && item.product.supplier_id === userCompanyId
+            );
+            
+            if (!hasSupplierProducts) {
+                throw new AppError(403, 'Access denied: This order does not contain your products');
+            }
+        } else if (userRole !== 'admin' && order.companyId !== userCompanyId) {
+            // Other roles (staff, managers) can only access their company's orders
+            throw new AppError(403, 'Access denied: This order does not belong to your company');
+        }
 
-    async listOrders(req: Request, res: Response) {
+        res.json(order);
+    },    async listOrders(req: Request, res: Response) {
         if (!req.user) throw new AppError(401, 'Authentication required');
         
-        const customerId = req.user.id;
+        const userRole = req.user.role;
+        const userCompanyId = req.user.companyId;
         const { status, page = 1, limit = 10 } = req.query;
+        
+        // Support both routes: the general route and the company-specific route
+        // For company-specific route, get companyId from params
+        const targetCompanyId = req.params.companyId || userCompanyId;
 
         const queryBuilder = AppDataSource.getRepository(Order)
             .createQueryBuilder('order')
             .leftJoinAndSelect('order.items', 'items')
-            .leftJoinAndSelect('items.product', 'product')
-            .where('order.customerId = :customerId', { customerId });
+            .leftJoinAndSelect('items.product', 'product');        // Apply appropriate filter based on user role and route
+        if (userRole === 'dealer') {
+            // Dealers should see only their own orders
+            // For the company-specific route, check both permission and the requested company ID
+            if (targetCompanyId !== userCompanyId) {
+                // If dealer tries to access another company's orders
+                throw new AppError(403, 'Access denied: You can only view your company\'s orders');
+            }
+            
+            // Using customerId field while the migration is in progress
+            // Later this can be changed to just use companyId when the migration is complete
+            queryBuilder.where('(order.customerId = :companyId OR order.companyId = :companyId)', { companyId: targetCompanyId });
+        } else if (userRole === 'supplier') {
+            // Suppliers should see orders containing their products
+            queryBuilder.innerJoin(
+                'product', 
+                'p', 
+                'p.id = items.productId AND p.supplier_id = :supplierId', 
+                { supplierId: userCompanyId }
+            );
+            
+            // If specific company is requested, add that filter too
+            if (req.params.companyId) {
+                queryBuilder.andWhere('(order.customerId = :targetCompanyId OR order.companyId = :targetCompanyId)', { targetCompanyId });
+            }
+        } else if (userRole !== 'admin') {
+            // Other roles (staff, managers) should only see their company's orders
+            if (targetCompanyId !== userCompanyId) {
+                // If user tries to access another company's orders
+                throw new AppError(403, 'Access denied: You can only view your company\'s orders');
+            }
+            queryBuilder.where('(order.customerId = :companyId OR order.companyId = :companyId)', { companyId: targetCompanyId });
+        }
 
         if (status) {
             queryBuilder.andWhere('order.status = :status', { status });
@@ -283,15 +340,17 @@ export const orderController = {
         if (!req.user) throw new AppError(401, 'Authentication required');
         
         const { id } = req.params;
-        const customerId = req.user.id;
+        const companyId = req.user.companyId;
 
         const queryRunner = AppDataSource.createQueryRunner();
         await queryRunner.connect();
-        await queryRunner.startTransaction();
-
-        try {
+        await queryRunner.startTransaction();        try {
+            // Try to find by either companyId or customerId for backward compatibility
             const order = await queryRunner.manager.findOne(Order, {
-                where: { id, customerId },
+                where: [
+                    { id, companyId }, // Try with companyId
+                    { id, customerId: companyId } // Try with customerId
+                ],
                 relations: ['items']
             });
 
@@ -328,16 +387,17 @@ export const orderController = {
         if (!req.user) throw new AppError(401, 'Authentication required');
         
         const { orderIds, status, notes } = req.body;
+        const companyId = req.user.companyId;
         const queryRunner = AppDataSource.createQueryRunner();
         await queryRunner.connect();
-        await queryRunner.startTransaction();
-
-        try {
-            const orders = await queryRunner.manager.find(Order, {
-                where: { id: In(orderIds), customerId: req.user.id },
-                relations: ['items'],
-                lock: { mode: "pessimistic_write" }
-            });
+        await queryRunner.startTransaction();        try {
+            // Find orders matching any of the IDs and either the companyId or customerId
+            const orders = await queryRunner.manager.createQueryBuilder(Order, 'order')
+                .leftJoinAndSelect('order.items', 'items')
+                .where('order.id IN (:...orderIds)', { orderIds })
+                .andWhere('(order.companyId = :companyId OR order.customerId = :companyId)', { companyId })
+                .setLock('pessimistic_write')
+                .getMany();
 
             if (orders.length !== orderIds.length) {
                 throw new AppError(404, 'One or more orders not found');
@@ -442,11 +502,12 @@ export const orderController = {
         if (!req.user) throw new AppError(401, 'Authentication required');
         
         const { id } = req.params;
-        const customerId = req.user.id;
-
-        // Verify order ownership
+        const companyId = req.user.companyId;        // Verify order ownership - check both companyId and customerId for backward compatibility
         const order = await AppDataSource.getRepository(Order).findOne({
-            where: { id, customerId }
+            where: [
+                { id, companyId },
+                { id, customerId: companyId }
+            ]
         });
 
         if (!order) {

@@ -1,15 +1,7 @@
-import { ObjectSchema } from 'joi';
 import Joi from "joi";
+import { ValidationSchema } from '../../middleware/validationHandler';
 
-interface ValidationSchemas {
-    [key: string]: {
-        body?: ObjectSchema;
-        query?: ObjectSchema;
-        params?: ObjectSchema;
-    };
-}
-
-export const inventoryValidators: ValidationSchemas = {
+export const inventoryValidators: Record<string, ValidationSchema> = {
     createInventory: {
         body: Joi.object({
             product_id: Joi.string().uuid().required(),

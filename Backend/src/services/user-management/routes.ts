@@ -1,5 +1,6 @@
 import { Router, RequestHandler } from 'express';
 import { authenticate } from '../../middleware/auth';
+import { asyncHandler } from '../../middleware/asyncHandler';
 import { isCompanyAdmin, canManageUser } from '../../middleware/adminAuth';
 import { validateUserManagement } from './validators';
 import {
@@ -161,4 +162,36 @@ router.delete(
     wrap(removeUser)
 );
 
+/**
+ * @swagger
+ * /user-management/company/{companyId}/users:
+ *   get:
+ *     summary: List all users in a company
+ *     tags: [User Management]
+ *     parameters:
+ *       - name: companyId
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the company
+ *     responses:
+ *       200:
+ *         description: List of users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   email:
+ *                     type: string
+ *                   role:
+ *                     type: string
+ *                   status:
+ *                     type: string
+ */
 export const userManagementRoutes = router;

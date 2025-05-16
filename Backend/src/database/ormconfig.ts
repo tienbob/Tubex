@@ -8,16 +8,23 @@ import { OrderHistory } from './models/sql/orderHistory';
 import { Inventory } from './models/sql/inventory';
 import { Warehouse } from './models/sql/warehouse';
 import { Batch } from './models/sql/batch';
+import { Quote, QuoteItem } from './models/sql/quote';
+import { Invoice, InvoiceItem } from './models/sql/invoice';
+import { PriceList } from './models/sql/price-list';
+import { PriceListItem } from './models/sql/price-list-item';
+import { ProductPriceHistory } from './models/sql/product-price-history';
+import { Payment } from './models/sql/payment';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
   host: config.dbConfig.postgres.host,
   port: config.dbConfig.postgres.port,
-  username: config.dbConfig.postgres.user,
-  password: config.dbConfig.postgres.password,
+    username: config.dbConfig.postgres.user,
+    password: config.dbConfig.postgres.password,
   database: config.dbConfig.postgres.database,
   synchronize: false, // Disable in production
-  logging: config.nodeEnv === 'development',  // Explicitly list all entities to ensure proper registration
+  logging: config.nodeEnv === 'development',  
+  // Explicitly list all entities to ensure proper registration
   entities: [
     User, 
     Company, 
@@ -27,8 +34,16 @@ export const AppDataSource = new DataSource({
     OrderHistory, 
     Inventory, 
     Warehouse, 
-    Batch
-  ],
+    Batch,
+    Quote,
+    QuoteItem,
+    Invoice,
+    InvoiceItem,
+    PriceList,
+    PriceListItem,
+    ProductPriceHistory,
+    Payment
+  ],  
   migrations: [
     // New organized migrations (one file per table)
     'src/database/migrations/1684000000000-CreateCompanyTable.ts',
@@ -40,8 +55,14 @@ export const AppDataSource = new DataSource({
     'src/database/migrations/1684000006000-CreateOrderTable.ts',
     'src/database/migrations/1684000007000-CreateOrderItemTable.ts',
     'src/database/migrations/1715652854000-EnsureCompanyIdField.ts',
-    'src/database/migrations/1684000008000-CreateOrderHistoryTable.ts',
+    'src/database/migrations/1684000008000-CreateOrderHistoryTable.ts',    
     'src/database/migrations/1684000009000-CreateUserAuditLogTable.ts',
+    'src/database/migrations/1715862288000-CreateQuoteTable.ts',
+    'src/database/migrations/1715862490000-CreatePriceListTables.ts',
+    'src/database/migrations/1715862389000-CreateInvoiceTable.ts',
+    'src/database/migrations/1715862389001-CreateInvoiceItemTable.ts',
+    'src/database/migrations/1715862389002-CreateQuoteItemTable.ts',
+    'src/database/migrations/1742098765432-CreatePaymentTable.ts'
     
     // Keep old migrations for reference but comment them out
     /* 

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { CompanyVerificationController } from './controller';
-import { validateRequest } from '../../middleware/validation';
+import { validationHandler } from '../../middleware/validationHandler';
 import { companyVerificationValidators } from './validators';
 import { isCompanyAdmin } from '../../middleware/adminAuth';
 
@@ -16,6 +16,6 @@ companyVerificationRoutes.get('/pending', controller.getPendingVerifications.bin
 // Verify a company
 companyVerificationRoutes.post(
     '/:companyId/verify',
-    validateRequest(companyVerificationValidators.verifyCompany),
+    validationHandler(companyVerificationValidators.verifyCompany),
     controller.verifyCompany.bind(controller)
 );

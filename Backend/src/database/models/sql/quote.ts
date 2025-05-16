@@ -2,49 +2,32 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 import { User } from "./user";
 import { Product } from "./product";
 
-export enum OrderStatus {
+export enum QuoteStatus {
+    DRAFT = 'draft',
     PENDING = 'pending',
-    CONFIRMED = 'confirmed',
-    PROCESSING = 'processing',
-    SHIPPED = 'shipped',
-    DELIVERED = 'delivered',
-    CANCELLED = 'cancelled'
+    ACCEPTED = 'accepted',
+    REJECTED = 'rejected',
+    EXPIRED = 'expired',
+    CONVERTED = 'converted'
 }
 
-export enum PaymentStatus {
-    PENDING = 'pending',
-    PAID = 'paid',
-    FAILED = 'failed',
-    REFUNDED = 'refunded'
-}
-
-@Entity("orders")
-export class Order {    
+@Entity("quotes")
+export class Quote {
     @PrimaryGeneratedColumn("uuid")
     id: string;
 
     @Column()
     customerId: string;
 
-    @Column()
-    companyId: string;
+    @Column({ unique: true })
+    quoteNumber: string;
 
     @Column({
         type: "enum",
-        enum: OrderStatus,
-        default: OrderStatus.PENDING
+        enum: QuoteStatus,
+        default: QuoteStatus.DRAFT
     })
-    status: OrderStatus;
-
-    @Column({
-        type: "enum",
-        enum: PaymentStatus,
-        default: PaymentStatus.PENDING
-    })
-    paymentStatus: PaymentStatus;
-
-    @Column({ type: "varchar", nullable: true })
-    paymentMethod: string;
+    status: QuoteStatus;
 
     @Column("decimal", { precision: 10, scale: 2 })
     totalAmount: number;
@@ -55,13 +38,27 @@ export class Order {
         city: string;
         province: string;
         postalCode: string;
+        country: string;
     };
+
+    @Column({ type: "date", nullable: true })
+    validUntil: Date;
+
+    @Column({ nullable: true })
+    notes: string;
 
     @Column({ type: "jsonb", nullable: true })
     metadata: Record<string, any>;
 
-    @OneToMany(() => OrderItem, item => item.order, { cascade: true })
-    items: OrderItem[];
+    @OneToMany(() => QuoteItem, item => item.quote, { cascade: true })
+    items: QuoteItem[];
+
+    @ManyToOne(() => User)
+    @JoinColumn({ name: "createdById" })
+    createdBy: User;
+
+    @Column()
+    createdById: string;
 
     @CreateDateColumn()
     createdAt: Date;
@@ -70,17 +67,17 @@ export class Order {
     updatedAt: Date;
 }
 
-@Entity("order_items")
-export class OrderItem {
+@Entity("quote_items")
+export class QuoteItem {
     @PrimaryGeneratedColumn("uuid")
     id: string;
 
-    @ManyToOne(() => Order, order => order.items)
-    @JoinColumn({ name: "orderId" })
-    order: Order;
+    @ManyToOne(() => Quote, quote => quote.items, { onDelete: 'CASCADE' })
+    @JoinColumn({ name: "quoteId" })
+    quote: Quote;
 
     @Column()
-    orderId: string;
+    quoteId: string;
 
     @ManyToOne(() => Product)
     @JoinColumn({ name: "productId" })
@@ -98,9 +95,15 @@ export class OrderItem {
     @Column("decimal", { precision: 10, scale: 2, default: 0 })
     discount: number;
 
+    @Column({ nullable: true })
+    notes: string;
+
     @Column({ type: "jsonb", nullable: true })
     metadata: Record<string, any>;
 
     @CreateDateColumn()
     createdAt: Date;
+
+    @UpdateDateColumn()
+    updatedAt: Date;
 }

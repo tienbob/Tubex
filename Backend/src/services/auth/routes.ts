@@ -23,6 +23,7 @@ import {
 } from './validators';
 import { authLimiter } from '../../middleware/rateLimiter';
 import { authenticate, authorize } from '../../middleware/auth';
+import { asyncHandler } from '../../middleware/asyncHandler';
 import { generateTokens } from './utils';
 import { config } from '../../config';
 import { User } from '../../database/models/sql';
@@ -41,9 +42,66 @@ const router = Router();
 
 /**
  * @swagger
+ * tags:
+ *   name: Authentication
+ *   description: User authentication and authorization endpoints
+ */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     AuthResponse:
+ *       type: object
+ *       properties:
+ *         status:
+ *           type: string
+ *           example: success
+ *         data:
+ *           type: object
+ *           properties:
+ *             accessToken:
+ *               type: string
+ *             refreshToken:
+ *               type: string
+ *             user:
+ *               $ref: '#/components/schemas/User'
+ *     User:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         email:
+ *           type: string
+ *           format: email
+ *         firstName:
+ *           type: string
+ *         lastName:
+ *           type: string
+ *         role:
+ *           type: string
+ *           enum: [admin, manager, staff, dealer, supplier]
+ *         companyId:
+ *           type: string
+ *           format: uuid
+ *         status:
+ *           type: string
+ *           enum: [active, inactive, pending]
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ */
+
+/**
+ * @swagger
  * /auth/register:
  *   post:
  *     summary: Register a new user and company
+ *     description: Create a new user account and associated company. Email verification required.
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
@@ -54,7 +112,10 @@ const router = Router();
  *             required:
  *               - email
  *               - password
+ *               - firstName
+ *               - lastName
  *               - companyName
+ *               - companyType
  *               - role
  *             properties:
  *               email:
@@ -63,24 +124,31 @@ const router = Router();
  *               password:
  *                 type: string
  *                 minLength: 8
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
  *               companyName:
+ *                 type: string
+ *               companyType:
+ *                 type: string
+ *                 enum: [dealer, supplier]
+ *               businessLicense:
+ *                 type: string
+ *               taxId:
  *                 type: string
  *               role:
  *                 type: string
- *                 enum: [dealer, supplier, admin]
+ *                 enum: [admin, manager, staff]
  *     responses:
  *       201:
- *         description: Registration successful
+ *         description: Registration successful, verification email sent
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/AuthResponse'
  *       400:
- *         description: Invalid input
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         description: Invalid input or email already exists
  */
 router.post('/register', authLimiter, validateRegistration, register as RequestHandler);
 
@@ -88,7 +156,8 @@ router.post('/register', authLimiter, validateRegistration, register as RequestH
  * @swagger
  * /auth/login:
  *   post:
- *     summary: Login user
+ *     summary: Authenticate user
+ *     description: Login with email and password to receive access and refresh tokens
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
@@ -105,6 +174,7 @@ router.post('/register', authLimiter, validateRegistration, register as RequestH
  *                 format: email
  *               password:
  *                 type: string
+ *                 minLength: 8
  *     responses:
  *       200:
  *         description: Login successful
@@ -114,10 +184,8 @@ router.post('/register', authLimiter, validateRegistration, register as RequestH
  *               $ref: '#/components/schemas/AuthResponse'
  *       401:
  *         description: Invalid credentials
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *       403:
+ *         description: Account not verified or company pending approval
  */
 router.post('/login', authLimiter, validateLogin, login as RequestHandler);
 
@@ -126,6 +194,7 @@ router.post('/login', authLimiter, validateLogin, login as RequestHandler);
  * /auth/refresh-token:
  *   post:
  *     summary: Refresh access token
+ *     description: Get a new access token using a valid refresh token
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
@@ -140,11 +209,13 @@ router.post('/login', authLimiter, validateLogin, login as RequestHandler);
  *                 type: string
  *     responses:
  *       200:
- *         description: Token refresh successful
+ *         description: New access token generated
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/AuthResponse'
+ *       401:
+ *         description: Invalid or expired refresh token
  */
 router.post('/refresh-token', authLimiter, refreshToken as RequestHandler);
 
@@ -153,6 +224,7 @@ router.post('/refresh-token', authLimiter, refreshToken as RequestHandler);
  * /auth/forgot-password:
  *   post:
  *     summary: Request password reset
+ *     description: Send password reset link to user's email
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
@@ -169,6 +241,8 @@ router.post('/refresh-token', authLimiter, refreshToken as RequestHandler);
  *     responses:
  *       200:
  *         description: Password reset email sent
+ *       404:
+ *         description: User not found
  */
 router.post('/forgot-password', authLimiter, forgotPassword as RequestHandler);
 
@@ -352,20 +426,21 @@ router.post('/invitation-code', authenticate, authorize('admin', 'manager'), gen
  * @swagger
  * /auth/verify-email/{token}:
  *   get:
- *     summary: Verify email with token
+ *     summary: Verify email address
+ *     description: Verify user's email address using the token sent via email
  *     tags: [Authentication]
  *     parameters:
  *       - in: path
  *         name: token
+ *         required: true
  *         schema:
  *           type: string
- *         required: true
- *         description: Email verification token sent to user's email
+ *         description: Email verification token
  *     responses:
  *       200:
  *         description: Email verified successfully
- *       401:
- *         description: Invalid or expired verification token
+ *       400:
+ *         description: Invalid or expired token
  */
 router.get('/verify-email/:token', verifyEmail as RequestHandler);
 

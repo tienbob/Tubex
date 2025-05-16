@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import Joi from 'joi';
 import { AppError } from '../../middleware/errorHandler';
+import { ValidationSchema } from '../../middleware/validationHandler';
 
 const addressSchema = Joi.object({
   street: Joi.string().required(),

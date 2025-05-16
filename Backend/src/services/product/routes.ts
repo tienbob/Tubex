@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { productController } from './controller';
 import { productValidators } from './validators';
-import { validateRequest } from '../../middleware/validation';
+import { validationHandler } from '../../middleware/validationHandler';
 import { authenticate, authorize } from '../../middleware/auth';
 import { RequestHandler } from 'express';
 
@@ -229,7 +229,7 @@ router.get('/:id', productController.getProduct as RequestHandler);
 router.post(
     '/',
     authorize('supplier'),
-    validateRequest(productValidators.createProduct),
+    validationHandler(productValidators.createProduct),
     productController.createProduct as RequestHandler
 );
 
@@ -328,7 +328,7 @@ router.post(
 router.put(
     '/:id',
     authorize('supplier'),
-    validateRequest(productValidators.updateProduct),
+    validationHandler(productValidators.updateProduct),
     productController.updateProduct as RequestHandler
 );
 
@@ -442,8 +442,119 @@ router.delete(
 router.post(
     '/bulk-status',
     authorize('supplier'),
-    validateRequest(productValidators.bulkUpdateStatus),
+    validationHandler(productValidators.bulkUpdateStatus),
     productController.bulkUpdateStatus as RequestHandler
 );
+
+/**
+ * @swagger
+ * /product/company/{companyId}:
+ *   get:
+ *     summary: List all products for a specific company
+ *     description: Retrieve a list of products for a specific company with optional filtering and pagination
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: companyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Company ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *         description: Number of items per page
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [active, inactive]
+ *         description: Filter by product status
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by product name or description
+ *     responses:
+ *       200:
+ *         description: A paginated list of products for the specified company
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 products:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Product'
+ *                 pagination:
+ *                   $ref: '#/components/schemas/Pagination'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.get('/company/:companyId', productController.listProducts as RequestHandler);
+
+/**
+ * @swagger
+ * /product/company/{companyId}/{id}:
+ *   get:
+ *     summary: Get product by ID within a specific company
+ *     description: Retrieve detailed information about a specific product that belongs to a specific company
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: companyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Company ID
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Product ID
+ *     responses:
+ *       200:
+ *         description: Product details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   $ref: '#/components/schemas/Product'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.get('/company/:companyId/:id', productController.getProduct as RequestHandler);
 
 export const productRoutes = router;

@@ -4,8 +4,8 @@ import { Company } from './company';
 @Entity('products')
 export class Product {
     @PrimaryGeneratedColumn('uuid')
-    id: string;
-
+    id: string;    
+    
     @Column()
     name: string;
 

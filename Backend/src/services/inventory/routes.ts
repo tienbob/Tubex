@@ -1,6 +1,7 @@
 import { Router, RequestHandler } from "express";
 import { authenticate } from "../../middleware/auth";
-import { validateRequest } from "../../middleware/validation";
+import { asyncHandler } from '../../middleware/asyncHandler';
+import { validationHandler } from '../../middleware/validationHandler';
 import {
     getInventory,
     getInventoryItem,
@@ -21,9 +22,67 @@ inventoryRoutes.use(authenticate);
 
 /**
  * @swagger
+ * tags:
+ *   name: Inventory
+ *   description: Inventory tracking and management endpoints
+ */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Inventory:
+ *       type: object
+ *       required:
+ *         - productId
+ *         - warehouseId
+ *         - quantity
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         productId:
+ *           type: string
+ *           format: uuid
+ *         warehouseId:
+ *           type: string
+ *           format: uuid
+ *         quantity:
+ *           type: number
+ *           minimum: 0
+ *         minQuantity:
+ *           type: number
+ *         maxQuantity:
+ *           type: number
+ *         location:
+ *           type: string
+ *         batchNumber:
+ *           type: string
+ *         expiryDate:
+ *           type: string
+ *           format: date
+ *         notes:
+ *           type: string
+ *         lastStockCheck:
+ *           type: string
+ *           format: date-time
+ *         status:
+ *           type: string
+ *           enum: [active, inactive, pending]
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ */
+
+/**
+ * @swagger
  * /inventory/company/{companyId}:
  *   get:
- *     summary: Get all inventory items for a company
+ *     summary: List company inventory
+ *     description: Get a paginated list of inventory items for a company
  *     tags: [Inventory]
  *     security:
  *       - bearerAuth: []
@@ -34,51 +93,40 @@ inventoryRoutes.use(authenticate);
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Company ID
  *       - in: query
  *         name: page
  *         schema:
  *           type: integer
  *           default: 1
- *         description: Page number for pagination
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
  *           default: 20
- *         description: Number of items per page
  *       - in: query
- *         name: sort
+ *         name: warehouseId
  *         schema:
  *           type: string
- *           enum: [name, quantity, updatedAt]
- *         description: Sort field
+ *           format: uuid
  *       - in: query
- *         name: order
+ *         name: status
  *         schema:
  *           type: string
- *           enum: [asc, desc]
- *         description: Sort order
+ *           enum: [active, inactive, pending]
  *     responses:
  *       200:
- *         description: List of inventory items
+ *         description: List of inventory items retrieved
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 status:
- *                   type: string
- *                   example: success
  *                 data:
- *                   type: object
- *                   properties:
- *                     items:
- *                       type: array
- *                       items:
- *                         $ref: '#/components/schemas/Inventory'
- *                     pagination:
- *                       $ref: '#/components/schemas/Pagination'
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Inventory'
+ *                 pagination:
+ *                   $ref: '#/components/schemas/Pagination'
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:
@@ -158,7 +206,8 @@ inventoryRoutes.get("/company/:companyId/warehouse/:warehouseId", getInventory a
  * @swagger
  * /inventory/company/{companyId}/item/{id}:
  *   get:
- *     summary: Get a specific inventory item
+ *     summary: Get inventory item
+ *     description: Get detailed information about a specific inventory item
  *     tags: [Inventory]
  *     security:
  *       - bearerAuth: []
@@ -169,27 +218,67 @@ inventoryRoutes.get("/company/:companyId/warehouse/:warehouseId", getInventory a
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Company ID
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Inventory item ID
  *     responses:
  *       200:
- *         description: Inventory item details
+ *         description: Inventory item details retrieved
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 data:
- *                   $ref: '#/components/schemas/Inventory'
+ *               $ref: '#/components/schemas/Inventory'
+ *
+ *   patch:
+ *     summary: Update inventory item
+ *     description: Update details of a specific inventory item
+ *     tags: [Inventory]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: companyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               quantity:
+ *                 type: number
+ *                 minimum: 0
+ *               minQuantity:
+ *                 type: number
+ *               maxQuantity:
+ *                 type: number
+ *               location:
+ *                 type: string
+ *               notes:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive, pending]
+ *     responses:
+ *       200:
+ *         description: Inventory item updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Inventory'
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:
@@ -284,7 +373,7 @@ inventoryRoutes.get("/company/:companyId/item/:id", getInventoryItem as RequestH
  */
 inventoryRoutes.post(
     "/company/:companyId",
-    validateRequest(inventoryValidators.createInventory),
+    validationHandler(inventoryValidators.createInventory),
     createInventoryItem as RequestHandler
 );
 
@@ -367,7 +456,7 @@ inventoryRoutes.post(
  */
 inventoryRoutes.put(
     "/company/:companyId/item/:id",
-    validateRequest(inventoryValidators.updateInventory),
+    validationHandler(inventoryValidators.updateInventory),
     updateInventoryItem as RequestHandler
 );
 
@@ -448,7 +537,7 @@ inventoryRoutes.put(
  */
 inventoryRoutes.patch(
     "/company/:companyId/item/:id/adjust",
-    validateRequest(inventoryValidators.adjustQuantity),
+    validationHandler(inventoryValidators.adjustQuantity),
     adjustInventoryQuantity as RequestHandler
 );
 
@@ -456,7 +545,8 @@ inventoryRoutes.patch(
  * @swagger
  * /inventory/company/{companyId}/transfer:
  *   post:
- *     summary: Transfer stock between warehouses
+ *     summary: Transfer inventory
+ *     description: Transfer inventory items between warehouses
  *     tags: [Inventory]
  *     security:
  *       - bearerAuth: []
@@ -467,7 +557,6 @@ inventoryRoutes.patch(
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Company ID
  *     requestBody:
  *       required: true
  *       content:
@@ -475,43 +564,44 @@ inventoryRoutes.patch(
  *           schema:
  *             type: object
  *             required:
- *               - sourceInventoryId
+ *               - sourceWarehouseId
  *               - destinationWarehouseId
- *               - quantity
+ *               - items
  *             properties:
- *               sourceInventoryId:
+ *               sourceWarehouseId:
  *                 type: string
  *                 format: uuid
- *                 description: Source inventory item ID
  *               destinationWarehouseId:
  *                 type: string
  *                 format: uuid
- *                 description: Destination warehouse ID
- *               quantity:
- *                 type: number
- *                 minimum: 1
- *                 description: Quantity to transfer
- *               note:
+ *               items:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - productId
+ *                     - quantity
+ *                   properties:
+ *                     productId:
+ *                       type: string
+ *                       format: uuid
+ *                     quantity:
+ *                       type: number
+ *                       minimum: 1
+ *               notes:
  *                 type: string
- *                 description: Optional notes about the transfer
  *     responses:
  *       200:
- *         description: Stock transferred successfully
+ *         description: Transfer completed successfully
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 data:
- *                   type: object
- *                   properties:
- *                     sourceInventory:
- *                       $ref: '#/components/schemas/Inventory'
- *                     destinationInventory:
- *                       $ref: '#/components/schemas/Inventory'
+ *                 sourceInventory:
+ *                   $ref: '#/components/schemas/Inventory'
+ *                 destinationInventory:
+ *                   $ref: '#/components/schemas/Inventory'
  *       400:
  *         description: Invalid request or insufficient quantity
  *         content:
@@ -529,7 +619,7 @@ inventoryRoutes.patch(
  */
 inventoryRoutes.post(
     "/company/:companyId/transfer",
-    validateRequest(inventoryValidators.transferStock),
+    validationHandler(inventoryValidators.transferStock),
     transferStock as RequestHandler
 );
 
@@ -585,7 +675,8 @@ inventoryRoutes.delete("/company/:companyId/item/:id", deleteInventoryItem as Re
  * @swagger
  * /inventory/company/{companyId}/low-stock:
  *   get:
- *     summary: Get inventory items with stock below minimum levels
+ *     summary: Get low stock items
+ *     description: Get a list of items with quantity below minimum threshold
  *     tags: [Inventory]
  *     security:
  *       - bearerAuth: []
@@ -596,28 +687,15 @@ inventoryRoutes.delete("/company/:companyId/item/:id", deleteInventoryItem as Re
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Company ID
- *       - in: query
- *         name: warehouseId
- *         schema:
- *           type: string
- *           format: uuid
- *         description: Optional warehouse filter
  *     responses:
  *       200:
- *         description: List of low stock items
+ *         description: List of low stock items retrieved
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 data:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Inventory'
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Inventory'
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:

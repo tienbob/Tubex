@@ -1,7 +1,8 @@
-import { ValidationSchema } from '../../middleware/validation';
+import { authenticate } from '../../middleware/auth';
 import Joi from 'joi';
+import { ValidationSchema } from '../../middleware/validationHandler';
 
-export const productValidators = {
+export const productValidators: Record<string, ValidationSchema> = {
     createProduct: {
         body: Joi.object({
             name: Joi.string().required().min(3).max(255),
@@ -11,7 +12,7 @@ export const productValidators = {
             supplier_id: Joi.string().uuid().required(),
             status: Joi.string().valid('active', 'inactive').default('active')
         })
-    } as ValidationSchema,
+    },
 
     updateProduct: {
         body: Joi.object({
@@ -22,12 +23,12 @@ export const productValidators = {
             supplier_id: Joi.string().uuid(),
             status: Joi.string().valid('active', 'inactive')
         }).min(1)
-    } as ValidationSchema,
+    },
 
     bulkUpdateStatus: {
         body: Joi.object({
             productIds: Joi.array().items(Joi.string().uuid()).min(1).required(),
             status: Joi.string().valid('active', 'inactive').required()
         })
-    } as ValidationSchema
+    }
 };

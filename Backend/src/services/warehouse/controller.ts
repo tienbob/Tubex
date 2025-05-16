@@ -1,7 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
-import { getRepository } from 'typeorm';
+import { AppDataSource } from '../../database/ormconfig';
 import { Warehouse } from '../../database/models/sql/warehouse';
 import { AppError } from '../../middleware/errorHandler';
+import { Inventory } from '../../database/models/sql/inventory';
+import { Not } from 'typeorm';
 
 /**
  * Get all warehouses for a company
@@ -17,7 +19,7 @@ export const getAllWarehouses = async (
         const limit = parseInt(req.query.limit as string) || 20;
         const offset = (page - 1) * limit;
 
-        const warehouseRepository = getRepository(Warehouse);
+        const warehouseRepository = AppDataSource.getRepository(Warehouse);
         
         const [warehouses, total] = await warehouseRepository.findAndCount({
             where: { company_id: companyId },
@@ -54,7 +56,7 @@ export const getWarehouseById = async (
     try {
         const { companyId, warehouseId } = req.params;
         
-        const warehouseRepository = getRepository(Warehouse);
+        const warehouseRepository = AppDataSource.getRepository(Warehouse);
         const warehouse = await warehouseRepository.findOne({
             where: { 
                 id: warehouseId,
@@ -87,7 +89,7 @@ export const createWarehouse = async (
         const { companyId } = req.params;
         const { name, address, capacity, contactInfo, type } = req.body;
 
-        const warehouseRepository = getRepository(Warehouse);
+        const warehouseRepository = AppDataSource.getRepository(Warehouse);
         
         // Check if warehouse with same name already exists for this company
         const existingWarehouse = await warehouseRepository.findOne({
@@ -133,7 +135,7 @@ export const updateWarehouse = async (
         const { companyId, warehouseId } = req.params;
         const { name, address, capacity, contactInfo, type, status } = req.body;
 
-        const warehouseRepository = getRepository(Warehouse);
+        const warehouseRepository = AppDataSource.getRepository(Warehouse);
         
         // Find the warehouse to update
         const warehouse = await warehouseRepository.findOne({
@@ -192,7 +194,7 @@ export const deleteWarehouse = async (
     try {
         const { companyId, warehouseId } = req.params;
         
-        const warehouseRepository = getRepository(Warehouse);
+        const warehouseRepository = AppDataSource.getRepository(Warehouse);
         
         // Check if warehouse exists
         const warehouse = await warehouseRepository.findOne({
@@ -207,7 +209,7 @@ export const deleteWarehouse = async (
         }
 
         // Check if warehouse has inventory items
-        const inventoryRepository = getRepository(Inventory);
+        const inventoryRepository = AppDataSource.getRepository(Inventory);
         const inventoryCount = await inventoryRepository.count({
             where: { warehouse_id: warehouseId }
         });
@@ -240,7 +242,7 @@ export const getCapacityUsage = async (
     try {
         const { companyId, warehouseId } = req.params;
         
-        const warehouseRepository = getRepository(Warehouse);
+        const warehouseRepository = AppDataSource.getRepository(Warehouse);
         const warehouse = await warehouseRepository.findOne({
             where: { 
                 id: warehouseId,
@@ -253,7 +255,7 @@ export const getCapacityUsage = async (
         }
 
         // Calculate current usage based on inventory items
-        const inventoryRepository = getRepository(Inventory);
+        const inventoryRepository = AppDataSource.getRepository(Inventory);
         const inventoryItems = await inventoryRepository.find({
             where: { warehouse_id: warehouseId }
         });
@@ -283,7 +285,3 @@ export const getCapacityUsage = async (
         return next(error);
     }
 };
-
-// Import additional required imports
-import { Inventory } from '../../database/models/sql/inventory';
-import { Not } from 'typeorm';

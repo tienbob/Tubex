@@ -1,7 +1,7 @@
-import { ValidationSchema } from '../../middleware/validation';
+import { ValidationSchema } from '../../middleware/validationHandler';
 import Joi from 'joi';
 
-export const companyVerificationValidators = {
+export const companyVerificationValidators: Record<string, ValidationSchema> = {
     verifyCompany: {
         params: Joi.object({
             companyId: Joi.string().uuid().required()
@@ -14,5 +14,5 @@ export const companyVerificationValidators = {
                 otherwise: Joi.string().optional()
             })
         })
-    } as ValidationSchema
+    }
 };
