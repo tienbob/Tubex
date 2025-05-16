@@ -120,3 +120,43 @@ You can customize this by modifying the `detectTenant` function in `WhiteLabelUt
 - Improved theme editor with visual previews
 - Theme export/import functionality
 - Advanced tenant management features
+
+## Component Library
+
+The whitelabel module provides the following UI components, all designed to use tenant-specific branding:
+
+### Core Components
+- `WhiteLabelProvider` - Context provider for tenant theming
+- `WhiteLabelLayout` - Page layout with header and footer
+- `WhiteLabelHeader` - App header with navigation, user menu, notifications and dark mode toggle
+- `WhiteLabelFooter` - App footer with navigation links and copyright
+- `WhiteLabelButton` - Branded button component
+- `WhiteLabelStyleInjector` - Injects dynamic CSS based on tenant theme
+
+### UI Components
+- `DashboardCard` - Card component for dashboard panels and widgets
+- `ConfirmationDialog` - Dialog for confirming user actions
+- `SearchBar` - Global search component with result suggestions
+- `DataTable` - Table component for displaying data with sorting and pagination
+
+### Admin Components
+- `TenantConfigPanel` - Admin interface for managing tenant configurations
+- `AdminPage` - Base layout for admin interfaces
+
+## Recent Updates (May 2025)
+
+1. **Component Organization**: 
+   - Moved UI components from common folder to whitelabel folder
+   - Enhanced components with branding capabilities
+   - Improved TypeScript definitions and prop interfaces
+
+2. **Feature Enhancements**:
+   - Added notification support to WhiteLabelHeader
+   - Added dark mode toggle to WhiteLabelHeader
+   - Enhanced WhiteLabelFooter with categorized links
+   - Improved responsiveness across all components
+
+3. **API Improvements**:
+   - Added simpleFooter option to WhiteLabelFooter
+   - Added showLinks option to WhiteLabelFooter
+   - Enhanced WhiteLabelHeader with notification badge support

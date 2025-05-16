@@ -132,14 +132,112 @@ apiClient.interceptors.response.use(
   }
 );
 
+/**
+ * Gets the current company ID from various possible sources
+ * @param {boolean} throwOnMissing - Whether to throw an error if company ID is not found
+ * @returns {string} The company ID or an empty string
+ */
+export const getCurrentCompanyId = (throwOnMissing = false): string => {
+  try {
+    // Try to get from user_info first (this is where authService actually stores the data)
+    const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+    if (userInfo && userInfo.companyId) {
+      return userInfo.companyId;
+    }
+    
+    // Try regular user object next
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user && user.companyId) {
+      return user.companyId;
+    }
+    
+    // Try alternate localStorage keys that might contain the company ID
+    const authData = JSON.parse(localStorage.getItem('auth') || '{}');
+    if (authData && authData.user && authData.user.companyId) {
+      return authData.user.companyId;
+    }
+    
+    // Try session storage as a fallback
+    const sessionUser = JSON.parse(sessionStorage.getItem('user') || '{}');
+    if (sessionUser && sessionUser.companyId) {
+      return sessionUser.companyId;
+    }
+    
+    console.warn('No company ID found in user data');
+    
+    if (throwOnMissing) {
+      throw new Error('Company ID not available');
+    }
+    
+    return '';
+  } catch (error) {
+    console.error('Error retrieving company ID:', error);
+    if (throwOnMissing) {
+      throw new Error('Company ID not available');
+    }
+    return '';
+  }
+};
+
+/**
+ * Creates a company-specific URL with consistent pattern
+ * @param resourceType The API resource type (products, orders, etc.)
+ * @param resourceId Optional specific resource ID
+ * @param action Optional action to perform on the resource
+ * @returns Formatted URL string
+ */
+export const createCompanyResourceUrl = (
+  resourceType: string, 
+  resourceId?: string,
+  action?: string
+): string => {
+  const companyId = getCurrentCompanyId(true);
+  
+  let url = `/${resourceType}/company/${companyId}`;
+  if (resourceId) {
+    url += `/${resourceId}`;
+  }
+  if (action) {
+    url += `/${action}`;
+  }
+  
+  return url;
+};
+
+// Example usage:
+// createCompanyResourceUrl('products') => '/products/company/companyId'
+// createCompanyResourceUrl('orders', '123') => '/orders/company/companyId/123'
+// createCompanyResourceUrl('inventory', '456', 'adjust') => '/inventory/company/companyId/456/adjust'
+
+// Enhance get function to automatically include companyId for company-specific endpoints
+export const getWithCompany = async <T>(url: string, options?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
+  const companyId = getCurrentCompanyId();
+  if (!companyId) {
+    throw new Error('Company ID not available for this request');
+  }
+  
+  // Modify URL to include companyId if it's not already a company-specific endpoint
+  const companyUrl = url.includes('/company/') ? url : `/company/${companyId}${url}`;
+  
+  return get<T>(companyUrl, options);
+};
+
+// Add request logging
+const logRequest = (method: string, url: string, config?: AxiosRequestConfig) => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`API ${method.toUpperCase()} Request:`, url, config);
+  }
+};
+
 // Generic GET request method
 export const get = <T>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
+  logRequest('GET', url, config);
   return apiClient.get<T>(url, config);
 };
 
 // Generic POST request method with enhanced error handling
 export const post = <T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
-  console.log(`Making POST request to: ${url}`, { data });
+  logRequest('POST', url, config);
   return apiClient.post<T>(url, data, config)
     .then(response => {
       console.log(`POST ${url} success:`, response.data);
@@ -156,17 +254,54 @@ export const post = <T>(url: string, data?: any, config?: AxiosRequestConfig): P
 
 // Generic PUT request method
 export const put = <T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
+  logRequest('PUT', url, config);
   return apiClient.put<T>(url, data, config);
 };
 
 // Generic PATCH request method
 export const patch = <T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
+  logRequest('PATCH', url, config);
   return apiClient.patch<T>(url, data, config);
 };
 
 // Generic DELETE request method
 export const del = <T>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
+  logRequest('DELETE', url, config);
   return apiClient.delete<T>(url, config);
+};
+
+// File download method for handling binary responses
+export const getFile = (url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<Blob>> => {
+  logRequest('GET (File)', url, config);
+  return apiClient.get(url, {
+    ...config,
+    responseType: 'blob',
+  });
+};
+
+// File upload method for handling form data and files
+export const uploadFile = <T>(url: string, file: File, additionalData?: object, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  // Add any additional data to the form
+  if (additionalData) {
+    Object.entries(additionalData).forEach(([key, value]) => {
+      if (value !== undefined) {
+        formData.append(key, String(value));
+      }
+    });
+  }
+
+  logRequest('POST (File Upload)', url, { ...config, data: { filename: file.name, size: file.size, type: file.type } });
+  
+  return apiClient.post<T>(url, formData, {
+    ...config,
+    headers: {
+      ...(config?.headers || {}),
+      'Content-Type': 'multipart/form-data',
+    }
+  });
 };
 
 export default apiClient;

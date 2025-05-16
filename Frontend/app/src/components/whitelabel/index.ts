@@ -7,6 +7,8 @@ export { default as WhiteLabelButton } from './WhiteLabelButton';
 export { default as WhiteLabelStyleInjector } from './WhiteLabelStyleInjector';
 export { default as TenantConfigPanel } from './TenantConfigPanel';
 export { default as AdminPage } from './AdminPage';
+export { default as ConfirmationDialog } from './ConfirmationDialog';
+export { default as DashboardCard } from './DashboardCard';
 
 // Export utility functions
 export * from './WhiteLabelUtils';

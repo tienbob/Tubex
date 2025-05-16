@@ -23,6 +23,7 @@ import Dashboard from './pages/Dashboard';
 import ProductManagement from './pages/ProductManagement';
 import InventoryManagement from './pages/InventoryManagement';
 import OrderManagement from './pages/OrderManagement';
+import PaymentManagement from './pages/PaymentManagement';
 import WarehouseManagement from './pages/WarehouseManagement';
 import UserProfile from './pages/UserProfile';
 import Settings from './pages/Settings';
@@ -34,6 +35,9 @@ import ResetPassword from './pages/ResetPassword';
 import Join from './pages/Join';
 import PendingApproval from './pages/PendingApproval';
 import NotFound from './pages/NotFound';
+import InvoiceManagement from './pages/InvoiceManagement';
+import QuoteManagement from './pages/QuoteManagement';
+import PriceListManagement from './pages/PriceListManagement';
 
 // Create a client with better configuration
 const queryClient = new QueryClient({
@@ -49,7 +53,8 @@ const queryClient = new QueryClient({
 const App: React.FC = () => {
   return (
     <ErrorBoundary>      
-      <QueryClientProvider client={queryClient}>        <CustomThemeProvider>
+      <QueryClientProvider client={queryClient}>        
+        <CustomThemeProvider>
           <ThemeProvider theme={defaultTheme}>
             <CssBaseline />
             <AuthProvider>
@@ -57,66 +62,94 @@ const App: React.FC = () => {
                 <WhiteLabelProvider>
                   <CompanySettingsProvider>
                     <MockDataProvider>
-                    <WhiteLabelLayout>
-                      <Suspense fallback={<LoadingSpinner />}>
-                        <Routes>
-                          {/* Public routes */}
-                          <Route path="/login" element={<Login />} />
-                          <Route path="/register" element={<Register />} />
-                          <Route path="/forgot-password" element={<ForgotPassword />} />
-                          <Route path="/auth/pending-approval" element={<PendingApproval />} />
-                          
-                          {/* Protected routes */}
-                          <Route path="/" element={
-                            <ProtectedRoute>
-                              <Navigate to="/dashboard" replace />
-                            </ProtectedRoute>
-                          } />
-                          <Route path="/dashboard" element={
-                            <ProtectedRoute>
-                              <Dashboard />
-                            </ProtectedRoute>
-                          } />
-                          <Route path="/products" element={
-                            <ProtectedRoute>
-                              <ProductManagement />
-                            </ProtectedRoute>
-                          } />
-                          <Route path="/inventory" element={
-                            <ProtectedRoute>
-                              <InventoryManagement />
-                            </ProtectedRoute>
-                          } />
-                          <Route path="/warehouses" element={
-                            <ProtectedRoute>
-                              <WarehouseManagement />
-                            </ProtectedRoute>
-                          } />
-                          <Route path="/orders" element={
-                            <ProtectedRoute>
-                              <OrderManagement />
-                            </ProtectedRoute>
-                          } />
-                          
-                          <Route path="/profile" element={
-                            <ProtectedRoute>
-                              <UserProfile />
-                            </ProtectedRoute>
-                          } />
-                          
-                          <Route path="/settings" element={
-                            <ProtectedRoute>
-                              <Settings />
-                            </ProtectedRoute>
-                          } />
-                          
-                          {/* 404 route */}
-                          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                        </Routes>
-                      </Suspense>
-                      {/* Add the mock API toggle component for development */}
-                      {process.env.NODE_ENV === 'development' && <MockApiToggle />}
-                    </WhiteLabelLayout>                  </MockDataProvider>
+                      <WhiteLabelLayout>
+                        <Suspense fallback={<LoadingSpinner />}>
+                          <Routes>
+                            {/* Public routes */}
+                            <Route path="/login" element={<Login />} />
+                            <Route path="/register" element={<Register />} />
+                            <Route path="/forgot-password" element={<ForgotPassword />} />
+                            <Route path="/reset-password/:token" element={<ResetPassword />} />
+                            <Route path="/join/:invitationCode" element={<Join />} />
+                            <Route path="/auth/pending-approval" element={<PendingApproval />} />
+                            
+                            {/* Protected routes */}
+                            <Route path="/" element={
+                              <ProtectedRoute>
+                                <Navigate to="/dashboard" replace />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/dashboard" element={
+                              <ProtectedRoute>
+                                <Dashboard />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/analytics" element={
+                              <ProtectedRoute>
+                                <AnalyticsDashboard />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/products" element={
+                              <ProtectedRoute>
+                                <ProductManagement />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/inventory" element={
+                              <ProtectedRoute>
+                                <InventoryManagement />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/warehouses" element={
+                              <ProtectedRoute>
+                                <WarehouseManagement />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/orders" element={
+                              <ProtectedRoute>
+                                <OrderManagement />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/payments" element={
+                              <ProtectedRoute>
+                                <PaymentManagement />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/invoices" element={
+                              <ProtectedRoute>
+                                <InvoiceManagement />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/quotes" element={
+                              <ProtectedRoute>
+                                <QuoteManagement />
+                              </ProtectedRoute>
+                            } />
+                            <Route path="/pricelists" element={
+                              <ProtectedRoute>
+                                <PriceListManagement />
+                              </ProtectedRoute>
+                            } />
+                            
+                            <Route path="/profile" element={
+                              <ProtectedRoute>
+                                <UserProfile />
+                              </ProtectedRoute>
+                            } />
+                            
+                            <Route path="/settings" element={
+                              <ProtectedRoute>
+                                <Settings />
+                              </ProtectedRoute>
+                            } />
+                            
+                            {/* 404 route */}
+                            <Route path="*" element={<NotFound />} />
+                          </Routes>
+                        </Suspense>
+                        {/* Add the mock API toggle component for development */}
+                        {process.env.NODE_ENV === 'development' && <MockApiToggle />}
+                      </WhiteLabelLayout>                  
+                    </MockDataProvider>
                   </CompanySettingsProvider>
                 </WhiteLabelProvider>
               </Router>

@@ -57,9 +57,37 @@ const WarehouseManagement: React.FC = () => {
   }, [selectedWarehouse]);
   const fetchWarehouses = async () => {
     try {
+      if (!companyId) {
+        setWarehouses([]);
+        return;
+      }
+      
       setLoading(true);
       const response = await warehouseService.getWarehouses(companyId);
-      setWarehouses(response.data);
+      
+      // Debug the response structure
+      console.log('Warehouse API response:', response);
+      
+      // Check the structure of the response and extract the warehouses array
+      if (Array.isArray(response.data)) {
+        setWarehouses(response.data);
+      } 
+      // If response.data contains a warehouses property that is an array
+      else if (response.data && typeof response.data === 'object' && 'warehouses' in response.data && 
+               Array.isArray((response.data as any).warehouses)) {
+        setWarehouses((response.data as any).warehouses);
+      }
+      // If response.data.data contains the warehouses array
+      else if (response.data && typeof response.data === 'object' && 'data' in response.data && 
+               Array.isArray((response.data as any).data)) {
+        setWarehouses((response.data as any).data);
+      }
+      // Default to empty array if no matching structure is found
+      else {
+        console.error('Unexpected API response format:', response);
+        setWarehouses([]);
+      }
+      
       setError(null);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -68,6 +96,8 @@ const WarehouseManagement: React.FC = () => {
         setError('Failed to fetch warehouses');
         console.error(err);
       }
+      // Always set warehouses to an empty array on error
+      setWarehouses([]);
     } finally {
       setLoading(false);
     }

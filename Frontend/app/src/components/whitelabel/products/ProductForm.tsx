@@ -172,7 +172,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
     setApiError(null);
 
     try {
-      const product = await productService.getProduct(productId);
+      const product = await productService.getProductById(productId);
 
       // Map API response to form data
       setFormData({

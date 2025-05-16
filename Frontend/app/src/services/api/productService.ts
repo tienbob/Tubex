@@ -1,4 +1,4 @@
-import { get, post, put, del } from './apiClient';
+import { get, post, put, del, getWithCompany, getCurrentCompanyId } from './apiClient';
 import { AxiosError } from 'axios';
 
 // Custom error class for API errors
@@ -108,26 +108,19 @@ export interface PriceHistoryResponse {
 }
 
 export const productService = {
-  async getProducts(params: ProductListParams = {}): Promise<PaginationResponse<Product>> {
+  getProducts: async (params?: any): Promise<any> => {
     try {
-      // Input validation
-      if (params.page && params.page < 1) {
-        throw new Error('Page number must be greater than 0');
-      }
+      const companyId = getCurrentCompanyId(true);
       
-      if (params.limit && (params.limit < 1 || params.limit > 100)) {
-        throw new Error('Limit must be between 1 and 100');
-      }
+      // Use consistent URL pattern: /products/company/{companyId}
+      const response = await get<any>(`/products/company/${companyId}`, { 
+        params: {
+          limit: 10,
+          page: 1,
+          ...params
+        }
+      });
       
-      const queryParams = {
-        page: params.page || 1,
-        limit: params.limit || 10,
-        supplier_id: params.supplier_id,
-        status: params.status,
-        search: params.search
-      };
-      
-      const response = await get<PaginationResponse<Product>>('/products', { params: queryParams });
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -140,15 +133,14 @@ export const productService = {
       throw error;
     }
   },
-
-  async getProduct(id: string): Promise<Product> {
+  
+  getProductById: async (id: string): Promise<any> => {
     try {
-      if (!id || typeof id !== 'string') {
-        throw new Error('Valid product ID is required');
-      }
+      const companyId = getCurrentCompanyId(true);
       
-      const response = await get<{data: Product}>(`/products/${id}`);
-      return response.data.data;
+      // Use consistent URL pattern
+      const response = await get<any>(`/products/company/${companyId}/${id}`);
+      return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
         throw new ApiError(
@@ -163,6 +155,11 @@ export const productService = {
 
   async createProduct(data: ProductCreateInput): Promise<Product> {
     try {
+      const companyId = getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
       // Input validation
       if (!data.name || data.name.trim() === '') {
         throw new Error('Product name is required');
@@ -176,7 +173,7 @@ export const productService = {
         throw new Error('Supplier ID is required');
       }
       
-      const response = await post<{data: Product}>('/products', data);
+      const response = await post<{data: Product}>(`/products/company/${companyId}`, data);
       return response.data.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -192,6 +189,11 @@ export const productService = {
 
   async updateProduct(id: string, data: ProductUpdateInput): Promise<Product> {
     try {
+      const companyId = getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
       if (!id || typeof id !== 'string') {
         throw new Error('Valid product ID is required');
       }
@@ -201,7 +203,7 @@ export const productService = {
         throw new Error('Product price cannot be negative');
       }
       
-      const response = await put<{data: Product}>(`/products/${id}`, data);
+      const response = await put<{data: Product}>(`/products/company/${companyId}/${id}`, data);
       return response.data.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -217,11 +219,16 @@ export const productService = {
 
   async deleteProduct(id: string): Promise<void> {
     try {
+      const companyId = getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
       if (!id || typeof id !== 'string') {
         throw new Error('Valid product ID is required');
       }
       
-      await del<{success: boolean}>(`/products/${id}`);
+      await del<{success: boolean}>(`/products/company/${companyId}/${id}`);
     } catch (error) {
       if (error instanceof AxiosError) {
         throw new ApiError(
@@ -236,6 +243,11 @@ export const productService = {
   
   async bulkUpdateStatus(productIds: string[], status: 'active' | 'inactive' | 'out_of_stock'): Promise<void> {
     try {
+      const companyId = getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
       if (!productIds || !productIds.length) {
         throw new Error('At least one product ID is required');
       }
@@ -244,7 +256,7 @@ export const productService = {
         throw new Error('Valid status is required (active, inactive, or out_of_stock)');
       }
       
-      await post<{success: boolean}>('/products/bulk-status', {
+      await post<{success: boolean}>(`/products/company/${companyId}/bulk-status`, {
         productIds,
         status
       });
@@ -282,6 +294,11 @@ export const productService = {
 
   async getPriceHistory(productId: string, params: {page?: number; limit?: number} = {}): Promise<PriceHistoryResponse> {
     try {
+      const companyId = getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
       if (!productId || typeof productId !== 'string') {
         throw new Error('Valid product ID is required');
       }
@@ -291,7 +308,7 @@ export const productService = {
         limit: params.limit || 10
       };
       
-      const response = await get<PriceHistoryResponse>(`/products/${productId}/price-history`, { params: queryParams });
+      const response = await get<PriceHistoryResponse>(`/products/company/${companyId}/${productId}/price-history`, { params: queryParams });
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -307,6 +324,11 @@ export const productService = {
   
   async updateProductPrice(productId: string, price: number, effectiveDate?: string): Promise<Product> {
     try {
+      const companyId = getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
       if (!productId || typeof productId !== 'string') {
         throw new Error('Valid product ID is required');
       }
@@ -320,7 +342,7 @@ export const productService = {
         effective_date: effectiveDate || new Date().toISOString()
       };
       
-      const response = await post<{data: Product}>(`/products/${productId}/price`, data);
+      const response = await post<{data: Product}>(`/products/company/${companyId}/${productId}/price`, data);
       return response.data.data;
     } catch (error) {
       if (error instanceof AxiosError) {

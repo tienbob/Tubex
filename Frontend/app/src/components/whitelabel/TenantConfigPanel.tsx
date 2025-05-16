@@ -1,11 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, TextField, Button, Paper, Divider } from '@mui/material';
-import { Grid as MuiGrid } from '@mui/material';
 import { useTheme, Theme } from '../../contexts/ThemeContext';
 import { saveTenantConfig } from './WhiteLabelUtils';
-
-// Create a properly typed Grid component
-const Grid = (props: any) => <MuiGrid {...props} />;
 
 interface TenantConfigPanelProps {
   tenantId: string;
@@ -73,8 +69,8 @@ const TenantConfigPanel: React.FC<TenantConfigPanelProps> = ({ tenantId }) => {
       <Divider sx={{ my: 2 }} />
       
       <form onSubmit={handleSubmit}>
-        <Grid container spacing={3}>
-          <Grid item xs={12} sm={6}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+          <Box sx={{ flex: '1 1 auto', width: { xs: '100%', sm: '48%' } }}>
             <Typography variant="subtitle1">Branding</Typography>
             
             <TextField
@@ -94,9 +90,9 @@ const TenantConfigPanel: React.FC<TenantConfigPanelProps> = ({ tenantId }) => {
               value={formState.logoUrl || ''}
               onChange={handleChange}
             />
-          </Grid>
+          </Box>
           
-          <Grid item xs={12} sm={6}>
+          <Box sx={{ flex: '1 1 auto', width: { xs: '100%', sm: '48%' } }}>
             <Typography variant="subtitle1">Styling</Typography>
             
             <TextField
@@ -140,8 +136,8 @@ const TenantConfigPanel: React.FC<TenantConfigPanelProps> = ({ tenantId }) => {
               value={formState.buttonRadius || 4}
               onChange={handleChange}
             />
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
         
         <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
           <Button variant="outlined" onClick={handleReset}>

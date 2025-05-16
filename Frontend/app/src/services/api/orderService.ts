@@ -1,4 +1,4 @@
-import { get, post, patch, del } from './apiClient';
+import { get, post, patch, del, getWithCompany, getCurrentCompanyId } from './apiClient';
 import { AxiosError } from 'axios';
 
 // Custom error class for API errors
@@ -131,27 +131,20 @@ export const orderService = {
   /**
    * Get all orders with pagination and filtering
    */
-  getOrders: async (
-    params: {
-      page?: number;
-      limit?: number;
-      status?: Order['status'] | string;
-      paymentStatus?: Order['paymentStatus'] | string;
-      fromDate?: string;
-      toDate?: string;
-    } = {}
-  ): Promise<OrdersListResponse> => {
+  getOrders: async (params?: any): Promise<any> => {
     try {
-      // Input validation
-      if (params.page && params.page < 1) {
-        throw new Error('Page number must be greater than 0');
-      }
+      const companyId = getCurrentCompanyId(true); // Will throw if company ID is not available
       
-      if (params.limit && (params.limit < 1 || params.limit > 100)) {
-        throw new Error('Limit must be between 1 and 100');
-      }
+      // Updated URL pattern to match the working example pattern (/resource/company/{companyId})
+      const response = await get<any>(`/orders/company/${companyId}`, { 
+        params: {
+          // Merge provided params with defaults
+          limit: 10,
+          page: 1,
+          ...params
+        }
+      });
       
-      const response = await get<OrdersListResponse>('/orders', { params });
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -170,11 +163,16 @@ export const orderService = {
    */
   getOrderById: async (id: string): Promise<OrderResponse> => {
     try {
+      const companyId = getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
       if (!id || typeof id !== 'string') {
         throw new Error('Valid order ID is required');
       }
       
-      const response = await get<OrderResponse>(`/orders/${id}`);
+      const response = await get<OrderResponse>(`/orders/company/${companyId}/${id}`);
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -193,6 +191,11 @@ export const orderService = {
    */
   createOrder: async (orderData: OrderCreateRequest): Promise<OrderResponse> => {
     try {
+      const companyId = getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
       // Basic validation
       if (!orderData.items || !orderData.items.length) {
         throw new Error('Order must contain at least one item');
@@ -202,7 +205,7 @@ export const orderService = {
         throw new Error('Delivery address is required');
       }
       
-      const response = await post<OrderResponse>('/orders', orderData);
+      const response = await post<OrderResponse>(`/orders/company/${companyId}`, orderData);
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -221,11 +224,16 @@ export const orderService = {
    */
   updateOrder: async (id: string, orderData: OrderUpdateRequest): Promise<OrderResponse> => {
     try {
+      const companyId = getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
       if (!id || typeof id !== 'string') {
         throw new Error('Valid order ID is required');
       }
       
-      const response = await patch<OrderResponse>(`/orders/${id}`, orderData);
+      const response = await patch<OrderResponse>(`/orders/company/${companyId}/${id}`, orderData);
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -244,11 +252,16 @@ export const orderService = {
    */
   cancelOrder: async (id: string, reason?: string): Promise<OrderResponse> => {
     try {
+      const companyId = getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
       if (!id || typeof id !== 'string') {
         throw new Error('Valid order ID is required');
       }
       
-      const response = await post<OrderResponse>(`/orders/${id}/cancel`, { reason });
+      const response = await post<OrderResponse>(`/orders/company/${companyId}/${id}/cancel`, { reason });
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -267,11 +280,16 @@ export const orderService = {
    */
   getOrderHistory: async (id: string): Promise<OrderHistoryResponse> => {
     try {
+      const companyId = getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
       if (!id || typeof id !== 'string') {
         throw new Error('Valid order ID is required');
       }
       
-      const response = await get<OrderHistoryResponse>(`/orders/${id}/history`);
+      const response = await get<OrderHistoryResponse>(`/orders/company/${companyId}/${id}/history`);
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -290,6 +308,11 @@ export const orderService = {
    */
   bulkProcessOrders: async (data: BulkProcessOrdersRequest): Promise<BulkProcessOrdersResponse> => {
     try {
+      const companyId = getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
       if (!data.orderIds || !data.orderIds.length) {
         throw new Error('At least one order ID is required');
       }
@@ -298,7 +321,7 @@ export const orderService = {
         throw new Error('Status is required for bulk processing');
       }
       
-      const response = await post<BulkProcessOrdersResponse>('/orders/bulk-process', data);
+      const response = await post<BulkProcessOrdersResponse>(`/orders/company/${companyId}/bulk-process`, data);
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -317,11 +340,16 @@ export const orderService = {
    */
   deleteOrder: async (id: string): Promise<{success: boolean, message: string}> => {
     try {
+      const companyId = getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
       if (!id || typeof id !== 'string') {
         throw new Error('Valid order ID is required');
       }
       
-      const response = await del<{success: boolean, message: string}>(`/orders/${id}`);
+      const response = await del<{success: boolean, message: string}>(`/orders/company/${companyId}/${id}`);
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {

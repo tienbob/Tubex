@@ -1,4 +1,4 @@
-import { get } from './apiClient';
+import { get, getCurrentCompanyId } from './apiClient';
 import { AxiosError } from 'axios';
 import { ApiError } from './authService';
 
@@ -42,10 +42,17 @@ export interface InventorySummary {
 export const dashboardService = {
   /**
    * Get order summary for dashboard
-   */  getOrderSummary: async (): Promise<OrderSummary> => {
+   */  
+  getOrderSummary: async (): Promise<OrderSummary> => {
     try {
-      // Use the regular orders endpoint with limit instead of a dedicated summary endpoint
-      const response = await get<any>('/orders', { 
+      // Get company ID
+      const companyId = getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
+      // Use consistent URL pattern: /resource/company/{companyId}
+      const response = await get<any>(`/orders/company/${companyId}`, { 
         params: { 
           limit: 5,
           page: 1
@@ -81,10 +88,17 @@ export const dashboardService = {
 
   /**
    * Get product summary for dashboard
-   */  getProductSummary: async (): Promise<ProductSummary> => {
+   */  
+  getProductSummary: async (): Promise<ProductSummary> => {
     try {
-      // Use the regular products endpoint with limit
-      const response = await get<any>('/products', { 
+      // Get company ID
+      const companyId = getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
+      // Use consistent URL pattern: /resource/company/{companyId}
+      const response = await get<any>(`/products/company/${companyId}`, { 
         params: { 
           limit: 5,
           page: 1
@@ -131,31 +145,26 @@ export const dashboardService = {
 
   /**
    * Get inventory summary for dashboard
-   */  getInventorySummary: async (): Promise<InventorySummary> => {
+   */  
+  getInventorySummary: async (): Promise<InventorySummary> => {
     try {
-      // Use the authenticated user's company ID if available
-      let companyId = '';
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      if (user && user.companyId) {
-        companyId = user.companyId;
-      } else {
+      // Get company ID
+      const companyId = getCurrentCompanyId();
+      console.log('Company ID:', companyId);
+      if (!companyId) {
         throw new Error('Company ID not available');
       }
       
-      // Get inventory data from regular inventory endpoint
-      const inventoryResponse = await get<any>(`/inventory/company/${companyId}`, {
-        params: {
+      // Keep the working URL pattern: /inventory/company/{companyId}
+      const response = await get<any>(`/inventory/company/${companyId}`, { 
+        params: { 
           limit: 10,
           page: 1
-        }
+        } 
       });
       
-      // Get low stock inventory if available
-      const lowStockResponse = await get<any>(`/inventory/company/${companyId}/low-stock`)
-        .catch(() => ({ data: { data: [] } })); // Default to empty array if endpoint not available
-      
-      const inventoryItems = inventoryResponse.data.data?.items || [];
-      const lowStockItems = lowStockResponse.data.data || [];
+      // Format the data to match what the dashboard expects
+      const inventoryItems = response.data.items || response.data.data || [];
       
       // Calculate total inventory quantity
       const totalQuantity = inventoryItems.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
@@ -163,6 +172,11 @@ export const dashboardService = {
       // Calculate approximate warehouse usage (a simple estimate)
       const totalCapacity = 10000; // Default capacity for visualization purposes
       const warehouseUtilization = Math.min(100, Math.round((totalQuantity / totalCapacity) * 100));
+      
+      // Count low stock items
+      const lowStockItems = inventoryItems.filter((item: any) => 
+        (item.min_threshold && item.quantity <= item.min_threshold) || item.quantity === 0
+      );
       
       // Create the summary object
       const summary: InventorySummary = {

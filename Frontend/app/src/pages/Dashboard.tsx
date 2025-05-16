@@ -160,7 +160,7 @@ const Dashboard: React.FC = () => {
             console.error('Failed to load product summary:', err);
             return null;
           }),
-        dashboardService.getInventorySummary()
+        dashboardService.getInventorySummary()  // Pass the companyId from component state
           .catch(err => {
             console.error('Failed to load inventory summary:', err);
             return null;
@@ -182,7 +182,9 @@ const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };const fetchProducts = async () => {
+  };
+
+  const fetchProducts = async () => {
     setActiveTabLoading(true);
     setActiveTabError(null);
     
@@ -196,7 +198,9 @@ const Dashboard: React.FC = () => {
     } finally {
       setActiveTabLoading(false);
     }
-  };  const fetchOrders = async () => {
+  };
+
+  const fetchOrders = async () => {
     setActiveTabLoading(true);
     setActiveTabError(null);
     
@@ -220,7 +224,8 @@ const Dashboard: React.FC = () => {
       setActiveTabLoading(false);
     }
   };
-    const fetchInventory = async () => {
+
+  const fetchInventory = async () => {
     setActiveTabLoading(true);
     setActiveTabError(null);
     

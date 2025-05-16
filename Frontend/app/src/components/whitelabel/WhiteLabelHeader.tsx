@@ -28,7 +28,8 @@ import {
   Assessment as AnalyticsIcon,
   Settings as SettingsIcon,
   Logout as LogoutIcon,
-  Person as PersonIcon
+  Person as PersonIcon,
+  Payment as PaymentIcon
 } from '@mui/icons-material';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -90,6 +91,7 @@ const WhiteLabelHeader: React.FC<WhiteLabelHeaderProps> = ({
     { text: 'Inventory', icon: <InventoryIcon />, path: '/inventory' },
     { text: 'Orders', icon: <OrdersIcon />, path: '/orders' },
     { text: 'Warehouses', icon: <WarehouseIcon />, path: '/warehouses' },
+    { text: 'Payment', icon: <PaymentIcon />, path: '/payments' },
     { text: 'Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
   ];
 

@@ -1,4 +1,4 @@
-import { get, post, put, patch } from './apiClient';
+import { get, post, put, patch, del, getWithCompany, getCurrentCompanyId } from './apiClient';
 import { AxiosError } from 'axios';
 
 // Custom error class for API errors
@@ -138,24 +138,18 @@ export interface InventoryAuditLog {
 export const inventoryService = {
   async getInventory(params: GetInventoryParams): Promise<ApiResponse<InventoryItem[]>> {
     try {
-      // Input validation
-      if (!params.companyId) {
-        throw new Error('Company ID is required');
+      const companyId = params?.companyId || getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
       }
       
-      if (params.page && params.page < 1) {
-        throw new Error('Page number must be greater than 0');
-      }
+      // Remove companyId from params if it was included there
+      const { companyId: _, ...restParams } = params || {};
       
-      if (params.limit && (params.limit < 1 || params.limit > 100)) {
-        throw new Error('Limit must be between 1 and 100');
-      }
-      
-      const { companyId, warehouseId, page, limit, sortBy, sortDirection } = params;
-      const endpoint = `/inventory/company/${companyId}${warehouseId ? `/warehouse/${warehouseId}` : ''}`;
+      const endpoint = `/inventory/company/${companyId}${params.warehouseId ? `/warehouse/${params.warehouseId}` : ''}`;
       
       const response = await get<ApiResponse<InventoryItem[]>>(endpoint, {
-        params: { page, limit, sortBy, sortDirection }
+        params: restParams
       });
       
       return response.data;
@@ -177,7 +171,15 @@ export const inventoryService = {
         throw new Error('Valid inventory item ID is required');
       }
       
-      const response = await get<ApiResponse<InventoryItem>>(`/inventory/${id}`);
+      const companyId = getCurrentCompanyId();
+      console.log('Company ID:', companyId);
+      // Ensure companyId is available
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
+      // Updated URL pattern to include company context
+      const response = await get<ApiResponse<InventoryItem>>(`/inventory/company/${companyId}/item/${id}`);
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -279,8 +281,7 @@ export const inventoryService = {
   async getWarehouses(companyId: string): Promise<ApiResponse<{ id: string; name: string }[]>> {
     try {
       if (!companyId || typeof companyId !== 'string') {
-        throw new Error('Invalid company ID');
-      }
+        throw new Error('Invalid company ID');      }
       
       // Use the get function from apiClient instead of axios
       const response = await get<ApiResponse<{ id: string; name: string }[]>>(`/warehouses/company/${companyId}`);

@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import { get, post, put, del } from './apiClient';
+import { get, post, put, del, getCurrentCompanyId } from './apiClient';
 
 export interface ApiResponse<T> {
   data: T;
@@ -84,17 +84,19 @@ export class ApiError extends Error {
   }
 }
 
-class WarehouseService {
-  async getWarehouses(companyId: string): Promise<ApiResponse<Warehouse[]>> {
-    // Enhanced validation to prevent empty API calls
-    if (!companyId || typeof companyId !== 'string' || companyId.trim() === '') {
-      console.error('Invalid or empty companyId provided to getWarehouses:', companyId);
-      return Promise.reject(new ApiError('Valid company ID is required'));
-    }
-    
-    // Use get from apiClient instead of axios
+export const warehouseService = {  getWarehouses: async (params?: any): Promise<any> => {
     try {
-      const response = await get<ApiResponse<Warehouse[]>>(`/warehouses/company/${companyId}`);
+      const companyId = getCurrentCompanyId(true);
+      
+      // Use consistent URL pattern with correct API path
+      const response = await get<any>(`/warehouses/company/${companyId}`, {
+        params: {
+          limit: 10,
+          page: 1,
+          ...params
+        }
+      });
+      
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -102,41 +104,39 @@ class WarehouseService {
       }
       throw error;
     }
-  }
-
-  getWarehouse(companyId: string, warehouseId: string): Promise<ApiResponse<Warehouse>> {
+  },    getWarehouse: async (companyId: string, warehouseId: string): Promise<ApiResponse<Warehouse>> => {
     if (!warehouseId || typeof warehouseId !== 'string') {
       return Promise.reject(new ApiError('Valid warehouse ID is required'));
     }
     
     // Use get from apiClient instead of direct axios call
-    return get<ApiResponse<Warehouse>>(`/warehouses/${warehouseId}`)
-      .then(response => response.data)
-      .catch(error => {
-        if (error instanceof AxiosError) {
-          throw new ApiError(error.response?.data?.message || `Failed to fetch warehouse: ${warehouseId}`);
-        }
-        throw error;
-      });
-  }
-
-  createWarehouse(companyId: string, data: WarehouseCreateInput): Promise<ApiResponse<Warehouse>> {
+    try {
+      const response = await get<ApiResponse<Warehouse>>(`/warehouses/company/${companyId}/${warehouseId}`);
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(error.response?.data?.message || `Failed to fetch warehouse: ${warehouseId}`);
+      }
+      throw error;
+    }
+  },  createWarehouse: async (companyId: string, data: WarehouseCreateInput): Promise<ApiResponse<Warehouse>> => {
     if (!companyId || typeof companyId !== 'string' || companyId.trim() === '') {
       return Promise.reject(new ApiError('Valid company ID is required'));
     }
     
     // Use post from apiClient instead of direct axios call
-    return post<ApiResponse<Warehouse>>(`/warehouses/company/${companyId}`, data)
-      .then(response => response.data)
-      .catch(error => {
-        if (error instanceof AxiosError) {
-          throw new ApiError(error.response?.data?.message || 'Failed to create warehouse');
-        }
-        throw error;
-      });
-  }
+    try {
+      const response = await post<ApiResponse<Warehouse>>(`/warehouses/company/${companyId}`, data);
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(error.response?.data?.message || 'Failed to create warehouse');
+      }
+      throw error;
+    }
+  },
 
-  async updateWarehouse(companyId: string, warehouseId: string, data: WarehouseUpdateInput): Promise<ApiResponse<Warehouse>> {
+  updateWarehouse: async (companyId: string, warehouseId: string, data: WarehouseUpdateInput): Promise<ApiResponse<Warehouse>> => {
     if (!warehouseId || typeof warehouseId !== 'string') {
       return Promise.reject(new ApiError('Valid warehouse ID is required'));
     }
@@ -151,9 +151,9 @@ class WarehouseService {
       }
       throw error;
     }
-  }
+  },
 
-  async deleteWarehouse(companyId: string, warehouseId: string): Promise<ApiResponse<void>> {
+  deleteWarehouse: async (companyId: string, warehouseId: string): Promise<ApiResponse<void>> => {
     if (!warehouseId || typeof warehouseId !== 'string') {
       return Promise.reject(new ApiError('Valid warehouse ID is required'));
     }
@@ -169,6 +169,4 @@ class WarehouseService {
       throw error;
     }
   }
-}
-
-export const warehouseService = new WarehouseService();
+};
