@@ -206,54 +206,62 @@ As of May 2025:
 
 ### Backend (Node.js/TypeScript)
 - ✅ Core infrastructure setup (Docker, databases)
-- ✅ Authentication system
-- ✅ User management
-- ✅ Inventory management
-- ✅ Order processing
+- ✅ Authentication system with JWT and OAuth2.0
+- ✅ User management with role-based access control
+- ✅ Inventory management with multi-warehouse support
+- ✅ Order processing and tracking system
 - ✅ Company verification system
-- ✅ Caching layer implementation
-- ✅ Email service integration
-- 🚧 Warehouse management system (In Progress)
-- 🚧 Product management system (In Progress)
+- ✅ Caching layer implementation with Redis
+- ✅ Email service integration with AWS SES
+- ✅ Product management system
+- ✅ Warehouse management system
+- 🚧 Payment gateway integration (In Progress)
+- 🚧 Advanced analytics and reporting (In Progress)
 
 ### Frontend (React)
 - ✅ Project scaffolding with Create React App
-- ✅ Basic component structure
-- ✅ API service integration
-- ✅ State management setup
-- 🚧 Product management UI (In Progress)
-- 🚧 User management interface (In Progress)
+- ✅ Component library with Material-UI
+- ✅ API service integration with Axios
+- ✅ State management with Redux and Context API
+- ✅ Multi-tenant theming and white-labeling
+- ✅ Product management UI
+- ✅ Order management interface
+- ✅ Inventory management components
+- ✅ Warehouse management interface
+- ✅ User management dashboard
+- 🚧 Reports & Analytics UI (In Progress)
+- 🚧 Mobile responsiveness enhancements (In Progress)
 
 ### Infrastructure
 - ✅ Docker containerization
 - ✅ Database setup (PostgreSQL, MongoDB, Redis)
 - ✅ Migration system
+- ✅ Testing frameworks (Jest, React Testing Library)
+- ✅ Error tracking and logging
 - 🚧 CI/CD pipeline (In Progress)
+- 🚧 Kubernetes orchestration (Planned)
 
-## 📊 Project Status
+## Future Roadmap
 
-The project is currently in active development with the following components completed:
+We're continuing to enhance the platform with the following features:
 
-- ✅ Backend foundation with Express and TypeScript
-- ✅ Database setup with PostgreSQL, MongoDB, and Redis
-- ✅ Authentication system with JWT
-- ✅ API structure and core endpoints
-- ✅ Frontend structure with React components
-- ✅ API client services for frontend-backend communication
-- ✅ Multi-tenant white-labeling foundation
-- ✅ Basic inventory and order management
-
-In progress:
+### Short-term (Next 3 months)
 - 🔄 Advanced reporting and analytics features
 - 🔄 Mobile application development with React Native
-- 🔄 Payment gateway integrations
+- 🔄 Payment gateway integrations (VNPay, Momo)
 - 🔄 Performance optimizations and scalability enhancements
 
-Upcoming:
+### Mid-term (Months 4-9)
 - 📅 Advanced user roles and permissions
 - 📅 AI-powered inventory forecasting
 - 📅 Business intelligence dashboard
 - 📅 Mobile app deployment to app stores
+
+### Long-term (Beyond 9 months)
+- 📅 Marketplace features connecting dealers with suppliers
+- 📅 Financial services integration
+- 📅 Construction project management tools
+- 📅 Integration with IoT devices for automated tracking
 
 ## Repository Structure
 - `/Backend` - Node.js/TypeScript backend services
@@ -267,17 +275,12 @@ Upcoming:
 ## 📚 Documentation
 
 Comprehensive documentation is available in the `Doc` directory:
-- Technical Design Document (TDD)
-- Business Requirements Document (BRD)
-- Product Requirements Document (PRD)
-- API Documentation (available at `/api-docs` when running the server)
-
-## Documentation
 - [Business Requirements Document](Doc/EN/Tubex_BRD.md)
 - [Product Requirements Document](Doc/EN/Tubex_PRD.md)
 - [Technical Design Document](Doc/EN/Tubex_TDD.md)
 - [Warehouse Service Architecture](Doc/EN/Warehouse_Service_Architecture.md)
 - [Backend Maintenance Guide](Doc/EN/Backend_Maintenance.md)
+- API Documentation (available at `/api-docs` when running the server)
 
 ## 🧪 Running Tests
 
