@@ -38,6 +38,15 @@ export interface InventoryReportParams {
 }
 
 /**
+ * Helper function to get current company ID
+ */
+function getCurrentCompanyId(): string | undefined {
+  // This function should retrieve the company ID from your app context/state
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  return user.companyId || user.company_id || undefined;
+}
+
+/**
  * Report Service - Handles operations related to reports and system health
  */
 export const reportService = {
@@ -59,7 +68,6 @@ export const reportService = {
       throw error;
     }
   },
-
   /**
    * Get sales report data
    */
@@ -81,7 +89,14 @@ export const reportService = {
         throw new Error('End date must be after start date');
       }
       
-      const response = await get<any>('/reports/sales', { params });
+      const companyId = params.companyId || getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
+      const { companyId: _, ...otherParams } = params; // Remove companyId from params
+      
+      const response = await get<any>(`/reports/company/${companyId}/sales`, { params: otherParams });
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -94,13 +109,19 @@ export const reportService = {
       throw error;
     }
   },
-
   /**
    * Get inventory report data
    */
   getInventoryReport: async (params: InventoryReportParams = {}): Promise<any> => {
     try {
-      const response = await get<any>('/reports/inventory', { params });
+      const companyId = params.companyId || getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
+      const { companyId: _, ...otherParams } = params; // Remove companyId from params
+      
+      const response = await get<any>(`/reports/company/${companyId}/inventory`, { params: otherParams });
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -113,7 +134,6 @@ export const reportService = {
       throw error;
     }
   },
-
   /**
    * Get low stock products report
    */
@@ -121,8 +141,12 @@ export const reportService = {
     try {
       const params: Record<string, any> = {};
       
-      if (companyId) {
-        params.companyId = companyId;
+      if (!companyId) {
+        companyId = getCurrentCompanyId();
+      }
+      
+      if (!companyId) {
+        throw new Error('Company ID not available');
       }
       
       if (threshold !== undefined) {
@@ -132,7 +156,7 @@ export const reportService = {
         params.threshold = threshold;
       }
       
-      const response = await get<any>('/reports/low-stock', { params });
+      const response = await get<any>(`/reports/company/${companyId}/low-stock`, { params });
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -145,7 +169,6 @@ export const reportService = {
       throw error;
     }
   },
-
   /**
    * Get expiring products report
    */
@@ -155,15 +178,19 @@ export const reportService = {
         throw new Error('Days threshold cannot be negative');
       }
       
+      if (!companyId) {
+        companyId = getCurrentCompanyId();
+      }
+      
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
       const params: Record<string, any> = {
         daysThreshold
       };
       
-      if (companyId) {
-        params.companyId = companyId;
-      }
-      
-      const response = await get<any>('/reports/expiring-items', { params });
+      const response = await get<any>(`/reports/company/${companyId}/expiring-items`, { params });
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {

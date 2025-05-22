@@ -11,7 +11,6 @@ import {
   Divider
 } from '@mui/material';
 import TenantConfigPanel from './TenantConfigPanel';
-import WhiteLabelLayout from './WhiteLabelLayout';
 import { detectTenant } from './WhiteLabelUtils';
 
 interface TabPanelProps {
@@ -57,19 +56,17 @@ const AdminPage: React.FC = () => {
       setActiveTab(tenants.length);
     }
   };
-  
-  return (
-    <WhiteLabelLayout>
-      <Container maxWidth="lg">
-        <Typography variant="h4" component="h1" gutterBottom>
-          White Label Administration
+    return (
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Typography variant="h4" component="h1" gutterBottom>
+        White Label Administration
+      </Typography>
+      
+      <Paper elevation={1} sx={{ mt: 4, p: 2 }}>
+        <Typography variant="body1" gutterBottom>
+          Current detected tenant: <strong>{detectTenant()}</strong>
         </Typography>
-        
-        <Paper elevation={1} sx={{ mt: 4, p: 2 }}>
-          <Typography variant="body1" gutterBottom>
-            Current detected tenant: <strong>{detectTenant()}</strong>
-          </Typography>
-        </Paper>
+      </Paper>
         
         <Box sx={{ mt: 4 }}>
           <Paper elevation={2} sx={{ mb: 4, p: 3 }}>
@@ -117,10 +114,8 @@ const AdminPage: React.FC = () => {
             <TabPanel key={tenantId} value={activeTab} index={index}>
               <TenantConfigPanel tenantId={tenantId} />
             </TabPanel>
-          ))}
-        </Box>
-      </Container>
-    </WhiteLabelLayout>
+          ))}        </Box>
+    </Container>
   );
 };
 

@@ -81,6 +81,10 @@ export interface GetInventoryParams {
   warehouseId?: string;
   sortBy?: string;
   sortDirection?: 'asc' | 'desc';
+  search?: string;
+  searchTerm?: string;
+  status?: string;
+  [key: string]: any;  // Allow additional properties
 }
 
 export interface ApiResponse<T> {

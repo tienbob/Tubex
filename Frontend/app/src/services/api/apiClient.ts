@@ -12,9 +12,6 @@ if (USE_MOCK_API) {
 // Debug the API URL
 console.log("API Base URL:", API_BASE_URL);
 
-// Debug the API URL
-console.log("API Base URL:", API_BASE_URL);
-
 // Create an Axios instance with default config
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -38,7 +35,9 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    console.log(`API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, { 
+    // Log the full URL to help with debugging
+    const fullUrl = `${config.baseURL}${config.url}`;
+    console.log(`API Request: ${config.method?.toUpperCase()} ${fullUrl}`, { 
       headers: config.headers,
       params: config.params,
       data: config.data

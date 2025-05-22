@@ -135,7 +135,6 @@ export const warehouseService = {  getWarehouses: async (params?: any): Promise<
       throw error;
     }
   },
-
   updateWarehouse: async (companyId: string, warehouseId: string, data: WarehouseUpdateInput): Promise<ApiResponse<Warehouse>> => {
     if (!warehouseId || typeof warehouseId !== 'string') {
       return Promise.reject(new ApiError('Valid warehouse ID is required'));
@@ -143,7 +142,7 @@ export const warehouseService = {  getWarehouses: async (params?: any): Promise<
     
     // Use put from apiClient instead of direct axios call
     try {
-      const response = await put<ApiResponse<Warehouse>>(`/warehouses/${warehouseId}`, data);
+      const response = await put<ApiResponse<Warehouse>>(`/warehouses/company/${companyId}/${warehouseId}`, data);
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -152,7 +151,6 @@ export const warehouseService = {  getWarehouses: async (params?: any): Promise<
       throw error;
     }
   },
-
   deleteWarehouse: async (companyId: string, warehouseId: string): Promise<ApiResponse<void>> => {
     if (!warehouseId || typeof warehouseId !== 'string') {
       return Promise.reject(new ApiError('Valid warehouse ID is required'));
@@ -160,7 +158,7 @@ export const warehouseService = {  getWarehouses: async (params?: any): Promise<
     
     // Use del from apiClient instead of direct axios call
     try {
-      const response = await del<ApiResponse<void>>(`/warehouses/${warehouseId}`);
+      const response = await del<ApiResponse<void>>(`/warehouses/company/${companyId}/${warehouseId}`);
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {

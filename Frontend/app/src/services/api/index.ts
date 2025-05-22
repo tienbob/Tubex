@@ -20,3 +20,4 @@ export { reportService } from './reportService';
 export { dashboardService } from './dashboardService';
 
 // Add additional service exports here as needed
+export { companyService } from './companyService';

@@ -13,7 +13,6 @@ import {
   IconButton,
   Chip,
   TablePagination,
-  Dialog,
   useTheme as useMuiTheme,
   FormControl,
   InputLabel,
@@ -32,13 +31,13 @@ import {
   Refresh as RefreshIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Receipt as ReceiptIcon,
-  AccountBalance as AccountBalanceIcon,
   Check as CheckIcon
 } from '@mui/icons-material';
 import { useTheme } from '../../contexts/ThemeContext';
 import { usePayment } from '../../hooks/usePayment';
+import { useCustomer } from '../../hooks/useCustomer';
 import { Payment, PaymentMethod, PaymentType, ReconciliationStatus } from '../../services/api/paymentService';
+import { Customer } from '../../services/api/customerService';
 import CreatePaymentModal from './CreatePaymentModal';
 import UpdatePaymentModal from './UpdatePaymentModal';
 import ReconcilePaymentModal from './ReconcilePaymentModal';
@@ -46,7 +45,6 @@ import { format } from 'date-fns';
 import { useSnackbar } from 'notistack';
 
 const PaymentManagement: React.FC = () => {
-  const muiTheme = useMuiTheme();
   const { theme: whitelabelTheme } = useTheme();
   const { 
     loading, 
@@ -54,6 +52,10 @@ const PaymentManagement: React.FC = () => {
     getPayments, 
     deletePayment 
   } = usePayment();
+  const {
+    getCustomersByIds,
+    searchCustomers
+  } = useCustomer();
   const { enqueueSnackbar } = useSnackbar();
 
   // State variables
@@ -62,8 +64,8 @@ const PaymentManagement: React.FC = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // Filter states
+  const [customerMap, setCustomerMap] = useState<Record<string, Customer>>({});
+    // Filter states
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
@@ -71,6 +73,8 @@ const PaymentManagement: React.FC = () => {
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [selectedOrderId, setSelectedOrderId] = useState('');
   const [selectedInvoiceId, setSelectedInvoiceId] = useState('');
+  const [customerOptions, setCustomerOptions] = useState<Customer[]>([]);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
 
   // Modal states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -82,9 +86,21 @@ const PaymentManagement: React.FC = () => {
   // Fetch payments on initial load and when filters change
   useEffect(() => {
     fetchPayments();
-  }, [page, rowsPerPage, startDate, endDate, selectedPaymentMethod, selectedStatus]);
-
-  const fetchPayments = async () => {
+    
+    // Initialize customer filter options
+    if (Object.keys(customerMap).length === 0) {
+      // Load some initial customers for the filter dropdown
+      searchCustomers({ limit: 10 }).then(result => {
+        if (result && result.data.length > 0) {
+          const initialCustomers = result.data.reduce((acc, customer) => {
+            acc[customer.id] = customer;
+            return acc;
+          }, {} as Record<string, Customer>);
+          setCustomerMap(prevMap => ({ ...prevMap, ...initialCustomers }));
+        }
+      });
+    }
+  }, [page, rowsPerPage, startDate, endDate, selectedPaymentMethod, selectedStatus, selectedCustomerId]);const fetchPayments = async () => {
     let filters: any = {
       page: page + 1, // API uses 1-based pagination
       limit: rowsPerPage
@@ -100,9 +116,26 @@ const PaymentManagement: React.FC = () => {
     if (selectedInvoiceId) filters.invoiceId = selectedInvoiceId;
 
     const result = await getPayments(filters);
-    
-    if (result) {
-      setPayments(result.data);
+      if (result) {
+      // Extract all unique customer IDs
+      const customerIds = Array.from(new Set(result.data.map(payment => payment.customerId)));
+      
+      // Fetch all customers in one batch request
+      if (customerIds.length > 0) {
+        const customers = await getCustomersByIds(customerIds) || {};
+        setCustomerMap(customers);
+        
+        // Enhance payments with customer data
+        const enhancedPayments = result.data.map(payment => ({
+          ...payment,
+          customerName: customers[payment.customerId]?.name || `Customer ${payment.customerId.substring(0, 8)}`
+        }));
+        
+        setPayments(enhancedPayments);
+      } else {
+        setPayments(result.data);
+      }
+      
       setTotalItems(result.pagination.totalItems);
     }
   };
@@ -115,11 +148,21 @@ const PaymentManagement: React.FC = () => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
-
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value);
     // Local filtering for the search term
     // Note: For better performance in larger datasets, consider API-based search
+  };
+  const handleCustomerSearch = async (searchTerm: string) => {
+    setCustomerSearchTerm(searchTerm);
+    if (searchTerm.length > 2) {
+      const result = await searchCustomers({ search: searchTerm });
+      if (result) {
+        setCustomerOptions(result.data);
+      }
+    } else if (searchTerm.length === 0) {
+      setCustomerOptions([]);
+    }
   };
 
   const clearFilters = () => {
@@ -131,6 +174,8 @@ const PaymentManagement: React.FC = () => {
     setSelectedOrderId('');
     setSelectedInvoiceId('');
     setSearchTerm('');
+    setCustomerSearchTerm('');
+    setCustomerOptions([]);
   };
 
   const handleDeletePayment = async () => {
@@ -307,6 +352,73 @@ const PaymentManagement: React.FC = () => {
                 <MenuItem value="pending_review">Pending Review</MenuItem>
               </Select>
             </FormControl>
+          </Box>          <Box sx={{ width: { xs: '100%', sm: '48%', md: '23%' } }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Customer</InputLabel>
+              <Select
+                value={selectedCustomerId}
+                label="Customer"
+                onChange={(e) => setSelectedCustomerId(e.target.value)}
+                renderValue={(selected) => {
+                  if (!selected) return "All Customers";
+                  return customerMap[selected]?.name || `Customer ${selected.substring(0, 8)}`;
+                }}
+              >
+                <MenuItem value="">All Customers</MenuItem>
+                {Object.values(customerMap).map((customer) => (
+                  <MenuItem key={customer.id} value={customer.id}>
+                    {customer.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+          
+          {/* Additional filters row */}          <Box sx={{ width: '100%', display: 'flex', flexWrap: 'wrap', gap: 2, mt: 1 }}>
+            <Box sx={{ width: { xs: '100%', sm: '48%', md: '31%' } }}>
+              <TextField
+                label="Order ID"
+                size="small"
+                fullWidth
+                value={selectedOrderId}
+                onChange={(e) => setSelectedOrderId(e.target.value)}
+              />
+            </Box>
+            <Box sx={{ width: { xs: '100%', sm: '48%', md: '31%' } }}>
+              <TextField
+                label="Invoice ID"
+                size="small"
+                fullWidth
+                value={selectedInvoiceId}
+                onChange={(e) => setSelectedInvoiceId(e.target.value)}
+              />
+            </Box>
+            <Box sx={{ width: { xs: '100%', sm: '48%', md: '31%' } }}>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={fetchPayments}
+                  startIcon={<SearchIcon />}
+                  fullWidth
+                  sx={{ height: '40px' }}
+                >
+                  Apply Filters
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  onClick={() => {
+                    clearFilters();
+                    fetchPayments();
+                  }}
+                  startIcon={<RefreshIcon />}
+                  sx={{ height: '40px', minWidth: '100px' }}
+                >
+                  Reset
+                </Button>
+              </Box>
+            </Box>
           </Box>
         </Box>
       </Paper>
@@ -315,11 +427,10 @@ const PaymentManagement: React.FC = () => {
       <Paper sx={{ width: '100%', overflow: 'hidden' }}>
         <TableContainer sx={{ maxHeight: 'calc(100vh - 320px)' }}>
           <Table stickyHeader aria-label="sticky table">
-            <TableHead>
-              <TableRow>
+            <TableHead>              <TableRow>
                 <TableCell>ID</TableCell>
                 <TableCell>Date</TableCell>
-                <TableCell>Customer</TableCell>
+                <TableCell>Customer Name</TableCell>
                 <TableCell>Amount</TableCell>
                 <TableCell>Type</TableCell>
                 <TableCell>Method</TableCell>
@@ -343,12 +454,10 @@ const PaymentManagement: React.FC = () => {
                 <TableRow>
                   <TableCell colSpan={9} align="center">No payments found</TableCell>
                 </TableRow>
-              ) : (
-                payments.map((payment) => (
-                  <TableRow key={payment.id} hover>
-                    <TableCell>{payment.transactionId}</TableCell>
+              ) : (                payments.map((payment) => (
+                  <TableRow key={payment.id} hover>                    <TableCell>{payment.transactionId}</TableCell>
                     <TableCell>{format(new Date(payment.paymentDate), 'MMM dd, yyyy')}</TableCell>
-                    <TableCell>{payment.customerId}</TableCell>
+                    <TableCell>{payment.customerName || payment.customerId}</TableCell>
                     <TableCell>{formatCurrency(payment.amount)}</TableCell>
                     <TableCell>
                       <Chip

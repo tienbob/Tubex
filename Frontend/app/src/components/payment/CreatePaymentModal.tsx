@@ -13,14 +13,21 @@ import {
   Typography,
   FormHelperText,
   InputAdornment,
-  CircularProgress
+  CircularProgress,
+  Tooltip,
+  IconButton,
+  Autocomplete
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { usePayment } from '../../hooks/usePayment';
+import { useCustomer } from '../../hooks/useCustomer';
+import { Customer } from '../../services/api/customerService';
 import { PaymentMethod, PaymentType, CreatePaymentRequest } from '../../services/api/paymentService';
 import { format } from 'date-fns';
+import { generateTransactionId, generateOrderId, generateInvoiceId } from '../../utils/idGenerator';
+import { Refresh as RefreshIcon } from '@mui/icons-material';
 
 interface CreatePaymentModalProps {
   open: boolean;
@@ -30,28 +37,35 @@ interface CreatePaymentModalProps {
 
 const CreatePaymentModal: React.FC<CreatePaymentModalProps> = ({ open, onClose, onPaymentCreated }) => {
   const { createPayment, loading, error } = usePayment();
+  const { searchCustomers } = useCustomer();
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  
-  // Form state
+  const [customerOptions, setCustomerOptions] = useState<Customer[]>([]);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+    // Form state
   const [formData, setFormData] = useState<Partial<CreatePaymentRequest>>({
-    transactionId: '',
+    transactionId: generateTransactionId(),
     customerId: '',
     amount: 0,
     paymentMethod: 'bank_transfer' as PaymentMethod,
     paymentType: 'invoice_payment' as PaymentType,
     paymentDate: format(new Date(), 'yyyy-MM-dd'),
+    orderId: '',
+    invoiceId: ''
   });
 
   // Reset form when modal is opened
   useEffect(() => {
     if (open) {
       setFormData({
-        transactionId: '',
+        transactionId: generateTransactionId(),
         customerId: '',
         amount: 0,
         paymentMethod: 'bank_transfer' as PaymentMethod,
         paymentType: 'invoice_payment' as PaymentType,
         paymentDate: format(new Date(), 'yyyy-MM-dd'),
+        orderId: '',
+        invoiceId: ''
       });
       setFormErrors({});
     }
@@ -87,12 +101,12 @@ const CreatePaymentModal: React.FC<CreatePaymentModalProps> = ({ open, onClose, 
       }
     }
   };
-
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
     
     if (!formData.transactionId) {
-      errors.transactionId = 'Transaction ID is required';
+      // Generate a transaction ID if it's missing
+      setFormData(prev => ({ ...prev, transactionId: generateTransactionId() }));
     }
     
     if (!formData.customerId) {
@@ -105,6 +119,15 @@ const CreatePaymentModal: React.FC<CreatePaymentModalProps> = ({ open, onClose, 
     
     if (!formData.paymentDate) {
       errors.paymentDate = 'Payment date is required';
+    }
+    
+    // Auto-generate IDs based on payment type if not provided
+    if (formData.paymentType === 'order_payment' && !formData.orderId) {
+      setFormData(prev => ({ ...prev, orderId: generateOrderId() }));
+    }
+    
+    if (formData.paymentType === 'invoice_payment' && !formData.invoiceId) {
+      setFormData(prev => ({ ...prev, invoiceId: generateInvoiceId() }));
     }
     
     setFormErrors(errors);
@@ -131,8 +154,7 @@ const CreatePaymentModal: React.FC<CreatePaymentModalProps> = ({ open, onClose, 
             {error}
           </Typography>
         )}
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 1 }}>
-          <Box sx={{ width: { xs: '100%', sm: '48%' } }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 1 }}>          <Box sx={{ width: { xs: '100%', sm: '48%' } }}>
             <TextField
               label="Transaction ID"
               name="transactionId"
@@ -141,7 +163,22 @@ const CreatePaymentModal: React.FC<CreatePaymentModalProps> = ({ open, onClose, 
               fullWidth
               required
               error={!!formErrors.transactionId}
-              helperText={formErrors.transactionId}
+              helperText={formErrors.transactionId || "Auto-generated transaction ID"}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <Tooltip title="Generate new transaction ID">
+                      <IconButton 
+                        onClick={() => setFormData(prev => ({ ...prev, transactionId: generateTransactionId() }))}
+                        edge="end"
+                        size="small"
+                      >
+                        <RefreshIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </InputAdornment>
+                ),
+              }}
             />
           </Box>
           
@@ -230,14 +267,29 @@ const CreatePaymentModal: React.FC<CreatePaymentModalProps> = ({ open, onClose, 
               </Select>
             </FormControl>
           </Box>
-          
-          <Box sx={{ width: { xs: '100%', sm: '48%' } }}>
+            <Box sx={{ width: { xs: '100%', sm: '48%' } }}>
             <TextField
               label="Order ID (Optional)"
               name="orderId"
               value={formData.orderId || ''}
               onChange={handleChange}
               fullWidth
+              helperText="Click refresh to generate a new Order ID"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <Tooltip title="Generate new order ID">
+                      <IconButton 
+                        onClick={() => setFormData(prev => ({ ...prev, orderId: generateOrderId() }))}
+                        edge="end"
+                        size="small"
+                      >
+                        <RefreshIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </InputAdornment>
+                ),
+              }}
             />
           </Box>
           
@@ -248,6 +300,22 @@ const CreatePaymentModal: React.FC<CreatePaymentModalProps> = ({ open, onClose, 
               value={formData.invoiceId || ''}
               onChange={handleChange}
               fullWidth
+              helperText="Click refresh to generate a new Invoice ID"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <Tooltip title="Generate new invoice ID">
+                      <IconButton 
+                        onClick={() => setFormData(prev => ({ ...prev, invoiceId: generateInvoiceId() }))}
+                        edge="end"
+                        size="small"
+                      >
+                        <RefreshIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </InputAdornment>
+                ),
+              }}
             />
           </Box>
           

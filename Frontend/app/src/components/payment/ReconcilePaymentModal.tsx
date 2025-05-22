@@ -34,9 +34,8 @@ const ReconcilePaymentModal: React.FC<ReconcilePaymentModalProps> = ({
   onPaymentReconciled
 }) => {
   const { reconcilePayment, loading, error } = usePayment();
-  
-  const [formData, setFormData] = useState<ReconcilePaymentRequest>({
-    reconciliationStatus: 'reconciled',
+    const [formData, setFormData] = useState<ReconcilePaymentRequest>({
+    reconciliationStatus: ReconciliationStatus.RECONCILED,
     notes: ''
   });
 
@@ -83,11 +82,10 @@ const ReconcilePaymentModal: React.FC<ReconcilePaymentModalProps> = ({
             value={formData.reconciliationStatus}
             onChange={handleChange as any}
             label="Reconciliation Status"
-          >
-            <MenuItem value="reconciled">Reconciled</MenuItem>
-            <MenuItem value="unreconciled">Unreconciled</MenuItem>
-            <MenuItem value="disputed">Disputed</MenuItem>
-            <MenuItem value="pending_review">Pending Review</MenuItem>
+          >            <MenuItem value={ReconciliationStatus.RECONCILED}>Reconciled</MenuItem>
+            <MenuItem value={ReconciliationStatus.PARTIAL}>Unreconciled</MenuItem>
+            <MenuItem value={ReconciliationStatus.FAILED}>Disputed</MenuItem>
+            <MenuItem value={ReconciliationStatus.PENDING}>Pending Review</MenuItem>
           </Select>
         </FormControl>
         

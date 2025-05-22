@@ -168,8 +168,7 @@ export const productService = {
       if (data.base_price < 0) {
         throw new Error('Product price cannot be negative');
       }
-      
-      if (!data.supplier_id) {
+        if (!data.supplier_id || data.supplier_id.trim() === '') {
         throw new Error('Supplier ID is required');
       }
       

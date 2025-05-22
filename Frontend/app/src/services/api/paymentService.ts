@@ -14,23 +14,45 @@ export class ApiError extends Error {
   }
 }
 
-export type PaymentMethod = 'credit_card' | 'bank_transfer' | 'cash' | 'check' | 'paypal' | 'stripe' | 'other';
-export type PaymentType = 'order_payment' | 'invoice_payment' | 'refund' | 'advance_payment' | 'adjustment';
-export type ReconciliationStatus = 'unreconciled' | 'reconciled' | 'disputed' | 'pending_review';
+export enum PaymentMethod {
+  CREDIT_CARD = 'credit_card',
+  BANK_TRANSFER = 'bank_transfer',
+  CASH = 'cash',
+  CHECK = 'check',
+  PAYPAL = 'paypal',
+  STRIPE = 'stripe',
+  OTHER = 'other'
+}
+
+export enum PaymentType {
+  ORDER_PAYMENT = 'order_payment',
+  INVOICE_PAYMENT = 'invoice_payment',
+  REFUND = 'refund',
+  ADVANCE_PAYMENT = 'advance_payment',
+  ADJUSTMENT = 'adjustment'
+}
+
+export enum ReconciliationStatus {
+  PENDING = 'pending_review',
+  RECONCILED = 'reconciled',
+  FAILED = 'disputed',
+  PARTIAL = 'unreconciled'
+}
 
 export interface Payment {
   id: string;
   transactionId: string;
+  referenceNumber?: string; // Added for consistent property naming
   orderId?: string;
   invoiceId?: string;
   customerId: string;
+  customerName?: string; // Added for customer name display
   amount: number;
   paymentMethod: PaymentMethod;
   paymentType: PaymentType;
-  paymentDate: string;
+  paymentDate: string;  reconciliationStatus: ReconciliationStatus;
   externalReferenceId?: string;
   notes?: string;
-  reconciliationStatus: ReconciliationStatus;
   reconciliationDate?: string;
   reconciledById?: string;
   reconciledBy?: {

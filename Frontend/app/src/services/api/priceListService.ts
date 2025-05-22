@@ -114,11 +114,25 @@ export interface CsvUploadResponse {
 }
 
 /**
+ * Helper function to get current company ID
+ */
+function getCurrentCompanyId(): string | undefined {
+  // This function should retrieve the company ID from your app context/state
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  return user.companyId || user.company_id || undefined;
+}
+
+/**
  * Create a new price list
  */
 export const createPriceList = async (priceListData: CreatePriceListRequest): Promise<ApiResponse<PriceList>> => {
   try {
-    const response = await post<ApiResponse<PriceList>>('/api/v1/price-list', priceListData);
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
+    
+    const response = await post<ApiResponse<PriceList>>(`/price-list/company/${companyId}`, priceListData);
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError;
@@ -135,7 +149,12 @@ export const createPriceList = async (priceListData: CreatePriceListRequest): Pr
  */
 export const getPriceLists = async (filters?: PriceListFilters): Promise<ApiResponse<PriceList[]>> => {
   try {
-    const response = await get<ApiResponse<PriceList[]>>('/api/v1/price-list', { params: filters });
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
+    
+    const response = await get<ApiResponse<PriceList[]>>(`/price-list/company/${companyId}`, { params: filters });
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError;
@@ -152,7 +171,12 @@ export const getPriceLists = async (filters?: PriceListFilters): Promise<ApiResp
  */
 export const getPriceListById = async (priceListId: string): Promise<ApiResponse<PriceList>> => {
   try {
-    const response = await get<ApiResponse<PriceList>>(`/api/v1/price-list/${priceListId}`);
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
+    
+    const response = await get<ApiResponse<PriceList>>(`/price-list/company/${companyId}/${priceListId}`);
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError;
@@ -169,7 +193,12 @@ export const getPriceListById = async (priceListId: string): Promise<ApiResponse
  */
 export const updatePriceList = async (priceListId: string, priceListData: Partial<PriceList>): Promise<ApiResponse<PriceList>> => {
   try {
-    const response = await put<ApiResponse<PriceList>>(`/api/v1/price-list/${priceListId}`, priceListData);
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
+    
+    const response = await put<ApiResponse<PriceList>>(`/price-list/company/${companyId}/${priceListId}`, priceListData);
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError;
@@ -186,7 +215,12 @@ export const updatePriceList = async (priceListId: string, priceListData: Partia
  */
 export const deletePriceList = async (priceListId: string): Promise<ApiResponse<void>> => {
   try {
-    const response = await del<ApiResponse<void>>(`/api/v1/price-list/${priceListId}`);
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
+    
+    const response = await del<ApiResponse<void>>(`/price-list/company/${companyId}/${priceListId}`);
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError;
@@ -203,8 +237,13 @@ export const deletePriceList = async (priceListId: string): Promise<ApiResponse<
  */
 export const uploadPriceListCsv = async (priceListId: string, file: File): Promise<ApiResponse<CsvUploadResponse>> => {
   try {
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
+    
     const response = await uploadFile<ApiResponse<CsvUploadResponse>>(
-      `/api/v1/price-list/${priceListId}/import-csv`,
+      `/price-list/company/${companyId}/${priceListId}/import-csv`,
       file
     );
     return response.data;
@@ -223,7 +262,12 @@ export const uploadPriceListCsv = async (priceListId: string, file: File): Promi
  */
 export const downloadPriceListTemplate = async (): Promise<Blob> => {
   try {
-    const response = await getFile('/api/v1/price-list/template-csv');
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
+    
+    const response = await getFile(`/price-list/company/${companyId}/template-csv`);
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError;
@@ -240,7 +284,12 @@ export const downloadPriceListTemplate = async (): Promise<Blob> => {
  */
 export const exportPriceListToCsv = async (priceListId: string): Promise<Blob> => {
   try {
-    const response = await getFile(`/api/v1/price-list/${priceListId}/export-csv`);
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
+    
+    const response = await getFile(`/price-list/company/${companyId}/${priceListId}/export-csv`);
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError;

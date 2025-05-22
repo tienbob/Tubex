@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Box, 
-  Button, 
   Typography, 
   TextField,
   InputAdornment,
@@ -15,9 +14,10 @@ import {
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
-import DataTable, { Column } from '../DataTable';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { productService } from '../../../services/api';
+import WhiteLabelButton from '../WhiteLabelButton';
+import DataTable from '../DataTable';
 
 interface ProductListProps {
   companyId?: string;
@@ -158,127 +158,199 @@ const ProductList: React.FC<ProductListProps> = ({
     }).format(amount);
   };
 
-  // Define columns for the products table
-  const columns: Column[] = [
-    { 
-      id: 'name', 
-      label: 'Product Name', 
-      minWidth: 200
+  // Define the columns for the data table
+  const tableColumns = [
+    {
+      id: 'name',
+      label: 'Product Name',
+      type: 'text' as const,
+      sortable: true,
+      filterable: true,
     },
-    { 
-      id: 'sku', 
-      label: 'SKU', 
-      minWidth: 120
+    {
+      id: 'sku',
+      label: 'SKU',
+      type: 'text' as const,
+      sortable: true,
     },
     {
       id: 'category',
       label: 'Category',
-      minWidth: 150,
-      format: (value) => value?.name || 'N/A'
+      type: 'text' as const,
+      sortable: true,
+      filterable: true,
+      render: (value: any, row: any) => row.category?.name || 'Uncategorized',
     },
     {
-      id: 'price',
+      id: 'base_price',
       label: 'Price',
-      minWidth: 100,
-      align: 'right',
-      format: (value) => formatCurrency(value)
+      type: 'currency' as const,
+      sortable: true,
+      align: 'right' as const,
+    },
+    {
+      id: 'inventory',
+      label: 'Stock',
+      type: 'number' as const,
+      sortable: true,
+      align: 'right' as const,
+      render: (value: any, row: any) => row.inventory?.quantity || 0,
     },
     {
       id: 'status',
       label: 'Status',
-      minWidth: 120,
-      format: (value) => getStatusChip(value)
-    }
+      type: 'status' as const,
+      sortable: true,
+      filterable: true,
+      render: (value: string) =>  getStatusChip(value),
+    },
   ];
 
+  // Row actions similar to Odoo's action menu
+  const rowActions = [
+    {
+      id: 'edit',
+      label: 'Edit',
+      onClick: (row: any) => onEditProduct && onEditProduct(row.id),
+    },
+    {
+      id: 'view',
+      label: 'View Details',
+      onClick: (row: any) => onEditProduct && onEditProduct(row.id),
+    },
+    {
+      id: 'divider1',
+      label: '',
+      onClick: () => {},
+      divider: true,
+    },
+    {
+      id: 'deactivate',
+      label: 'Change Status',
+      onClick: (row: any) => {
+        // Handle status change
+        const newStatus = row.status === 'active' ? 'inactive' : 'active';
+        productService.updateProduct(row.id, { status: newStatus })
+          .then(() => {
+            fetchProducts();
+          })
+          .catch(err => {
+            console.error('Failed to update product status', err);
+            setError('Failed to update product status');
+          });
+      },
+    },
+  ];
+
+  // Bulk actions like in Odoo
+  const bulkActions = [
+    {
+      id: 'activate',
+      label: 'Activate',
+      onClick: (selectedRows: any[]) => {
+        // Handle bulk activate
+        console.log('Bulk activate', selectedRows);
+      },
+    },
+    {
+      id: 'deactivate',
+      label: 'Deactivate',
+      onClick: (selectedRows: any[]) => {
+        // Handle bulk deactivate
+        console.log('Bulk deactivate', selectedRows);
+      },
+    },
+  ];
+
+  // Filter panel in Odoo style
+  const filterPanel = (
+    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+      <TextField
+        size="small"
+        placeholder="Search products..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        onKeyPress={handleSearchKeyPress}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon />
+            </InputAdornment>
+          ),
+        }}
+        sx={{ flexGrow: 1, minWidth: '200px' }}
+      />
+      
+      <FormControl sx={{ minWidth: 150 }} size="small">
+        <InputLabel id="category-filter-label">Category</InputLabel>
+        <Select
+          labelId="category-filter-label"
+          value={selectedCategory}
+          onChange={handleCategoryChange}
+          label="Category"
+        >
+          <MenuItem value="">All Categories</MenuItem>
+          {categories.map((category) => (
+            <MenuItem key={category.id} value={category.id}>
+              {category.name}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+      
+      <FormControl sx={{ minWidth: 120 }} size="small">
+        <InputLabel id="status-filter-label">Status</InputLabel>
+        <Select
+          labelId="status-filter-label"
+          value={selectedStatus}
+          onChange={handleStatusChange}
+          label="Status"
+        >
+          <MenuItem value="">All Status</MenuItem>
+          <MenuItem value="active">Active</MenuItem>
+          <MenuItem value="inactive">Inactive</MenuItem>
+          <MenuItem value="out_of_stock">Out of Stock</MenuItem>
+          <MenuItem value="discontinued">Discontinued</MenuItem>
+        </Select>
+      </FormControl>
+    </Box>
+  );
+
   return (
-    <Box sx={{ maxHeight }}>
-      <Box sx={{ mb: 3, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, justifyContent: 'space-between', alignItems: { xs: 'stretch', md: 'center' } }}>
-        <Typography variant="h6" component="h2">
-          Products
-        </Typography>
+    <Box>
+      {/* Page header with title and actions */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h5">Products</Typography>
+        {!hideActions && onAddProduct && (
+          <WhiteLabelButton
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={onAddProduct}
+          >
+            Add Product
+          </WhiteLabelButton>
+        )}
+      </Box>
 
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
-          <TextField
-            placeholder="Search products..."
-            size="small"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyPress={handleSearchKeyPress}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-              endAdornment: searchTerm && (
-                <InputAdornment position="end">
-                  <Button size="small" onClick={() => {
-                    setSearchTerm('');
-                    if (!searchTerm) return;
-                    // Only trigger a new search if there was a previous search term
-                    setTimeout(() => handleSearch(), 0);
-                  }}>
-                    Clear
-                  </Button>
-                </InputAdornment>
-              ),
-            }}
-          />
-
-          <FormControl sx={{ minWidth: 120 }} size="small">
-            <InputLabel id="category-filter-label">Category</InputLabel>
-            <Select
-              labelId="category-filter-label"
-              value={selectedCategory}
-              onChange={handleCategoryChange}
-              label="Category"
-            >
-              <MenuItem value="">All Categories</MenuItem>
-              {categories.map((category) => (
-                <MenuItem key={category.id} value={category.id}>
-                  {category.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          
-          <FormControl sx={{ minWidth: 120 }} size="small">
-            <InputLabel id="status-filter-label">Status</InputLabel>
-            <Select
-              labelId="status-filter-label"
-              value={selectedStatus}
-              onChange={handleStatusChange}
-              label="Status"
-            >
-              <MenuItem value="">All Status</MenuItem>
-              <MenuItem value="active">Active</MenuItem>
-              <MenuItem value="inactive">Inactive</MenuItem>
-              <MenuItem value="out_of_stock">Out of Stock</MenuItem>
-              <MenuItem value="discontinued">Discontinued</MenuItem>
-            </Select>
-          </FormControl>
-          
-          {!hideActions && onAddProduct && (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={onAddProduct}
-              sx={buttonStyle}
-            >
-              Add Product
-            </Button>
-          )}
-        </Box>
+      {/* Filter panel */}
+      <Box sx={{ mb: 2 }}>
+        {filterPanel}
       </Box>
 
       <DataTable
-        columns={columns}
+        columns={tableColumns.map(col => ({
+          id: col.id,
+          label: col.label,
+          align: col.align,
+          minWidth: col.id === 'name' ? 200 : undefined,
+          format: col.render || undefined
+        }))}
         data={products}
         loading={loading}
         error={error}
+        emptyMessage="No products found"
         onRowClick={(row) => onEditProduct && onEditProduct(row.id)}
-        pagination={{
+        pagination={totalCount > 0 ? {
           page,
           totalCount,
           rowsPerPage,
@@ -286,8 +358,8 @@ const ProductList: React.FC<ProductListProps> = ({
           onRowsPerPageChange: (newRowsPerPage) => {
             setRowsPerPage(newRowsPerPage);
             setPage(0);
-          },
-        }}
+          }
+        } : undefined}
       />
     </Box>
   );

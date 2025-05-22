@@ -14,15 +14,15 @@ export class ApiError extends Error {
   }
 }
 
-// API Response interface
+// API Response interface (updated to match paymentService)
 export interface ApiResponse<T> {
+  success: boolean;
   data: T;
-  status?: string;
   message?: string;
   pagination?: {
-    total: number;
     page: number;
     limit: number;
+    totalItems: number;
     totalPages: number;
   };
 }
@@ -68,13 +68,12 @@ export interface Invoice {
   companyId?: string;
   customerId: string;
   orderId?: string;
-  items: InvoiceItem[];
-  subtotal?: number;
+  items: InvoiceItem[];  subtotal?: number;
   discountTotal?: number;
   taxTotal?: number;
   total?: number;
   issueDate?: string;
-  dueDate?: string;
+  dueDate: string;
   status?: InvoiceStatus;
   paymentTerm: PaymentTerm;
   billingAddress: string;
@@ -113,89 +112,150 @@ export interface InvoiceFilters {
   maxAmount?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  companyId?: string;
+}
+
+// Helper function to get current company ID
+function getCurrentCompanyId(): string | undefined {
+  // This function should retrieve the company ID from your app context/state
+  // For example, from your auth context or localStorage
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  return user.companyId || user.company_id || undefined;
 }
 
 /**
  * Create a new invoice
  */
-export const createInvoice = async (invoiceData: CreateInvoiceRequest): Promise<ApiResponse<Invoice>> => {  try {
-    const response = await post<ApiResponse<Invoice>>('/invoices', invoiceData);
-    return response.data;
+export const createInvoice = async (invoiceData: CreateInvoiceRequest): Promise<Invoice> => {
+  try {
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
+    const response = await post<ApiResponse<Invoice>>(`/invoices/company/${companyId}`, invoiceData);
+    return response.data.data;
   } catch (error) {
     const axiosError = error as AxiosError;
-    throw new ApiError(
-      'Failed to create invoice',
-      axiosError.response?.status || 500,
-      axiosError.response?.data
-    );
+    if (axiosError.response) {
+      throw new ApiError(
+        (axiosError.response.data as any)?.message || 'Failed to create invoice',
+        axiosError.response.status,
+        axiosError.response.data
+      );
+    }
+    throw new ApiError('Failed to create invoice', 500);
   }
 };
 
 /**
  * Get all invoices with optional filters
  */
-export const getInvoices = async (filters?: InvoiceFilters): Promise<ApiResponse<Invoice[]>> => {
+export const getInvoices = async (filters?: InvoiceFilters): Promise<{ data: Invoice[]; pagination: ApiResponse<Invoice[]>['pagination'] }> => {
   try {
-    const response = await get<ApiResponse<Invoice[]>>('/invoices', { params: filters });
-    return response.data;
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
+    const response = await get<ApiResponse<Invoice[]>>(`/invoices/company/${companyId}`, { 
+      params: {
+        limit: 10,
+        page: 1,
+        ...filters
+      } 
+    });
+    return {
+      data: response.data.data,
+      pagination: response.data.pagination || {
+        page: 1,
+        limit: 10,
+        totalItems: response.data.data.length,
+        totalPages: 1
+      }
+    };
   } catch (error) {
     const axiosError = error as AxiosError;
-    throw new ApiError(
-      'Failed to fetch invoices',
-      axiosError.response?.status || 500,
-      axiosError.response?.data
-    );
+    if (axiosError.response) {
+      throw new ApiError(
+        (axiosError.response.data as any)?.message || 'Failed to fetch invoices',
+        axiosError.response.status,
+        axiosError.response.data
+      );
+    }
+    throw new ApiError('Failed to fetch invoices', 500);
   }
 };
 
 /**
  * Get a single invoice by ID
  */
-export const getInvoiceById = async (invoiceId: string): Promise<ApiResponse<Invoice>> => {
+export const getInvoiceById = async (id: string): Promise<Invoice> => {
   try {
-    const response = await get<ApiResponse<Invoice>>(`/invoices/${invoiceId}`);
-    return response.data;
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
+    const response = await get<ApiResponse<Invoice>>(`/invoices/company/${companyId}/${id}`);
+    return response.data.data;
   } catch (error) {
     const axiosError = error as AxiosError;
-    throw new ApiError(
-      'Failed to fetch invoice',
-      axiosError.response?.status || 500,
-      axiosError.response?.data
-    );
+    if (axiosError.response) {
+      throw new ApiError(
+        (axiosError.response.data as any)?.message || 'Failed to fetch invoice',
+        axiosError.response.status,
+        axiosError.response.data
+      );
+    }
+    throw new ApiError('Failed to fetch invoice', 500);
   }
 };
 
 /**
  * Update an existing invoice
  */
-export const updateInvoice = async (invoiceId: string, invoiceData: Partial<Invoice>): Promise<ApiResponse<Invoice>> => {
+export const updateInvoice = async (invoiceId: string, invoiceData: Partial<Invoice>): Promise<Invoice> => {
   try {
-    const response = await put<ApiResponse<Invoice>>(`/invoices/${invoiceId}`, invoiceData);
-    return response.data;
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
+    const response = await put<ApiResponse<Invoice>>(`/invoices/company/${companyId}/${invoiceId}`, invoiceData);
+    return response.data.data;
   } catch (error) {
     const axiosError = error as AxiosError;
-    throw new ApiError(
-      'Failed to update invoice',
-      axiosError.response?.status || 500,
-      axiosError.response?.data
-    );
+    if (axiosError.response) {
+      throw new ApiError(
+        (axiosError.response.data as any)?.message || 'Failed to update invoice',
+        axiosError.response.status,
+        axiosError.response.data
+      );
+    }
+    throw new ApiError('Failed to update invoice', 500);
   }
 };
 
 /**
  * Delete an invoice
  */
-export const deleteInvoice = async (invoiceId: string): Promise<ApiResponse<void>> => {
+export const deleteInvoice = async (invoiceId: string): Promise<void> => {
   try {
-    const response = await del<ApiResponse<void>>(`/invoices/${invoiceId}`);
-    return response.data;
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
+    await del<ApiResponse<void>>(`/invoices/company/${companyId}/${invoiceId}`);
   } catch (error) {
     const axiosError = error as AxiosError;
-    throw new ApiError(
-      'Failed to delete invoice',
-      axiosError.response?.status || 500,
-      axiosError.response?.data
-    );
+    if (axiosError.response) {
+      throw new ApiError(
+        (axiosError.response.data as any)?.message || 'Failed to delete invoice',
+        axiosError.response.status,
+        axiosError.response.data
+      );
+    }
+    throw new ApiError('Failed to delete invoice', 500);
   }
 };
 
@@ -204,7 +264,11 @@ export const deleteInvoice = async (invoiceId: string): Promise<ApiResponse<void
  */
 export const generateInvoicePdf = async (invoiceId: string): Promise<Blob> => {
   try {
-    const response = await getFile(`/invoices/${invoiceId}/pdf`);
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
+    const response = await getFile(`/invoices/company/${companyId}/${invoiceId}/pdf`);
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError;
@@ -225,17 +289,24 @@ export const markInvoiceAsPaid = async (invoiceId: string, paymentData: {
   paymentMethod: string,
   transactionId?: string,
   notes?: string
-}): Promise<ApiResponse<Invoice>> => {
+}): Promise<Invoice> => {
   try {
-    const response = await put<ApiResponse<Invoice>>(`/invoices/${invoiceId}/pay`, paymentData);
-    return response.data;
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
+    const response = await put<ApiResponse<Invoice>>(`/invoices/company/${companyId}/${invoiceId}/pay`, paymentData);
+    return response.data.data;
   } catch (error) {
     const axiosError = error as AxiosError;
-    throw new ApiError(
-      'Failed to mark invoice as paid',
-      axiosError.response?.status || 500,
-      axiosError.response?.data
-    );
+    if (axiosError.response) {
+      throw new ApiError(
+        (axiosError.response.data as any)?.message || 'Failed to mark invoice as paid',
+        axiosError.response.status,
+        axiosError.response.data
+      );
+    }
+    throw new ApiError('Failed to mark invoice as paid', 500);
   }
 };
 
@@ -247,19 +318,26 @@ export const sendInvoiceByEmail = async (invoiceId: string, emailData: {
   subject?: string,
   message?: string,
   ccEmails?: string[]
-}): Promise<ApiResponse<{ success: boolean, message: string }>> => {
+}): Promise<{ success: boolean; message: string }> => {
   try {
-    const response = await post<ApiResponse<{ success: boolean, message: string }>>(
-      `/invoices/${invoiceId}/send`, 
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
+    const response = await post<ApiResponse<{ success: boolean; message: string }>>(
+      `/invoices/company/${companyId}/${invoiceId}/send`, 
       emailData
     );
-    return response.data;
+    return response.data.data;
   } catch (error) {
     const axiosError = error as AxiosError;
-    throw new ApiError(
-      'Failed to send invoice by email',
-      axiosError.response?.status || 500,
-      axiosError.response?.data
-    );
+    if (axiosError.response) {
+      throw new ApiError(
+        (axiosError.response.data as any)?.message || 'Failed to send invoice by email',
+        axiosError.response.status,
+        axiosError.response.data
+      );
+    }
+    throw new ApiError('Failed to send invoice by email', 500);
   }
 };

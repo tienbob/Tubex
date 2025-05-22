@@ -96,20 +96,47 @@ const CreateOrderForm: React.FC<CreateOrderFormProps> = ({
       setProductLoading(false);
     }
   };
-
-  // Fixing the property name for warehouseService.getWarehouses
+  // Fixing the warehouse data extraction from API response
   const fetchWarehouses = async () => {
     setWarehouseLoading(true);
     try {
       const response = await warehouseService.getWarehouses(companyId); // Pass companyId directly
-      setWarehouses(response.data || []); // Adjusted to use 'data'
+      console.log('Warehouse API response:', response);
+      
+      // Handle different potential response structures
+      let warehousesList: Array<any> = [];
+      
+      // If response.data is an array
+      if (Array.isArray(response.data)) {
+        warehousesList = response.data;
+      } 
+      // If response.data contains a warehouses property that is an array
+      else if (response.data && typeof response.data === 'object' && 'warehouses' in response.data && 
+              Array.isArray((response.data as any).warehouses)) {
+        warehousesList = (response.data as any).warehouses;
+      }
+      // If response.data.data contains the warehouses array
+      else if (response.data && typeof response.data === 'object' && 'data' in response.data && 
+              Array.isArray((response.data as any).data)) {
+        warehousesList = (response.data as any).data;
+      }
+      // Default to empty array if no matching structure is found
+      else {
+        console.error('Unexpected API response format:', response);
+        warehousesList = [];
+      }
+      
+      // Set warehouses state with the extracted array
+      setWarehouses(warehousesList);
 
       // Set default warehouse if available
-      if (response.data && response.data.length > 0) {
-        setFormData(prev => ({ ...prev, warehouse_id: response.data[0].id }));
+      if (warehousesList.length > 0) {
+        setFormData(prev => ({ ...prev, warehouse_id: warehousesList[0].id }));
       }
     } catch (err: any) {
       console.error('Error fetching warehouses:', err);
+      // Always set warehouses to an empty array on error
+      setWarehouses([]);
     } finally {
       setWarehouseLoading(false);
     }
@@ -461,12 +488,13 @@ const CreateOrderForm: React.FC<CreateOrderFormProps> = ({
               label="Warehouse"
               onChange={(e) => handleFormChange('warehouse_id', e.target.value)}
               disabled={warehouseLoading}
-            >
-              {warehouses.map(warehouse => (
+            >              {Array.isArray(warehouses) ? warehouses.map(warehouse => (
                 <MenuItem key={warehouse.id} value={warehouse.id}>
                   {warehouse.name}
                 </MenuItem>
-              ))}
+              )) : (
+                <MenuItem value="">No warehouses available</MenuItem>
+              )}
             </Select>
             {formErrors['warehouse_id'] && (
               <FormHelperText>{formErrors['warehouse_id']}</FormHelperText>

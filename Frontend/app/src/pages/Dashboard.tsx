@@ -281,486 +281,481 @@ const Dashboard: React.FC = () => {
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-        {/* Welcome Header */}
-        <Box>
-          <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
-            <Typography component="h1" variant="h4" color="primary" gutterBottom>
-              Welcome to Tubex Dashboard
-            </Typography>
-            <Typography variant="body1">
-              Manage your inventory, products, orders, and employees from this central dashboard.
-            </Typography>
-          </Paper>
-        </Box>
+      {/* Sticky Dashboard Header */}
+      <Box position="sticky" top={0} zIndex={10} bgcolor="background.paper" boxShadow={1} borderRadius={2} px={{ xs: 2, md: 4 }} py={2} mb={3}>
+        <Typography component="h1" variant="h4" color="primary.main" fontWeight={700}>
+          Tubex Dashboard
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          Manage your inventory, products, orders, and employees from this central dashboard.
+        </Typography>
+      </Box>
 
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {/* Dashboard Tabs */}
-        <Box>
-          <Paper sx={{ width: '100%' }}>
-            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-              <Tabs 
-                value={value} 
-                onChange={handleChange} 
-                aria-label="dashboard tabs"
-                variant="scrollable"
-                scrollButtons="auto"
-              >
-                <Tab label="Overview" {...a11yProps(0)} />
-                <Tab label="User Management" {...a11yProps(1)} />
-                <Tab label="Products" {...a11yProps(2)} />
-                <Tab label="Orders" {...a11yProps(3)} />
-                <Tab label="Inventory" {...a11yProps(4)} />
-              </Tabs>
+        <Paper sx={{ width: '100%', borderRadius: 3, boxShadow: 2, p: { xs: 1, md: 2 } }}>
+          <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'grey.50', borderRadius: 2 }}>
+            <Tabs 
+              value={value} 
+              onChange={handleChange} 
+              aria-label="dashboard tabs"
+              variant="scrollable"
+              scrollButtons="auto"
+            >
+              <Tab label="Overview" {...a11yProps(0)} />
+              <Tab label="User Management" {...a11yProps(1)} />
+              <Tab label="Products" {...a11yProps(2)} />
+              <Tab label="Orders" {...a11yProps(3)} />
+              <Tab label="Inventory" {...a11yProps(4)} />
+            </Tabs>
+          </Box>
+
+          {/* Overview Tab */}
+          <TabPanel value={value} index={0}>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+                <Button 
+                  size="small" 
+                  sx={{ ml: 2 }} 
+                  onClick={() => fetchDashboardData()}
+                >
+                  Retry
+                </Button>
+              </Alert>
+            )}
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, justifyContent: { xs: 'center', md: 'flex-start' } }}>
+                {/* Orders Summary */}
+                <Box sx={{ flex: '1 1 320px', minWidth: 260 }}>
+                  <Paper sx={{ p: 3, borderRadius: 3, bgcolor: 'grey.100', height: 240, display: 'flex', flexDirection: 'column', justifyContent: 'center', boxShadow: 0 }}>
+                    <Typography variant="subtitle1" fontWeight={700} color="primary.main" gutterBottom>
+                      Recent Orders
+                    </Typography>
+                    {orderSummary ? (
+                      <Box>
+                        <Typography variant="body2">
+                          <strong>Total Orders:</strong> {orderSummary.totalOrders || 0}
+                        </Typography>
+                        <Typography variant="body2">
+                          <strong>Pending Orders:</strong> {orderSummary.pendingOrders || 0}
+                        </Typography>
+                        {orderSummary.recentOrders?.length > 0 ? (
+                          <Typography variant="body2" sx={{ mt: 2 }}>
+                            <strong>Latest:</strong> {orderSummary.recentOrders[0]?.customer || 'N/A'} - ${orderSummary.recentOrders[0]?.total || 0}
+                          </Typography>
+                        ) : (
+                          <Typography variant="body2" sx={{ mt: 2 }}>No recent orders</Typography>
+                        )}
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">No order data available</Typography>
+                    )}
+                  </Paper>
+                </Box>
+                {/* Products Summary */}
+                <Box sx={{ flex: '1 1 320px', minWidth: 260 }}>
+                  <Paper sx={{ p: 3, borderRadius: 3, bgcolor: 'grey.100', height: 240, display: 'flex', flexDirection: 'column', justifyContent: 'center', boxShadow: 0 }}>
+                    <Typography variant="subtitle1" fontWeight={700} color="primary.main" gutterBottom>
+                      Products
+                    </Typography>
+                    {productSummary ? (
+                      <Box>
+                        <Typography variant="body2">
+                          <strong>Total Products:</strong> {productSummary.totalProducts || 0}
+                        </Typography>
+                        <Typography variant="body2" sx={{ mt: 2 }}>
+                          <strong>Featured Products:</strong>
+                        </Typography>
+                        {productSummary.featuredProducts?.length > 0 ? (
+                          <Box>
+                            {productSummary.featuredProducts.slice(0, 2).map((product: any) => (
+                              <Typography key={product.id} variant="body2">
+                                {product.name} - ${product.price}
+                              </Typography>
+                            ))}
+                          </Box>
+                        ) : (
+                          <Typography variant="body2">No featured products</Typography>
+                        )}
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">No product data available</Typography>
+                    )}
+                  </Paper>
+                </Box>
+                {/* Inventory Summary */}
+                <Box sx={{ flex: '1 1 320px', minWidth: 260 }}>
+                  <Paper sx={{ p: 3, borderRadius: 3, bgcolor: 'grey.100', height: 240, display: 'flex', flexDirection: 'column', justifyContent: 'center', boxShadow: 0 }}>
+                    <Typography variant="subtitle1" fontWeight={700} color="primary.main" gutterBottom>
+                      Inventory Status
+                    </Typography>
+                    {inventorySummary ? (
+                      <Box>
+                        <Typography variant="body2">
+                          <strong>Total Items:</strong> {inventorySummary.totalItems || 0}
+                        </Typography>
+                        <Typography variant="body2">
+                          <strong>Low Stock Items:</strong> {inventorySummary.lowStockItems || 0}
+                        </Typography>
+                        <Typography variant="body2">
+                          <strong>Warehouse Utilization:</strong> {inventorySummary.warehouseUtilization || 0}%
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">No inventory data available</Typography>
+                    )}
+                  </Paper>
+                </Box>
+              </Box>
+            )}
+          </TabPanel>
+          
+          {/* User Management Tab */}
+          <TabPanel value={value} index={1}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <Box>
+                <EmployeeInvitationGenerator companyId={companyId} />
+              </Box>
+              <Box>
+                <PendingEmployeesList onEmployeeStatusChange={() => {}} />
+              </Box>
             </Box>
-              {/* Overview Tab */}
-            <TabPanel value={value} index={0}>              {error && (
+          </TabPanel>
+
+          {/* Products Tab */}
+          <TabPanel value={value} index={2}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Typography variant="h6" fontWeight={700} color="primary.main">Product Management</Typography>
+                <Button 
+                  variant="contained" 
+                  color="primary"
+                  onClick={() => handleNavigation('/products/create')}
+                >
+                  Add New Product
+                </Button>
+              </Box>
+              {activeTabError && (
                 <Alert severity="error" sx={{ mb: 2 }}>
-                  {error}
+                  {activeTabError}
                   <Button 
                     size="small" 
                     sx={{ ml: 2 }} 
-                    onClick={() => fetchDashboardData()}
+                    onClick={() => fetchProducts()}
                   >
                     Retry
                   </Button>
                 </Alert>
               )}
-              
-              {loading ? (
+              {activeTabLoading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
                   <CircularProgress />
                 </Box>
               ) : (
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                  {/* Orders Summary */}
-                  <Box sx={{ flex: '1 1 400px', minWidth: 0 }}>
-                    <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column', height: 240 }}>
-                      <Typography variant="h6" gutterBottom>
-                        Recent Orders
-                      </Typography>
-                      {orderSummary ? (
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="body2">
-                            Total Orders: {orderSummary.totalOrders || 0}
-                          </Typography>
-                          <Typography variant="body2">
-                            Pending Orders: {orderSummary.pendingOrders || 0}
-                          </Typography>
-                          {orderSummary.recentOrders?.length > 0 ? (
-                            <Typography variant="body2" sx={{ mt: 2 }}>
-                              Latest: {orderSummary.recentOrders[0]?.customer || 'N/A'} - ${orderSummary.recentOrders[0]?.total || 0}
-                            </Typography>
-                          ) : (
-                            <Typography variant="body2" sx={{ mt: 2 }}>No recent orders</Typography>
-                          )}
-                        </Box>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">No order data available</Typography>
-                      )}
-                    </Paper>
-                  </Box>
-                  
-                  {/* Products Summary */}
-                  <Box sx={{ flex: '1 1 400px', minWidth: 0 }}>
-                    <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column', height: 240 }}>
-                      <Typography variant="h6" gutterBottom>
-                        Products
-                      </Typography>
-                      {productSummary ? (
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="body2">
-                            Total Products: {productSummary.totalProducts || 0}
-                          </Typography>
-                          <Typography variant="body2" sx={{ mt: 2 }}>
-                            Featured Products:
-                          </Typography>
-                          {productSummary.featuredProducts?.length > 0 ? (
-                            <Box>
-                              {productSummary.featuredProducts.slice(0, 2).map((product: any) => (
-                                <Typography key={product.id} variant="body2">
-                                  {product.name} - ${product.price}
-                                </Typography>
-                              ))}
+                <>
+                  {products.length > 0 ? (
+                    <Paper sx={{ width: '100%', overflow: 'auto', borderRadius: 2, boxShadow: 0 }}>
+                      <Box sx={{ p: 2 }}>
+                        <Typography variant="subtitle1" fontWeight={700} color="primary.main" gutterBottom>
+                          Recent Products
+                        </Typography>
+                        <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <Box component="thead" sx={{ bgcolor: 'grey.50' }}>
+                            <Box component="tr" sx={{ borderBottom: '1px solid #e0e0e0' }}>
+                              <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Name</Box>
+                              <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Price</Box>
+                              <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Status</Box>
+                              <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Actions</Box>
                             </Box>
-                          ) : (
-                            <Typography variant="body2">No featured products</Typography>
-                          )}
+                          </Box>
+                          <Box component="tbody">
+                            {products.map((product) => (
+                              <Box component="tr" key={product.id} sx={{ borderBottom: '1px solid #e0e0e0', transition: 'background 0.2s', '&:hover': { bgcolor: 'grey.100' } }}>
+                                <Box component="td" sx={{ p: 1 }}>{product.name}</Box>
+                                <Box component="td" sx={{ p: 1 }}>${product.base_price}</Box>
+                                <Box component="td" sx={{ p: 1 }}>{product.status}</Box>
+                                <Box component="td" sx={{ p: 1 }}>
+                                  <Button 
+                                    size="small" 
+                                    variant="outlined"
+                                    onClick={() => handleNavigation(`/products/${product.id}`)}
+                                  >
+                                    View
+                                  </Button>
+                                </Box>
+                              </Box>
+                            ))}
+                          </Box>
                         </Box>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">No product data available</Typography>
-                      )}
+                      </Box>
+                      <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button 
+                          onClick={() => handleNavigation('/products')}
+                          color="primary"
+                        >
+                          View All Products
+                        </Button>
+                      </Box>
                     </Paper>
-                  </Box>
-                  
-                  {/* Inventory Summary */}
-                  <Box sx={{ flex: '1 1 400px', minWidth: 0 }}>
-                    <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column', height: 240 }}>
-                      <Typography variant="h6" gutterBottom>
-                        Inventory Status
-                      </Typography>
-                      {inventorySummary ? (
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="body2">
-                            Total Items: {inventorySummary.totalItems || 0}
-                          </Typography>
-                          <Typography variant="body2">
-                            Low Stock Items: {inventorySummary.lowStockItems || 0}
-                          </Typography>
-                          <Typography variant="body2">
-                            Warehouse Utilization: {inventorySummary.warehouseUtilization || 0}%
-                          </Typography>
-                        </Box>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">No inventory data available</Typography>
-                      )}
+                  ) : (
+                    <Paper sx={{ p: 3, textAlign: 'center', borderRadius: 2, boxShadow: 0 }}>
+                      <Typography>No products found</Typography>
+                      <Button 
+                        variant="outlined" 
+                        color="primary" 
+                        sx={{ mt: 2 }}
+                        onClick={() => handleNavigation('/products/create')}
+                      >
+                        Add Your First Product
+                      </Button>
                     </Paper>
-                  </Box>
-                </Box>
+                  )}
+                </>
               )}
-            </TabPanel>
-            
-            {/* User Management Tab */}
-            <TabPanel value={value} index={1}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <Box>
-                  <EmployeeInvitationGenerator companyId={companyId} />
-                </Box>
-                <Box>
-                  <PendingEmployeesList onEmployeeStatusChange={() => console.log('Employee status changed')} />
-                </Box>
+            </Box>
+          </TabPanel>
+
+          {/* Orders Tab */}
+          <TabPanel value={value} index={3}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Typography variant="h6" fontWeight={700} color="primary.main">Order Management</Typography>
+                <Button 
+                  variant="contained" 
+                  color="primary"
+                  onClick={() => handleNavigation('/orders/create')}
+                >
+                  Create New Order
+                </Button>
               </Box>
-            </TabPanel>
-              {/* Products Tab */}
-            <TabPanel value={value} index={2}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="h6">Product Management</Typography>
+              {activeTabError && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {activeTabError}
+                  <Button 
+                    size="small" 
+                    sx={{ ml: 2 }} 
+                    onClick={() => fetchOrders()}
+                  >
+                    Retry
+                  </Button>
+                </Alert>
+              )}
+              {activeTabLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                  <CircularProgress />
+                </Box>
+              ) : (
+                <>
+                  {orders.length > 0 ? (
+                    <Paper sx={{ width: '100%', overflow: 'auto', borderRadius: 2, boxShadow: 0 }}>
+                      <Box sx={{ p: 2 }}>
+                        <Typography variant="subtitle1" fontWeight={700} color="primary.main" gutterBottom>
+                          Recent Orders
+                        </Typography>
+                        <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <Box component="thead" sx={{ bgcolor: 'grey.50' }}>
+                            <Box component="tr" sx={{ borderBottom: '1px solid #e0e0e0' }}>
+                              <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Order ID</Box>
+                              <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Date</Box>
+                              <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Amount</Box>
+                              <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Status</Box>
+                              <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Actions</Box>
+                            </Box>
+                          </Box>
+                          <Box component="tbody">
+                            {orders.map((order) => (
+                              <Box component="tr" key={order.id} sx={{ borderBottom: '1px solid #e0e0e0', transition: 'background 0.2s', '&:hover': { bgcolor: 'grey.100' } }}>
+                                <Box component="td" sx={{ p: 1 }}>#{order.id.slice(-6)}</Box>
+                                <Box component="td" sx={{ p: 1 }}>{new Date(order.createdAt).toLocaleDateString()}</Box>
+                                <Box component="td" sx={{ p: 1 }}>${order.totalAmount}</Box>
+                                <Box component="td" sx={{ p: 1 }}>
+                                  <Box sx={{
+                                    display: 'inline-block',
+                                    px: 1,
+                                    py: 0.5,
+                                    borderRadius: 1,
+                                    fontSize: '0.75rem',
+                                    bgcolor: 
+                                      order.status === 'delivered' ? 'success.light' : 
+                                      order.status === 'cancelled' ? 'error.light' :
+                                      order.status === 'processing' ? 'info.light' : 'warning.light'
+                                  }}>
+                                    {order.status}
+                                  </Box>
+                                </Box>
+                                <Box component="td" sx={{ p: 1 }}>
+                                  <Button 
+                                    size="small" 
+                                    variant="outlined"
+                                    onClick={() => handleNavigation(`/orders/${order.id}`)}
+                                  >
+                                    View
+                                  </Button>
+                                </Box>
+                              </Box>
+                            ))}
+                          </Box>
+                        </Box>
+                      </Box>
+                      <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button 
+                          onClick={() => handleNavigation('/orders')}
+                          color="primary"
+                        >
+                          View All Orders
+                        </Button>
+                      </Box>
+                    </Paper>
+                  ) : (
+                    <Paper sx={{ p: 3, textAlign: 'center', borderRadius: 2, boxShadow: 0 }}>
+                      <Typography>No orders found</Typography>
+                      <Button 
+                        variant="outlined" 
+                        color="primary" 
+                        sx={{ mt: 2 }}
+                        onClick={() => handleNavigation('/orders/create')}
+                      >
+                        Create Your First Order
+                      </Button>
+                    </Paper>
+                  )}
+                </>
+              )}
+            </Box>
+          </TabPanel>
+
+          {/* Inventory Tab */}
+          <TabPanel value={value} index={4}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Typography variant="h6" fontWeight={700} color="primary.main">Inventory Management</Typography>
+                <Box>
                   <Button 
                     variant="contained" 
                     color="primary"
-                    onClick={() => handleNavigation('/products/create')}
+                    onClick={() => handleNavigation('/inventory/create')}
+                    sx={{ mr: 1 }}
                   >
-                    Add New Product
+                    Add Inventory Item
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={() => handleNavigation('/inventory/transfer')}
+                  >
+                    Transfer Stock
                   </Button>
                 </Box>
-                  {activeTabError && (
-                  <Alert severity="error" sx={{ mb: 2 }}>
-                    {activeTabError}
-                    <Button 
-                      size="small" 
-                      sx={{ ml: 2 }} 
-                      onClick={() => fetchProducts()}
-                    >
-                      Retry
-                    </Button>
-                  </Alert>
-                )}
-                
-                {activeTabLoading ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-                    <CircularProgress />
-                  </Box>
-                ) : (
-                  <>
-                    {products.length > 0 ? (
-                      <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-                        <Box sx={{ p: 2 }}>
-                          <Typography variant="subtitle1" gutterBottom>
-                            Recent Products
-                          </Typography>
-                          <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse' }}>
-                            <Box component="thead">
-                              <Box component="tr" sx={{ borderBottom: '1px solid #e0e0e0' }}>
-                                <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Name</Box>
-                                <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Price</Box>
-                                <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Status</Box>
-                                <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Actions</Box>
-                              </Box>
-                            </Box>
-                            <Box component="tbody">
-                              {products.map((product) => (
-                                <Box component="tr" key={product.id} sx={{ borderBottom: '1px solid #e0e0e0' }}>
-                                  <Box component="td" sx={{ p: 1 }}>{product.name}</Box>
-                                  <Box component="td" sx={{ p: 1 }}>${product.base_price}</Box>
-                                  <Box component="td" sx={{ p: 1 }}>{product.status}</Box>
-                                  <Box component="td" sx={{ p: 1 }}>
-                                    <Button 
-                                      size="small" 
-                                      variant="outlined"
-                                      onClick={() => handleNavigation(`/products/${product.id}`)}
-                                    >
-                                      View
-                                    </Button>
-                                  </Box>
-                                </Box>
-                              ))}
-                            </Box>
-                          </Box>
-                        </Box>
-                        <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end' }}>
-                          <Button 
-                            onClick={() => handleNavigation('/products')}
-                            color="primary"
-                          >
-                            View All Products
-                          </Button>
-                        </Box>
-                      </Paper>
-                    ) : (
-                      <Paper sx={{ p: 3, textAlign: 'center' }}>
-                        <Typography>No products found</Typography>
-                        <Button 
-                          variant="outlined" 
-                          color="primary" 
-                          sx={{ mt: 2 }}
-                          onClick={() => handleNavigation('/products/create')}
-                        >
-                          Add Your First Product
-                        </Button>
-                      </Paper>
-                    )}
-                  </>
-                )}
               </Box>
-            </TabPanel>
-              {/* Orders Tab */}
-            <TabPanel value={value} index={3}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="h6">Order Management</Typography>
+              {activeTabError && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {activeTabError}
                   <Button 
-                    variant="contained" 
-                    color="primary"
-                    onClick={() => handleNavigation('/orders/create')}
+                    size="small" 
+                    sx={{ ml: 2 }} 
+                    onClick={() => fetchInventory()}
                   >
-                    Create New Order
+                    Retry
                   </Button>
+                </Alert>
+              )}
+              {activeTabLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                  <CircularProgress />
                 </Box>
-                  {activeTabError && (
-                  <Alert severity="error" sx={{ mb: 2 }}>
-                    {activeTabError}
-                    <Button 
-                      size="small" 
-                      sx={{ ml: 2 }} 
-                      onClick={() => fetchOrders()}
-                    >
-                      Retry
-                    </Button>
-                  </Alert>
-                )}
-                
-                {activeTabLoading ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-                    <CircularProgress />
-                  </Box>
-                ) : (
-                  <>
-                    {orders.length > 0 ? (
-                      <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-                        <Box sx={{ p: 2 }}>
-                          <Typography variant="subtitle1" gutterBottom>
-                            Recent Orders
-                          </Typography>
-                          <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse' }}>
-                            <Box component="thead">
-                              <Box component="tr" sx={{ borderBottom: '1px solid #e0e0e0' }}>
-                                <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Order ID</Box>
-                                <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Date</Box>
-                                <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Amount</Box>
-                                <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Status</Box>
-                                <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Actions</Box>
-                              </Box>
-                            </Box>
-                            <Box component="tbody">
-                              {orders.map((order) => (
-                                <Box component="tr" key={order.id} sx={{ borderBottom: '1px solid #e0e0e0' }}>
-                                  <Box component="td" sx={{ p: 1 }}>#{order.id.slice(-6)}</Box>
-                                  <Box component="td" sx={{ p: 1 }}>{new Date(order.createdAt).toLocaleDateString()}</Box>
-                                  <Box component="td" sx={{ p: 1 }}>${order.totalAmount}</Box>
-                                  <Box component="td" sx={{ p: 1 }}>
-                                    <Box sx={{
-                                      display: 'inline-block',
-                                      px: 1,
-                                      py: 0.5,
-                                      borderRadius: 1,
-                                      fontSize: '0.75rem',
-                                      bgcolor: 
-                                        order.status === 'delivered' ? 'success.light' : 
-                                        order.status === 'cancelled' ? 'error.light' :
-                                        order.status === 'processing' ? 'info.light' : 'warning.light'
-                                    }}>
-                                      {order.status}
-                                    </Box>
-                                  </Box>
-                                  <Box component="td" sx={{ p: 1 }}>
-                                    <Button 
-                                      size="small" 
-                                      variant="outlined"
-                                      onClick={() => handleNavigation(`/orders/${order.id}`)}
-                                    >
-                                      View
-                                    </Button>
-                                  </Box>
-                                </Box>
-                              ))}
+              ) : (
+                <>
+                  {inventory.length > 0 ? (
+                    <Paper sx={{ width: '100%', overflow: 'auto', borderRadius: 2, boxShadow: 0 }}>
+                      <Box sx={{ p: 2 }}>
+                        <Typography variant="subtitle1" fontWeight={700} color="primary.main" gutterBottom>
+                          Current Inventory
+                        </Typography>
+                        <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <Box component="thead" sx={{ bgcolor: 'grey.50' }}>
+                            <Box component="tr" sx={{ borderBottom: '1px solid #e0e0e0' }}>
+                              <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Product</Box>
+                              <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Warehouse</Box>
+                              <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Quantity</Box>
+                              <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Status</Box>
+                              <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Actions</Box>
                             </Box>
                           </Box>
-                        </Box>
-                        <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end' }}>
-                          <Button 
-                            onClick={() => handleNavigation('/orders')}
-                            color="primary"
-                          >
-                            View All Orders
-                          </Button>
-                        </Box>
-                      </Paper>
-                    ) : (
-                      <Paper sx={{ p: 3, textAlign: 'center' }}>
-                        <Typography>No orders found</Typography>
-                        <Button 
-                          variant="outlined" 
-                          color="primary" 
-                          sx={{ mt: 2 }}
-                          onClick={() => handleNavigation('/orders/create')}
-                        >
-                          Create Your First Order
-                        </Button>
-                      </Paper>
-                    )}
-                  </>
-                )}
-              </Box>
-            </TabPanel>
-              {/* Inventory Tab */}
-            <TabPanel value={value} index={4}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="h6">Inventory Management</Typography>
-                  <Box>
-                    <Button 
-                      variant="contained" 
-                      color="primary"
-                      onClick={() => handleNavigation('/inventory/create')}
-                      sx={{ mr: 1 }}
-                    >
-                      Add Inventory Item
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      onClick={() => handleNavigation('/inventory/transfer')}
-                    >
-                      Transfer Stock
-                    </Button>
-                  </Box>
-                </Box>
-                  {activeTabError && (
-                  <Alert severity="error" sx={{ mb: 2 }}>
-                    {activeTabError}
-                    <Button 
-                      size="small" 
-                      sx={{ ml: 2 }} 
-                      onClick={() => fetchInventory()}
-                    >
-                      Retry
-                    </Button>
-                  </Alert>
-                )}
-                
-                {activeTabLoading ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-                    <CircularProgress />
-                  </Box>
-                ) : (
-                  <>
-                    {inventory.length > 0 ? (
-                      <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-                        <Box sx={{ p: 2 }}>
-                          <Typography variant="subtitle1" gutterBottom>
-                            Current Inventory
-                          </Typography>
-                          <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse' }}>
-                            <Box component="thead">
-                              <Box component="tr" sx={{ borderBottom: '1px solid #e0e0e0' }}>
-                                <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Product</Box>
-                                <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Warehouse</Box>
-                                <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Quantity</Box>
-                                <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Status</Box>
-                                <Box component="th" sx={{ p: 1, textAlign: 'left' }}>Actions</Box>
-                              </Box>
-                            </Box>
-                            <Box component="tbody">
-                              {inventory.map((item) => (
-                                <Box component="tr" key={item.id} sx={{ borderBottom: '1px solid #e0e0e0' }}>
-                                  <Box component="td" sx={{ p: 1 }}>{item.product?.name || 'Unknown Product'}</Box>
-                                  <Box component="td" sx={{ p: 1 }}>{item.warehouse?.name || 'Unknown Warehouse'}</Box>
-                                  <Box component="td" sx={{ p: 1 }}>{item.quantity} {item.unit}</Box>
-                                  <Box component="td" sx={{ p: 1 }}>
-                                    <Box sx={{
-                                      display: 'inline-block',
-                                      px: 1,
-                                      py: 0.5,
-                                      borderRadius: 1,
-                                      fontSize: '0.75rem',
-                                      bgcolor: 
-                                        (item.stockStatus?.isLow) ? 'error.light' : 
-                                        (item.quantity === 0) ? 'warning.light' : 'success.light'
-                                    }}>
-                                      {item.stockStatus?.isLow ? 'Low Stock' : 
-                                       item.quantity === 0 ? 'Out of Stock' : 'In Stock'}
-                                    </Box>
-                                  </Box>
-                                  <Box component="td" sx={{ p: 1 }}>
-                                    <Button 
-                                      size="small" 
-                                      variant="outlined"
-                                      onClick={() => handleNavigation(`/inventory/${item.id}`)}
-                                      sx={{ mr: 1 }}
-                                    >
-                                      View
-                                    </Button>
-                                    <Button 
-                                      size="small" 
-                                      variant="outlined"
-                                      color="secondary"
-                                      onClick={() => handleNavigation(`/inventory/${item.id}/adjust`)}
-                                    >
-                                      Adjust
-                                    </Button>
+                          <Box component="tbody">
+                            {inventory.map((item) => (
+                              <Box component="tr" key={item.id} sx={{ borderBottom: '1px solid #e0e0e0', transition: 'background 0.2s', '&:hover': { bgcolor: 'grey.100' } }}>
+                                <Box component="td" sx={{ p: 1 }}>{item.product?.name || 'Unknown Product'}</Box>
+                                <Box component="td" sx={{ p: 1 }}>{item.warehouse?.name || 'Unknown Warehouse'}</Box>
+                                <Box component="td" sx={{ p: 1 }}>{item.quantity} {item.unit}</Box>
+                                <Box component="td" sx={{ p: 1 }}>
+                                  <Box sx={{
+                                    display: 'inline-block',
+                                    px: 1,
+                                    py: 0.5,
+                                    borderRadius: 1,
+                                    fontSize: '0.75rem',
+                                    bgcolor: 
+                                      (item.stockStatus?.isLow) ? 'error.light' : 
+                                      (item.quantity === 0) ? 'warning.light' : 'success.light'
+                                  }}>
+                                    {item.stockStatus?.isLow ? 'Low Stock' : 
+                                     item.quantity === 0 ? 'Out of Stock' : 'In Stock'}
                                   </Box>
                                 </Box>
-                              ))}
-                            </Box>
+                                <Box component="td" sx={{ p: 1 }}>
+                                  <Button 
+                                    size="small" 
+                                    variant="outlined"
+                                    onClick={() => handleNavigation(`/inventory/${item.id}`)}
+                                    sx={{ mr: 1 }}
+                                  >
+                                    View
+                                  </Button>
+                                  <Button 
+                                    size="small" 
+                                    variant="outlined"
+                                    color="secondary"
+                                    onClick={() => handleNavigation(`/inventory/${item.id}/adjust`)}
+                                  >
+                                    Adjust
+                                  </Button>
+                                </Box>
+                              </Box>
+                            ))}
                           </Box>
                         </Box>
-                        <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end' }}>
-                          <Button 
-                            onClick={() => handleNavigation('/inventory')}
-                            color="primary"
-                          >
-                            View All Inventory
-                          </Button>
-                        </Box>
-                      </Paper>
-                    ) : (
-                      <Paper sx={{ p: 3, textAlign: 'center' }}>
-                        <Typography>No inventory items found</Typography>
+                      </Box>
+                      <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end' }}>
                         <Button 
-                          variant="outlined" 
-                          color="primary" 
-                          sx={{ mt: 2 }}
-                          onClick={() => handleNavigation('/inventory/create')}
+                          onClick={() => handleNavigation('/inventory')}
+                          color="primary"
                         >
-                          Add Your First Inventory Item
+                          View All Inventory
                         </Button>
-                      </Paper>
-                    )}
-                  </>
-                )}
-              </Box>
-            </TabPanel>
-          </Paper>
-        </Box>
+                      </Box>
+                    </Paper>
+                  ) : (
+                    <Paper sx={{ p: 3, textAlign: 'center', borderRadius: 2, boxShadow: 0 }}>
+                      <Typography>No inventory items found</Typography>
+                      <Button 
+                        variant="outlined" 
+                        color="primary" 
+                        sx={{ mt: 2 }}
+                        onClick={() => handleNavigation('/inventory/create')}
+                      >
+                        Add Your First Inventory Item
+                      </Button>
+                    </Paper>
+                  )}
+                </>
+              )}
+            </Box>
+          </TabPanel>
+        </Paper>
       </Box>
     </Container>
   );

@@ -9,109 +9,92 @@ import {
   TablePagination,
   Paper,
   Box,
-  CircularProgress,
   Typography,
-  useTheme as useMuiTheme
+  Alert
 } from '@mui/material';
-import { useTheme } from '../../contexts/ThemeContext';
+import TableSkeleton from '../common/TableSkeleton';
 
-// Define the column interface
-export interface Column {
+export interface Column<T = any> {
   id: string;
   label: string;
   minWidth?: number;
-  align?: 'right' | 'left' | 'center';
-  format?: (value: any, row?: any) => React.ReactNode;
+  align?: 'left' | 'right' | 'center';
+  format?: (value: any, row?: T) => React.ReactNode;
 }
 
-// Define pagination interface
-export interface PaginationProps {
+interface Pagination {
   page: number;
   totalCount: number;
   rowsPerPage: number;
-  onPageChange: (page: number) => void;
-  onRowsPerPageChange: (pageSize: number) => void;
+  onPageChange: (newPage: number) => void;
+  onRowsPerPageChange: (rowsPerPage: number) => void;
 }
 
-interface DataTableProps {
-  columns: Column[];
-  data: any[];
+interface DataTableProps<T = any> {
+  columns: Column<T>[];
+  data: T[];
   loading?: boolean;
   error?: string | null;
-  onRowClick?: (row: any) => void;
-  pagination?: PaginationProps;
+  pagination?: Pagination;
   emptyMessage?: string;
-  stickyHeader?: boolean;
-  maxHeight?: string | number;
+  onRowClick?: (row: T) => void;
+  dense?: boolean;
 }
 
-const DataTable: React.FC<DataTableProps> = ({
+const DataTable = React.memo<DataTableProps>(({
   columns,
   data,
   loading = false,
   error = null,
-  onRowClick,
   pagination,
   emptyMessage = 'No data available',
-  stickyHeader = true,
-  maxHeight = 600,
+  onRowClick,
+  dense = false
 }) => {
-  const muiTheme = useMuiTheme();
-  const { theme: whitelabelTheme } = useTheme();
-
-  const handleRowClick = (row: any) => {
-    if (onRowClick) {
-      onRowClick(row);
-    }
-  };
-
-  // Show loading state
-  if (loading && data.length === 0) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
-        <CircularProgress 
-          size={40} 
-          sx={{ 
-            color: whitelabelTheme?.primaryColor || muiTheme.palette.primary.main
-          }} 
-        />
-      </Box>
-    );
+  // Render skeleton while loading
+  if (loading) {
+    return <TableSkeleton 
+      rowCount={pagination?.rowsPerPage || 5} 
+      columnCount={columns.length} 
+      dense={dense}
+    />;
   }
 
-  // Show error state
+  // Render error message if there's an error
   if (error) {
     return (
-      <Box sx={{ textAlign: 'center', py: 4, color: 'error.main' }}>
-        <Typography>{error}</Typography>
-      </Box>
+      <Alert severity="error" sx={{ mb: 2 }}>
+        {error}
+      </Alert>
     );
   }
 
-  // Show empty state
-  if (!loading && data.length === 0) {
+  // Render empty state message if there's no data
+  if (!data || data.length === 0) {
     return (
-      <Box sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
-        <Typography>{emptyMessage}</Typography>
-      </Box>
+      <Paper sx={{ p: 3, textAlign: 'center', mb: 2 }}>
+        <Typography variant="body1" color="text.secondary">
+          {emptyMessage}
+        </Typography>
+      </Paper>
     );
   }
 
   return (
-    <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-      <TableContainer sx={{ maxHeight: maxHeight }}>
-        <Table stickyHeader={stickyHeader} aria-label="data table">
+    <Box>
+      <TableContainer component={Paper} sx={{ mb: pagination ? 0 : 2 }}>
+        <Table 
+          size={dense ? 'small' : 'medium'} 
+          aria-label="data table"
+          sx={{ tableLayout: 'fixed' }}
+        >
           <TableHead>
             <TableRow>
               {columns.map((column) => (
                 <TableCell
                   key={column.id}
-                  align={column.align || 'left'}
-                  style={{ minWidth: column.minWidth, 
-                    backgroundColor: whitelabelTheme?.backgroundColor || muiTheme.palette.background.paper,
-                    color: whitelabelTheme?.textColor || muiTheme.palette.text.primary,
-                    fontWeight: 'bold'
-                  }}
+                  align={column.align}
+                  style={{ minWidth: column.minWidth }}
                 >
                   {column.label}
                 </TableCell>
@@ -119,26 +102,24 @@ const DataTable: React.FC<DataTableProps> = ({
             </TableRow>
           </TableHead>
           <TableBody>
-            {data.map((row, index) => {
+            {data.map((row, rowIndex) => {
               return (
                 <TableRow
                   hover
-                  tabIndex={-1}
-                  key={row.id || index}
-                  onClick={() => handleRowClick(row)}
-                  sx={{
-                    cursor: onRowClick ? 'pointer' : 'default', 
-                    '&:hover': {
-                      backgroundColor: onRowClick ? 
-                        `${whitelabelTheme?.primaryColor || muiTheme.palette.primary.main}10` : 
-                        undefined
-                    }
+                  key={row.id || rowIndex}
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  sx={{ 
+                    '&:last-child td, &:last-child th': { border: 0 }, 
+                    cursor: onRowClick ? 'pointer' : 'default' 
                   }}
+                  role={onRowClick ? 'button' : undefined}
+                  tabIndex={onRowClick ? 0 : undefined}
+                  aria-label={onRowClick ? `View details for ${row.name || `item ${rowIndex + 1}`}` : undefined}
                 >
                   {columns.map((column) => {
                     const value = row[column.id];
                     return (
-                      <TableCell key={column.id} align={column.align || 'left'}>
+                      <TableCell key={column.id} align={column.align}>
                         {column.format ? column.format(value, row) : value}
                       </TableCell>
                     );
@@ -149,22 +130,21 @@ const DataTable: React.FC<DataTableProps> = ({
           </TableBody>
         </Table>
       </TableContainer>
-      
       {pagination && (
         <TablePagination
-          rowsPerPageOptions={[5, 10, 25, 50, 100]}
+          rowsPerPageOptions={[5, 10, 25]}
           component="div"
           count={pagination.totalCount}
           rowsPerPage={pagination.rowsPerPage}
           page={pagination.page}
           onPageChange={(_, newPage) => pagination.onPageChange(newPage)}
-          onRowsPerPageChange={(e) => 
-            pagination.onRowsPerPageChange(parseInt(e.target.value, 10))
-          }
+          onRowsPerPageChange={(event) => pagination.onRowsPerPageChange(parseInt(event.target.value, 10))}
+          labelDisplayedRows={({ from, to, count }) => `${from}-${to} of ${count !== -1 ? count : `more than ${to}`}`}
+          labelRowsPerPage="Rows per page:"
         />
       )}
-    </Paper>
+    </Box>
   );
-};
+});
 
 export default DataTable;

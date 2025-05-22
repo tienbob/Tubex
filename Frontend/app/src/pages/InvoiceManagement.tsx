@@ -1,120 +1,82 @@
-// InvoiceManagement.tsx
-import React, { useEffect, useState } from 'react';
-import { getInvoices, Invoice, createInvoice, CreateInvoiceRequest, PaymentTerm } from '../services/api/invoiceService';
-import { DataTable } from '../components/whitelabel';
-import { useNavigate } from 'react-router-dom';
-import { Button, Modal, Box, TextField, MenuItem } from '@mui/material';
+import React from 'react';
+import { Box, Container } from '@mui/material';
+import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
+import { InvoiceList, InvoiceDetail, InvoiceForm } from '../components/whitelabel/invoices';
+import Breadcrumbs from '../components/common/Breadcrumbs';
+import { Invoice } from '../services/api/invoiceService';
+
+// Detail View Component
+const InvoiceDetailView: React.FC = () => {
+  const { invoiceId } = useParams<{ invoiceId: string }>();
+  const navigate = useNavigate();
+  
+  const handleEdit = () => {
+    navigate(`/invoices/${invoiceId}/edit`);
+  };
+  
+  return (
+    <InvoiceDetail 
+      invoiceId={invoiceId!} 
+      onEdit={handleEdit} 
+    />
+  );
+};
+
+// Edit View Component
+const InvoiceEditView: React.FC = () => {
+  const { invoiceId } = useParams<{ invoiceId: string }>();
+  const navigate = useNavigate();
+  
+  const handleSave = (invoice: Invoice) => {
+    navigate(`/invoices/${invoice.id}`);
+  };
+  
+  const handleCancel = () => {
+    navigate(`/invoices/${invoiceId}`);
+  };
+  
+  return (
+    <InvoiceForm 
+      invoiceId={invoiceId} 
+      onSave={handleSave} 
+      onCancel={handleCancel} 
+    />
+  );
+};
+
+// Create View Component
+const InvoiceCreateView: React.FC = () => {
+  const navigate = useNavigate();
+  
+  const handleSave = (invoice: Invoice) => {
+    navigate(`/invoices/${invoice.id}`);
+  };
+  
+  const handleCancel = () => {
+    navigate('/invoices');
+  };
+  
+  return (
+    <InvoiceForm 
+      onSave={handleSave} 
+      onCancel={handleCancel} 
+    />
+  );
+};
 
 const InvoiceManagement: React.FC = () => {
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<CreateInvoiceRequest>({ customerId: '', items: [], paymentTerm: PaymentTerm.IMMEDIATE, billingAddress: '' });
-  const [formError, setFormError] = useState<string | null>(null);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    setLoading(true);
-    getInvoices()
-      .then((res) => setInvoices(res.data))
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const handleOpen = () => setOpen(true);
-  const handleClose = () => { setOpen(false); setFormError(null); };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const handleCreate = async () => {
-    setFormError(null);
-    if (!form.customerId || !form.paymentTerm || !form.billingAddress) {
-      setFormError('Customer ID, Payment Term, and Billing Address are required.');
-      return;
-    }
-    try {
-      await createInvoice({ ...form, items: [] }); // Items can be added in a more advanced form
-      setOpen(false);
-      setLoading(true);
-      getInvoices()
-        .then((res) => setInvoices(res.data))
-        .catch((err) => setError(err.message))
-        .finally(() => setLoading(false));
-    } catch (err: any) {
-      setFormError(err.message);
-    }
-  };
-
   return (
-    <div>
-      <h1>Invoice Management</h1>
-      <div style={{ marginBottom: 16 }}>
-        <Button variant="contained" color="primary" onClick={handleOpen} style={{ marginRight: 8 }}>
-          Create Invoice
-        </Button>
-        <Button variant="outlined" onClick={() => navigate('/quotes')} style={{ marginRight: 8 }}>
-          Go to Quotes
-        </Button>
-        <Button variant="outlined" onClick={() => navigate('/pricelists')}>
-          Go to Price Lists
-        </Button>
-      </div>
-      {loading && <p>Loading...</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      <DataTable
-        columns={[
-          { id: 'invoiceNumber', label: 'Invoice #' },
-          { id: 'customerId', label: 'Customer' },
-          { id: 'status', label: 'Status' },
-          { id: 'total', label: 'Total' },
-          { id: 'issueDate', label: 'Issue Date' },
-        ]}
-        data={invoices}
-      />
-      <Modal open={open} onClose={handleClose}>
-        <Box sx={{ p: 4, bgcolor: 'background.paper', maxWidth: 400, mx: 'auto', mt: 10, borderRadius: 2 }}>
-          <h2>Create Invoice</h2>
-          <TextField
-            label="Customer ID"
-            name="customerId"
-            value={form.customerId}
-            onChange={handleChange}
-            fullWidth
-            margin="normal"
-          />
-          <TextField
-            select
-            label="Payment Term"
-            name="paymentTerm"
-            value={form.paymentTerm}
-            onChange={handleChange}
-            fullWidth
-            margin="normal"
-          >
-            {Object.values(PaymentTerm).map((term) => (
-              <MenuItem key={term} value={term}>{term}</MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            label="Billing Address"
-            name="billingAddress"
-            value={form.billingAddress}
-            onChange={handleChange}
-            fullWidth
-            margin="normal"
-          />
-          {/* Items can be added in a more advanced form */}
-          {formError && <p style={{ color: 'red' }}>{formError}</p>}
-          <Box mt={2} display="flex" justifyContent="flex-end">
-            <Button onClick={handleClose} style={{ marginRight: 8 }}>Cancel</Button>
-            <Button variant="contained" color="primary" onClick={handleCreate}>Create</Button>
-          </Box>
-        </Box>
-      </Modal>
-    </div>
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Box sx={{ mb: 3 }}>
+        <Breadcrumbs />
+      </Box>
+      <Routes>
+        <Route path="/" element={<InvoiceList />} />
+        <Route path="/create" element={<InvoiceCreateView />} />
+        <Route path="/:invoiceId" element={<InvoiceDetailView />} />
+        <Route path="/:invoiceId/edit" element={<InvoiceEditView />} />
+      </Routes>
+    </Container>
   );
 };
 

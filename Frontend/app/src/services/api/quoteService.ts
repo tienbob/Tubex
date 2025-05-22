@@ -14,15 +14,15 @@ export class ApiError extends Error {
   }
 }
 
-// API Response interface
+// API Response interface (updated to match paymentService)
 export interface ApiResponse<T> {
+  success: boolean;
   data: T;
-  status?: string;
   message?: string;
   pagination?: {
-    total: number;
     page: number;
     limit: number;
+    totalItems: number;
     totalPages: number;
   };
 }
@@ -51,7 +51,7 @@ export interface QuoteItem {
 
 // Quote interface
 export interface Quote {
-  id?: string;
+  id: string;
   quoteNumber?: string;
   companyId?: string;
   customerId: string;
@@ -97,87 +97,144 @@ export interface QuoteFilters {
 }
 
 /**
+ * Helper function to get current company ID
+ */
+function getCurrentCompanyId(): string | undefined {
+  // This function should retrieve the company ID from your app context/state
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  return user.companyId || user.company_id || undefined;
+}
+
+/**
  * Create a new quote
  */
-export const createQuote = async (quoteData: CreateQuoteRequest): Promise<ApiResponse<Quote>> => {
+export const createQuote = async (quoteData: CreateQuoteRequest): Promise<Quote> => {
   try {
-    const response = await post<ApiResponse<Quote>>('/quotes', quoteData);
-    return response.data;
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
+    const response = await post<ApiResponse<Quote>>(`/quotes/company/${companyId}`, quoteData);
+    return response.data.data;
   } catch (error) {
     const axiosError = error as AxiosError;
-    throw new ApiError(
-      'Failed to create quote',
-      axiosError.response?.status || 500,
-      axiosError.response?.data
-    );
+    if (axiosError.response) {
+      throw new ApiError(
+        (axiosError.response.data as any)?.message || 'Failed to create quote',
+        axiosError.response.status,
+        axiosError.response.data
+      );
+    }
+    throw new ApiError('Failed to create quote', 500);
   }
 };
 
 /**
  * Get all quotes with optional filters
  */
-export const getQuotes = async (filters?: QuoteFilters): Promise<ApiResponse<Quote[]>> => {
+export const getQuotes = async (filters?: QuoteFilters): Promise<{ data: Quote[]; pagination: ApiResponse<Quote[]>['pagination'] }> => {
   try {
-    const response = await get<ApiResponse<Quote[]>>('/quotes', { params: filters });
-    return response.data;
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
+    const response = await get<ApiResponse<Quote[]>>(`/quotes/company/${companyId}`, { 
+      params: {
+        limit: 10,
+        page: 1,
+        ...filters
+      } 
+    });
+    return {
+      data: response.data.data,
+      pagination: response.data.pagination || {
+        page: 1,
+        limit: 10,
+        totalItems: response.data.data.length,
+        totalPages: 1
+      }
+    };
   } catch (error) {
     const axiosError = error as AxiosError;
-    throw new ApiError(
-      'Failed to fetch quotes',
-      axiosError.response?.status || 500,
-      axiosError.response?.data
-    );
+    if (axiosError.response) {
+      throw new ApiError(
+        (axiosError.response.data as any)?.message || 'Failed to fetch quotes',
+        axiosError.response.status,
+        axiosError.response.data
+      );
+    }
+    throw new ApiError('Failed to fetch quotes', 500);
   }
 };
 
 /**
  * Get a single quote by ID
  */
-export const getQuoteById = async (quoteId: string): Promise<ApiResponse<Quote>> => {
+export const getQuoteById = async (quoteId: string): Promise<Quote> => {
   try {
-    const response = await get<ApiResponse<Quote>>(`/quotes/${quoteId}`);
-    return response.data;
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
+    const response = await get<ApiResponse<Quote>>(`/quotes/company/${companyId}/${quoteId}`);
+    return response.data.data;
   } catch (error) {
     const axiosError = error as AxiosError;
-    throw new ApiError(
-      'Failed to fetch quote',
-      axiosError.response?.status || 500,
-      axiosError.response?.data
-    );
+    if (axiosError.response) {
+      throw new ApiError(
+        (axiosError.response.data as any)?.message || 'Failed to fetch quote',
+        axiosError.response.status,
+        axiosError.response.data
+      );
+    }
+    throw new ApiError('Failed to fetch quote', 500);
   }
 };
 
 /**
  * Update an existing quote
  */
-export const updateQuote = async (quoteId: string, quoteData: Partial<Quote>): Promise<ApiResponse<Quote>> => {
+export const updateQuote = async (quoteId: string, quoteData: Partial<Quote>): Promise<Quote> => {
   try {
-    const response = await put<ApiResponse<Quote>>(`/quotes/${quoteId}`, quoteData);
-    return response.data;
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
+    const response = await put<ApiResponse<Quote>>(`/quotes/company/${companyId}/${quoteId}`, quoteData);
+    return response.data.data;
   } catch (error) {
     const axiosError = error as AxiosError;
-    throw new ApiError(
-      'Failed to update quote',
-      axiosError.response?.status || 500,
-      axiosError.response?.data
-    );
+    if (axiosError.response) {
+      throw new ApiError(
+        (axiosError.response.data as any)?.message || 'Failed to update quote',
+        axiosError.response.status,
+        axiosError.response.data
+      );
+    }
+    throw new ApiError('Failed to update quote', 500);
   }
 };
 
 /**
  * Delete a quote
  */
-export const deleteQuote = async (quoteId: string): Promise<ApiResponse<void>> => {
+export const deleteQuote = async (quoteId: string): Promise<void> => {
   try {
-    const response = await del<ApiResponse<void>>(`/quotes/${quoteId}`);
-    return response.data;
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
+    await del<ApiResponse<void>>(`/quotes/company/${companyId}/${quoteId}`);
   } catch (error) {
     const axiosError = error as AxiosError;
-    throw new ApiError(
-      'Failed to delete quote',
-      axiosError.response?.status || 500,
-      axiosError.response?.data
-    );
+    if (axiosError.response) {
+      throw new ApiError(
+        (axiosError.response.data as any)?.message || 'Failed to delete quote',
+        axiosError.response.status,
+        axiosError.response.data
+      );
+    }
+    throw new ApiError('Failed to delete quote', 500);
   }
 };
 
@@ -186,7 +243,11 @@ export const deleteQuote = async (quoteId: string): Promise<ApiResponse<void>> =
  */
 export const generateQuotePdf = async (quoteId: string): Promise<Blob> => {
   try {
-    const response = await getFile(`/quotes/${quoteId}/pdf`);
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
+    const response = await getFile(`/quotes/company/${companyId}/${quoteId}/pdf`);
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError;
@@ -206,20 +267,27 @@ export const sendQuoteByEmail = async (quoteId: string, emailData: {
   subject?: string,
   message?: string,
   ccEmails?: string[]
-}): Promise<ApiResponse<{ success: boolean, message: string }>> => {
+}): Promise<{ success: boolean; message: string }> => {
   try {
-    const response = await post<ApiResponse<{ success: boolean, message: string }>>(
-      `/quotes/${quoteId}/send`, 
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
+    const response = await post<ApiResponse<{ success: boolean; message: string }>>(
+      `/quotes/company/${companyId}/${quoteId}/send`, 
       emailData
     );
-    return response.data;
+    return response.data.data;
   } catch (error) {
     const axiosError = error as AxiosError;
-    throw new ApiError(
-      'Failed to send quote by email',
-      axiosError.response?.status || 500,
-      axiosError.response?.data
-    );
+    if (axiosError.response) {
+      throw new ApiError(
+        (axiosError.response.data as any)?.message || 'Failed to send quote by email',
+        axiosError.response.status,
+        axiosError.response.data
+      );
+    }
+    throw new ApiError('Failed to send quote by email', 500);
   }
 };
 
@@ -230,20 +298,27 @@ export const convertQuoteToInvoice = async (quoteId: string, invoiceData?: {
   paymentTerm?: string,
   issueDate?: string,
   notes?: string
-}): Promise<ApiResponse<{ invoiceId: string }>> => {
+}): Promise<{ invoiceId: string }> => {
   try {
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
     const response = await post<ApiResponse<{ invoiceId: string }>>(
-      `/quotes/${quoteId}/convert-to-invoice`,
+      `/quotes/company/${companyId}/${quoteId}/convert-to-invoice`,
       invoiceData || {}
     );
-    return response.data;
+    return response.data.data;
   } catch (error) {
     const axiosError = error as AxiosError;
-    throw new ApiError(
-      'Failed to convert quote to invoice',
-      axiosError.response?.status || 500,
-      axiosError.response?.data
-    );
+    if (axiosError.response) {
+      throw new ApiError(
+        (axiosError.response.data as any)?.message || 'Failed to convert quote to invoice',
+        axiosError.response.status,
+        axiosError.response.data
+      );
+    }
+    throw new ApiError('Failed to convert quote to invoice', 500);
   }
 };
 
@@ -253,20 +328,27 @@ export const convertQuoteToInvoice = async (quoteId: string, invoiceData?: {
 export const acceptQuote = async (quoteId: string, acceptData?: {
   acceptedBy?: string,
   notes?: string
-}): Promise<ApiResponse<Quote>> => {
+}): Promise<Quote> => {
   try {
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
     const response = await put<ApiResponse<Quote>>(
-      `/api/v1/quotes/${quoteId}/accept`,
+      `/quotes/company/${companyId}/${quoteId}/accept`,
       acceptData || {}
     );
-    return response.data;
+    return response.data.data;
   } catch (error) {
     const axiosError = error as AxiosError;
-    throw new ApiError(
-      'Failed to accept quote',
-      axiosError.response?.status || 500,
-      axiosError.response?.data
-    );
+    if (axiosError.response) {
+      throw new ApiError(
+        (axiosError.response.data as any)?.message || 'Failed to accept quote',
+        axiosError.response.status,
+        axiosError.response.data
+      );
+    }
+    throw new ApiError('Failed to accept quote', 500);
   }
 };
 
@@ -276,19 +358,26 @@ export const acceptQuote = async (quoteId: string, acceptData?: {
 export const declineQuote = async (quoteId: string, declineData?: {
   reason?: string,
   notes?: string
-}): Promise<ApiResponse<Quote>> => {
+}): Promise<Quote> => {
   try {
+    const companyId = getCurrentCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not available');
+    }
     const response = await put<ApiResponse<Quote>>(
-      `/api/v1/quotes/${quoteId}/decline`,
+      `/quotes/company/${companyId}/${quoteId}/decline`,
       declineData || {}
     );
-    return response.data;
+    return response.data.data;
   } catch (error) {
     const axiosError = error as AxiosError;
-    throw new ApiError(
-      'Failed to decline quote',
-      axiosError.response?.status || 500,
-      axiosError.response?.data
-    );
+    if (axiosError.response) {
+      throw new ApiError(
+        (axiosError.response.data as any)?.message || 'Failed to decline quote',
+        axiosError.response.status,
+        axiosError.response.data
+      );
+    }
+    throw new ApiError('Failed to decline quote', 500);
   }
 };

@@ -89,6 +89,7 @@ export interface OrderCreateRequest {
 
 export interface OrderUpdateRequest {
   status?: 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  shipmentStatus?: 'preparing' | 'shipped' | 'delivered' | 'returned';
   paymentStatus?: 'pending' | 'paid' | 'failed' | 'refunded';
   paymentMethod?: string;
   deliveryAddress?: {

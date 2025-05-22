@@ -3,20 +3,20 @@ import { useLocation } from 'react-router-dom';
 import {
   Box,
   Container,
-  Button,
   Typography,
-  Dialog,
-  DialogContent,
-  IconButton
+  IconButton,
+  Tab,
+  Tabs
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import ProductList  from '../components/whitelabel/products/ProductList';
+import ProductList from '../components/whitelabel/products/ProductList';
 import ProductForm from '../components/whitelabel/products/ProductForm';
 import { useAuth } from '../contexts/AuthContext';
 
 const ProductManagement: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<number>(0);
   const location = useLocation();
   
   // Get company ID from auth context
@@ -56,6 +56,7 @@ const ProductManagement: React.FC = () => {
 
   const handleEditProduct = (productId: string) => {
     setSelectedProductId(productId);
+    setShowAddForm(false);
   };
 
   const handleCloseForm = () => {
@@ -68,30 +69,19 @@ const ProductManagement: React.FC = () => {
     handleCloseForm();
   };
 
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
+  };
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      {/* Main content */}
+      {/* Product List View */}
       {!showAddForm && selectedProductId === null && (
-        <Box>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h4" component="h1">
-              Products
-            </Typography>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleAddProduct}
-            >
-              Add New Product
-            </Button>
-          </Box>
-
-          <ProductList
-            companyId={companyId}
-            onAddProduct={handleAddProduct}
-            onEditProduct={handleEditProduct}
-          />
-        </Box>
+        <ProductList
+          companyId={companyId}
+          onAddProduct={handleAddProduct}
+          onEditProduct={handleEditProduct}
+        />
       )}
 
       {/* Add/Edit Product Form */}

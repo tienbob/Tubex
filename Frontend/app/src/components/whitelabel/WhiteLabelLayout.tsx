@@ -1,11 +1,13 @@
 import React, { ReactNode, useEffect, useState } from 'react';
-import Box from '@mui/material/Box';
+import { Box, useTheme as useMuiTheme } from '@mui/material';
 import Container from '@mui/material/Container';
 import CircularProgress from '@mui/material/CircularProgress';
-import WhiteLabelHeader from './WhiteLabelHeader';
 import WhiteLabelFooter from './WhiteLabelFooter';
 import WhiteLabelStyleInjector from './WhiteLabelStyleInjector';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
+import SideNavigation from './SideNavigation';
+import WhiteLabelHeader from './WhiteLabelHeader';
 
 interface WhiteLabelLayoutProps {
   children: ReactNode;
@@ -24,17 +26,17 @@ const WhiteLabelLayout: React.FC<WhiteLabelLayoutProps> = ({
 }) => {
   const { isAuthenticated, loading } = useAuth();
   const [isInitializing, setIsInitializing] = useState(true);
+  const { theme: customTheme } = useTheme();
+  const muiTheme = useMuiTheme();
 
   // Handle authentication check on component mount
   useEffect(() => {
     if (!loading) {
-      // Auth check completed
       setIsInitializing(false);
     }
   }, [loading]);
-
   // Show loading spinner while checking auth
-  if ((requireAuth && isInitializing) || (requireAuth && loading)) {
+  if (requireAuth && (isInitializing || loading)) {
     return (
       <Box sx={{ 
         display: 'flex', 
@@ -46,9 +48,7 @@ const WhiteLabelLayout: React.FC<WhiteLabelLayoutProps> = ({
       </Box>
     );
   }
-
-  // If auth is required but user is not authenticated, you could redirect here
-  // or show a login prompt component instead of the requested page
+  // If auth is required but user is not authenticated, show login prompt
   if (requireAuth && !isAuthenticated) {
     return (
       <Box sx={{ 
@@ -57,7 +57,7 @@ const WhiteLabelLayout: React.FC<WhiteLabelLayoutProps> = ({
         minHeight: '100vh'
       }}>
         <WhiteLabelStyleInjector />
-        {showHeader && <WhiteLabelHeader />}
+        {showHeader && <WhiteLabelHeader/>}
         <Container 
           maxWidth={maxWidth} 
           sx={{ 
@@ -82,36 +82,45 @@ const WhiteLabelLayout: React.FC<WhiteLabelLayoutProps> = ({
   }
 
   return (
-    <Box sx={{ 
-      display: 'flex',
-      flexDirection: 'column',
-      minHeight: '100vh'
-    }}>
-      {/* Inject CSS variables for theme */}
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        backgroundColor: customTheme?.backgroundColor || muiTheme.palette.background.default,
+      }}
+    >
       <WhiteLabelStyleInjector />
-      
-      {/* Header */}
-      {showHeader && <WhiteLabelHeader />}
-      
-      {/* Main content */}
-      <Container 
-        maxWidth={maxWidth} 
-        sx={{ 
-          flex: '1 0 auto',
-          display: 'flex',
-          flexDirection: 'column',
-          py: 3
-        }}
-      >
-        {children}
-      </Container>
-      
-      {/* Footer */}
-      {showFooter && (
-        <Box component="footer" sx={{ flexShrink: 0 }}>
-          <WhiteLabelFooter />
+      {/* Header removed as requested */}
+      <Box sx={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        {/* Side Navigation */}
+        <SideNavigation />
+        {/* Main Content Area (with footer below) */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, minHeight: 0 }}>
+          <Box
+            component="main"
+            id="main-content"
+            tabIndex={-1}
+            sx={{
+              flexGrow: 1,
+              overflow: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              outline: 'none',
+              minHeight: 0,
+            }}
+          >
+            {/* Breadcrumbs removed for cleaner UI */}
+            <Box sx={{ p: 2, flexGrow: 1 }}>{children}</Box>
+          </Box>
+          {/* Footer always at the bottom of main content, not under side nav */}
+          {showFooter && (
+            <Box component="footer" sx={{ width: '100%', mt: 'auto' }}>
+              <WhiteLabelFooter />
+            </Box>
+          )}
         </Box>
-      )}
+      </Box>
     </Box>
   );
 };

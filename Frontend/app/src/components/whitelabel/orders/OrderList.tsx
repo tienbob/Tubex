@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useReducer, useEffect, useCallback } from 'react';
 import { 
   Box, 
   Typography, 
@@ -78,6 +78,133 @@ interface OrderListProps {
   allowDelete?: boolean;
 }
 
+// Define OrderList state type
+interface OrderListState {
+  orders: Order[];
+  loading: boolean;
+  page: number;
+  rowsPerPage: number;
+  totalCount: number;
+  searchQuery: string;
+  statusFilter: string;
+  sortBy: string;
+  sortDirection: 'asc' | 'desc';
+  error: string | null;
+  deleteDialogOpen: boolean;
+  selectedOrderId: string | null;
+  isSearching: boolean;
+  searchAbortController: AbortController | null;
+}
+
+// Define the initial state
+const initialState: OrderListState = {
+  orders: [],
+  loading: false,
+  page: 0,
+  rowsPerPage: 10,
+  totalCount: 0,
+  searchQuery: '',
+  statusFilter: 'all',
+  sortBy: 'created_at',
+  sortDirection: 'desc',
+  error: null,
+  deleteDialogOpen: false,
+  selectedOrderId: null,
+  isSearching: false,
+  searchAbortController: null
+};
+
+// Define action types
+type OrderListAction =
+  | { type: 'SET_ORDERS'; payload: { orders: Order[]; totalCount: number } }
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_PAGE'; payload: number }
+  | { type: 'SET_ROWS_PER_PAGE'; payload: number }
+  | { type: 'SET_SEARCH_QUERY'; payload: string }
+  | { type: 'SET_STATUS_FILTER'; payload: string }
+  | { type: 'SET_SORT_BY'; payload: string }
+  | { type: 'SET_SORT_DIRECTION'; payload: 'asc' | 'desc' }
+  | { type: 'SET_ERROR'; payload: string | null }
+  | { type: 'SET_DELETE_DIALOG_OPEN'; payload: boolean }
+  | { type: 'SET_SELECTED_ORDER_ID'; payload: string | null }
+  | { type: 'SET_IS_SEARCHING'; payload: boolean }
+  | { type: 'SET_SEARCH_ABORT_CONTROLLER'; payload: AbortController | null };
+
+// Define the reducer function
+const orderListReducer = (state: OrderListState, action: OrderListAction): OrderListState => {
+  switch (action.type) {
+    case 'SET_ORDERS':
+      return {
+        ...state,
+        orders: action.payload.orders,
+        totalCount: action.payload.totalCount
+      };
+    case 'SET_LOADING':
+      return {
+        ...state,
+        loading: action.payload
+      };
+    case 'SET_PAGE':
+      return {
+        ...state,
+        page: action.payload
+      };
+    case 'SET_ROWS_PER_PAGE':
+      return {
+        ...state,
+        rowsPerPage: action.payload,
+        page: 0 // Reset to first page when changing rows per page
+      };
+    case 'SET_SEARCH_QUERY':
+      return {
+        ...state,
+        searchQuery: action.payload
+      };
+    case 'SET_STATUS_FILTER':
+      return {
+        ...state,
+        statusFilter: action.payload
+      };
+    case 'SET_SORT_BY':
+      return {
+        ...state,
+        sortBy: action.payload
+      };
+    case 'SET_SORT_DIRECTION':
+      return {
+        ...state,
+        sortDirection: action.payload
+      };
+    case 'SET_ERROR':
+      return {
+        ...state,
+        error: action.payload
+      };
+    case 'SET_DELETE_DIALOG_OPEN':
+      return {
+        ...state,
+        deleteDialogOpen: action.payload
+      };
+    case 'SET_SELECTED_ORDER_ID':
+      return {
+        ...state,
+        selectedOrderId: action.payload
+      };
+    case 'SET_IS_SEARCHING':
+      return {
+        ...state,
+        isSearching: action.payload
+      };
+    case 'SET_SEARCH_ABORT_CONTROLLER':
+      return {
+        ...state,
+        searchAbortController: action.payload
+      };
+    default:
+      return state;
+  }
+};
+
 const OrderList: React.FC<OrderListProps> = ({
   companyId,
   onViewOrder,
@@ -86,45 +213,31 @@ const OrderList: React.FC<OrderListProps> = ({
   allowEdit = true,
   allowDelete = true,
 }) => {
-  // States
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [totalCount, setTotalCount] = useState(0);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<string>('created_at');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [error, setError] = useState<string | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchAbortController, setSearchAbortController] = useState<AbortController | null>(null);
-  
-  // Memoize fetchOrders to prevent unnecessary recreations
+  // Use the reducer for state management
+  const [state, dispatch] = useReducer(orderListReducer, initialState);
+    // Memoize fetchOrders to prevent unnecessary recreations
   const fetchOrders = useCallback(async (isSearchRequest = false) => {
     if (!companyId) return;
     
-    setLoading(true);
-    setError(null);
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'SET_ERROR', payload: null });
 
     try {
       const params = {
-        page: page + 1,
-        limit: rowsPerPage,
-        status: statusFilter !== 'all' ? statusFilter : undefined,
+        page: state.page + 1,
+        limit: state.rowsPerPage,
+        status: state.statusFilter !== 'all' ? state.statusFilter : undefined,
         paymentStatus: undefined,
         fromDate: undefined,
         toDate: undefined
       };
 
-      if (isSearchRequest && isSearching) {
+      if (isSearchRequest && state.isSearching) {
         return;
       }
 
       if (isSearchRequest) {
-        setIsSearching(true);
+        dispatch({ type: 'SET_IS_SEARCHING', payload: true });
       }
 
       const response = await orderService.getOrders(params);
@@ -133,38 +246,47 @@ const OrderList: React.FC<OrderListProps> = ({
       const orders = Array.isArray(response) ? response : (response as any).orders || [];
       const totalItems = typeof (response as any).count === 'number' ? (response as any).count : orders.length;
       
-      setOrders(orders);
-      setTotalCount(totalItems);
-      setError(null);
+      dispatch({ 
+        type: 'SET_ORDERS', 
+        payload: { 
+          orders: orders,
+          totalCount: totalItems
+        }
+      });
+      dispatch({ type: 'SET_ERROR', payload: null });
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch orders');
+      dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to fetch orders' });
       console.error('Error fetching orders:', err);
-      setOrders([]);
-      setTotalCount(0);
+      dispatch({ 
+        type: 'SET_ORDERS', 
+        payload: { 
+          orders: [],
+          totalCount: 0
+        }
+      });
     } finally {
-      setLoading(false);
+      dispatch({ type: 'SET_LOADING', payload: false });
       if (isSearchRequest) {
-        setIsSearching(false);
+        dispatch({ type: 'SET_IS_SEARCHING', payload: false });
       }
     }
-  }, [companyId, page, rowsPerPage, statusFilter, isSearching]);
-
+  }, [companyId, state.page, state.rowsPerPage, state.statusFilter, state.isSearching]);
   // Load orders on initial render and when dependencies change
   useEffect(() => {
-    if (!isSearching) { // Only fetch if not currently searching
+    if (!state.isSearching) { // Only fetch if not currently searching
       fetchOrders();
     }
   }, [fetchOrders]);
 
   // Debounce search query with cleanup
   useEffect(() => {
-    if (!searchQuery && page !== 0) {
-      setPage(0);
+    if (!state.searchQuery && state.page !== 0) {
+      dispatch({ type: 'SET_PAGE', payload: 0 });
       return;
     }
 
     const timer = setTimeout(() => {
-      if (searchQuery) {
+      if (state.searchQuery) {
         fetchOrders(true);
       }
     }, 500);
@@ -172,127 +294,132 @@ const OrderList: React.FC<OrderListProps> = ({
     return () => {
       clearTimeout(timer);
     };
-  }, [searchQuery, page, fetchOrders]);
-
+  }, [state.searchQuery, state.page, fetchOrders]);
   // Reset pagination when filters change
   useEffect(() => {
-    if (page !== 0) {
-      setPage(0);
+    if (state.page !== 0) {
+      dispatch({ type: 'SET_PAGE', payload: 0 });
     }
-  }, [statusFilter, sortBy, sortDirection]);
-
+  }, [state.statusFilter, state.sortBy, state.sortDirection]);
   // Handle page change
   const handleChangePage = (_: unknown, newPage: number) => {
-    setPage(newPage);
+    dispatch({ type: 'SET_PAGE', payload: newPage });
   };
 
   // Handle rows per page change with reset
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newRowsPerPage = parseInt(event.target.value, 10);
-    setRowsPerPage(newRowsPerPage);
-    setPage(0); // Reset to first page
+    dispatch({ type: 'SET_ROWS_PER_PAGE', payload: newRowsPerPage });
+    // Page reset is handled in the reducer
   };
 
   // Handle status filter change with validation
   const handleStatusFilterChange = (event: SelectChangeEvent<string>) => {
     const newStatus = event.target.value;
-    if (newStatus === statusFilter) return; // Prevent unnecessary updates
+    if (newStatus === state.statusFilter) return; // Prevent unnecessary updates
     
-    setStatusFilter(newStatus);
+    dispatch({ type: 'SET_STATUS_FILTER', payload: newStatus });
     // Page reset is handled by the useEffect
   };
 
   // Handle sort change with validation
   const handleSortChange = (event: SelectChangeEvent<string>) => {
     const newSortBy = event.target.value;
-    if (newSortBy === sortBy) return; // Prevent unnecessary updates
+    if (newSortBy === state.sortBy) return; // Prevent unnecessary updates
     
-    setSortBy(newSortBy);
+    dispatch({ type: 'SET_SORT_BY', payload: newSortBy });
     // Page reset is handled by the useEffect
   };
 
   // Optimized sort direction change
   const handleSortDirectionChange = () => {
-    setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    dispatch({ 
+      type: 'SET_SORT_DIRECTION', 
+      payload: state.sortDirection === 'asc' ? 'desc' : 'asc' 
+    });
     // Page reset is handled by the useEffect
   };
-
   // Enhanced delete handling
   const handleDeleteClick = useCallback((orderId: string) => {
-    setSelectedOrderId(orderId);
-    setDeleteDialogOpen(true);
+    dispatch({ type: 'SET_SELECTED_ORDER_ID', payload: orderId });
+    dispatch({ type: 'SET_DELETE_DIALOG_OPEN', payload: true });
   }, []);
 
   // Handle confirm delete with proper cleanup
   const handleConfirmDelete = async () => {
-    if (!selectedOrderId) return;
+    if (!state.selectedOrderId) return;
     
-    setLoading(true);
-    setError(null);
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'SET_ERROR', payload: null });
     
     try {
-      await orderService.deleteOrder(selectedOrderId);
+      await orderService.deleteOrder(state.selectedOrderId);
       
       // Update local state optimistically
-      setOrders(prevOrders => prevOrders.filter(order => order.id !== selectedOrderId));
-      setTotalCount(prev => Math.max(0, prev - 1));
+      dispatch({ 
+        type: 'SET_ORDERS', 
+        payload: { 
+          orders: state.orders.filter(order => order.id !== state.selectedOrderId),
+          totalCount: Math.max(0, state.totalCount - 1)
+        }
+      });
       
       // Notify parent component
-      if (onDeleteOrder) {
-        onDeleteOrder(selectedOrderId);
+      if (onDeleteOrder && state.selectedOrderId) {
+        onDeleteOrder(state.selectedOrderId);
       }
 
-      // Clear error if successful
-      setError(null);
     } catch (err: any) {
-      setError(err.message || 'Failed to delete order');
+      dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to delete order' });
       console.error('Error deleting order:', err);
       
       // Refresh orders to ensure consistent state
       fetchOrders();
     } finally {
-      setDeleteDialogOpen(false);
-      setSelectedOrderId(null);
-      setLoading(false);
+      dispatch({ type: 'SET_DELETE_DIALOG_OPEN', payload: false });
+      dispatch({ type: 'SET_SELECTED_ORDER_ID', payload: null });
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
   };
-
   // Handle search input changes with cleanup
   const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.value;
     
     // Cancel any pending search request
-    if (searchAbortController) {
-      searchAbortController.abort();
+    if (state.searchAbortController) {
+      state.searchAbortController.abort();
     }
 
     // Create new abort controller for this search
     const newController = new AbortController();
-    setSearchAbortController(newController);
+    dispatch({ type: 'SET_SEARCH_ABORT_CONTROLLER', payload: newController });
     
-    setSearchQuery(newValue);
+    dispatch({ type: 'SET_SEARCH_QUERY', payload: newValue });
 
     if (!newValue) {
       // Clear search results immediately when search is emptied
-      setOrders([]);
-      setTotalCount(0);
+      dispatch({ 
+        type: 'SET_ORDERS', 
+        payload: { 
+          orders: [],
+          totalCount: 0
+        }
+      });
       fetchOrders(); // Fetch default orders
     }
-  }, [searchAbortController, fetchOrders]);
-
+  }, [state.searchAbortController, fetchOrders]);
   // Cleanup abort controller on unmount
   useEffect(() => {
     return () => {
-      if (searchAbortController) {
-        searchAbortController.abort();
+      if (state.searchAbortController) {
+        state.searchAbortController.abort();
       }
     };
-  }, [searchAbortController]);
-
+  }, [state.searchAbortController]);
   // Render table skeleton while loading
   const renderSkeleton = () => (
     <TableBody>
-      {Array.from(new Array(rowsPerPage)).map((_, index) => (
+      {Array.from(new Array(state.rowsPerPage)).map((_, index) => (
         <TableRow key={index}>
           <TableCell><Skeleton animation="wave" /></TableCell>
           <TableCell><Skeleton animation="wave" /></TableCell>
@@ -315,12 +442,11 @@ const OrderList: React.FC<OrderListProps> = ({
               Orders
             </Typography>
           </Box>
-          <Box sx={{ flex: 2 }}>
-            <TextField
+          <Box sx={{ flex: 2 }}>            <TextField
               placeholder="Search orders..."
               size="small"
               fullWidth
-              value={searchQuery}
+              value={state.searchQuery}
               onChange={handleSearchChange}
               InputProps={{
                 startAdornment: (
@@ -335,10 +461,9 @@ const OrderList: React.FC<OrderListProps> = ({
         
         <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
           <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel id="status-filter-label">Status</InputLabel>
-            <Select
+            <InputLabel id="status-filter-label">Status</InputLabel>            <Select
               labelId="status-filter-label"
-              value={statusFilter}
+              value={state.statusFilter}
               onChange={handleStatusFilterChange}
               label="Status"
             >
@@ -350,10 +475,9 @@ const OrderList: React.FC<OrderListProps> = ({
           </FormControl>
           
           <FormControl size="small" sx={{ minWidth: 150 }}>
-            <InputLabel id="sort-by-label">Sort By</InputLabel>
-            <Select
+            <InputLabel id="sort-by-label">Sort By</InputLabel>            <Select
               labelId="sort-by-label"
-              value={sortBy}
+              value={state.sortBy}
               onChange={handleSortChange}
               label="Sort By"
             >
@@ -372,14 +496,13 @@ const OrderList: React.FC<OrderListProps> = ({
             onClick={handleSortDirectionChange}
             sx={{ minWidth: 120 }}
           >
-            {sortDirection === 'asc' ? 'Ascending' : 'Descending'}
+            {state.sortDirection === 'asc' ? 'Ascending' : 'Descending'}
           </Button>
         </Box>
       </Paper>
-      
-      {error && (
+        {state.error && (
         <Typography color="error" sx={{ mb: 2 }}>
-          Error: {error}
+          Error: {state.error}
         </Typography>
       )}
       
@@ -397,11 +520,11 @@ const OrderList: React.FC<OrderListProps> = ({
             </TableRow>
           </TableHead>
           
-          {loading ? (
+          {state.loading ? (
             renderSkeleton()
           ) : (
             <TableBody>
-              {orders.length === 0 ? (
+              {state.orders.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
                     <Typography color="text.secondary">
@@ -410,7 +533,7 @@ const OrderList: React.FC<OrderListProps> = ({
                   </TableCell>
                 </TableRow>
               ) : (
-                orders.map((order) => {
+                state.orders.map((order: Order) => {
                   const statusConfig = STATUS_COLORS[order.status] || STATUS_COLORS.pending;
                   
                   return (
@@ -473,21 +596,20 @@ const OrderList: React.FC<OrderListProps> = ({
           )}
         </Table>
       </TableContainer>
-      
-      <TablePagination
+        <TablePagination
         component="div"
-        count={totalCount}
-        page={page}
+        count={state.totalCount}
+        page={state.page}
         onPageChange={handleChangePage}
-        rowsPerPage={rowsPerPage}
+        rowsPerPage={state.rowsPerPage}
         onRowsPerPageChange={handleChangeRowsPerPage}
         rowsPerPageOptions={[5, 10, 25, 50]}
       />
       
       {/* Delete Confirmation Dialog */}
       <Dialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
+        open={state.deleteDialogOpen}
+        onClose={() => dispatch({ type: 'SET_DELETE_DIALOG_OPEN', payload: false })}
       >
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
@@ -496,7 +618,7 @@ const OrderList: React.FC<OrderListProps> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => dispatch({ type: 'SET_DELETE_DIALOG_OPEN', payload: false })}>Cancel</Button>
           <Button onClick={handleConfirmDelete} color="error" autoFocus>
             Delete
           </Button>

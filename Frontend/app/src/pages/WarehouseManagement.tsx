@@ -212,8 +212,7 @@ const WarehouseManagement: React.FC = () => {
                 Add Warehouse
               </Button>
             </Box>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {warehouses.map((warehouse) => (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>              {Array.isArray(warehouses) ? warehouses.map((warehouse) => (
                 <Paper
                   key={warehouse.id}
                   elevation={selectedWarehouse === warehouse.id ? 3 : 1}
@@ -240,12 +239,15 @@ const WarehouseManagement: React.FC = () => {
                           handleDeleteWarehouse(warehouse.id);
                         }}
                       >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
+                        <DeleteIcon fontSize="small" />                      </IconButton>
                     </Box>
                   </Box>
                 </Paper>
-              ))}
+              )) : (
+                <Paper elevation={1} sx={{ p: 2 }}>
+                  <Typography color="text.secondary">No warehouses available</Typography>
+                </Paper>
+              )}
             </Box>
           </Paper>
         </Box>

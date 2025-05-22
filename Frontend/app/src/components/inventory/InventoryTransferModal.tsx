@@ -61,7 +61,6 @@ const InventoryTransferModal: React.FC<InventoryTransferModalProps> = ({
       setSourceQuantityAvailable(null);
     }
   }, [sourceWarehouseId, productId]);
-
   const fetchWarehouses = async () => {
     setFetchingWarehouses(true);
     setApiError(null);
@@ -74,7 +73,32 @@ const InventoryTransferModal: React.FC<InventoryTransferModalProps> = ({
       }
       
       const response = await inventoryService.getWarehouses(companyId);
-      setWarehouses(response.data);
+      console.log('Warehouse API response:', response);
+      
+      // Handle different potential response structures
+      let warehousesList: Array<any> = [];
+      
+      // If response.data is an array
+      if (Array.isArray(response.data)) {
+        warehousesList = response.data;
+      } 
+      // If response.data contains a warehouses property that is an array
+      else if (response.data && typeof response.data === 'object' && 'warehouses' in response.data && 
+              Array.isArray((response.data as any).warehouses)) {
+        warehousesList = (response.data as any).warehouses;
+      }
+      // If response.data.data contains the warehouses array
+      else if (response.data && typeof response.data === 'object' && 'data' in response.data && 
+              Array.isArray((response.data as any).data)) {
+        warehousesList = (response.data as any).data;
+      }
+      // Default to empty array if no matching structure is found
+      else {
+        console.error('Unexpected API response format:', response);
+        warehousesList = [];
+      }
+      
+      setWarehouses(warehousesList);
     } catch (error: any) {
       console.error('Error fetching warehouses:', error);
       
@@ -216,12 +240,13 @@ const InventoryTransferModal: React.FC<InventoryTransferModalProps> = ({
                   onChange={handleSourceWarehouseChange}
                   label="Source Warehouse"
                   disabled={loading}
-                >
-                  {warehouses.map((warehouse) => (
+                >                  {Array.isArray(warehouses) ? warehouses.map((warehouse) => (
                     <MenuItem key={warehouse.id} value={warehouse.id}>
                       {warehouse.name}
                     </MenuItem>
-                  ))}
+                  )) : (
+                    <MenuItem value="">No warehouses available</MenuItem>
+                  )}
                 </Select>
                 {errors.sourceWarehouse && <FormHelperText>{errors.sourceWarehouse}</FormHelperText>}
               </FormControl>
@@ -241,15 +266,16 @@ const InventoryTransferModal: React.FC<InventoryTransferModalProps> = ({
                   value={destinationWarehouseId}
                   onChange={handleDestinationWarehouseChange}
                   label="Destination Warehouse"
-                  disabled={loading}
-                >
-                  {warehouses
+                  disabled={loading}                >
+                  {Array.isArray(warehouses) ? warehouses
                     .filter(w => w.id !== sourceWarehouseId)
                     .map((warehouse) => (
                       <MenuItem key={warehouse.id} value={warehouse.id}>
                         {warehouse.name}
                       </MenuItem>
-                    ))
+                    )) : (
+                      <MenuItem value="">No warehouses available</MenuItem>
+                    )
                   }
                 </Select>
                 {errors.destinationWarehouse && <FormHelperText>{errors.destinationWarehouse}</FormHelperText>}

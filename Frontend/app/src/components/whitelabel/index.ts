@@ -29,6 +29,9 @@ export { default as InventoryAdjustForm } from './inventory/InventoryAdjustForm'
 // Orders
 export { default as OrderList } from './orders/OrderList';
 
+// Invoices
+export { InvoiceList, InvoiceDetail, InvoiceForm } from './invoices';
+
 // Users
 export { default as UserList } from './users/UserList';
 export { default as UserForm } from './users/UserForm';
@@ -37,4 +40,4 @@ export { default as UserForm } from './users/UserForm';
 export { default as CompanyVerificationList } from './verification/CompanyVerificationList';
 
 // Re-export types
-export type { Column, PaginationProps } from './DataTable';
+export type { Column } from './DataTable';

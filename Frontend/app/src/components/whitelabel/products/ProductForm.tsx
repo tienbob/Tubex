@@ -16,13 +16,15 @@ import {
   IconButton,
   Stack,
   SelectChangeEvent,
+  Tooltip,
 } from '@mui/material';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import FormContainer from '../FormContainer';
 import FormButtons from '../FormButtons';
 import ProductPriceHistory from './ProductPriceHistory';
-import { productService } from '../../../services/api';
+import { productService, companyService } from '../../../services/api';
 
 // Types
 interface TabPanelProps {
@@ -37,13 +39,18 @@ interface Category {
   name: string;
 }
 
+interface Supplier {
+  id: string;
+  name: string;
+  type: 'supplier';
+}
+
 interface ProductFormData {
   name: string;
-  sku: string;
   description: string;
   price: string;
   cost: string;
-  categoryId: string;
+  supplierId: string;
   status: 'active' | 'inactive' | 'out_of_stock' | 'discontinued';
   weight: string;
   dimensions: {
@@ -57,6 +64,10 @@ interface ProductFormData {
   };
   images: string[];
   specifications: Record<string, string>;
+  computedFields?: {
+    margin: number;
+    marginPercentage: number;
+  };
 }
 
 interface ProductFormProps {
@@ -68,12 +79,12 @@ interface ProductFormProps {
 
 interface ProductApiInput {
   name: string;
-  sku: string;
   description: string;
   base_price: number;
+  unit: string;
   supplier_id: string;
-  status: 'active' | 'inactive'| 'out_of_stock'; // Updated to allow out_of_stock status
-  unit: string; // Made required
+  status?: 'active' | 'inactive' | 'out_of_stock';
+  sku?: string;
   dimensions?: {
     length?: number;
     width?: number;
@@ -85,19 +96,20 @@ interface ProductApiInput {
   };
   images?: string[];
   specifications?: Record<string, string>;
-  company_id: string;
 }
 
 function TabPanel({ children, value, index, 'aria-labelledby': ariaLabelledBy, ...other }: TabPanelProps) {
+  const isActive = value === index;
+  
   return (
     <div
       role="tabpanel"
-      hidden={value !== index}
+      hidden={!isActive}
       id={`product-tabpanel-${index}`}
       aria-labelledby={ariaLabelledBy}
       {...other}
     >
-      {value === index && (
+      {isActive && (
         <Box sx={{ p: 2 }}>
           {children}
         </Box>
@@ -113,16 +125,15 @@ const ProductForm: React.FC<ProductFormProps> = ({
   onCancel,
 }) => {
   const isEditMode = !!productId;
-  
-  const [tabValue, setTabValue] = useState(0);
+    const [tabValue, setTabValue] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
-    sku: '',
     description: '',
     price: '',
     cost: '',
-    categoryId: '',
+    supplierId: '',
     status: 'active',
     weight: '',
     dimensions: {
@@ -140,21 +151,18 @@ const ProductForm: React.FC<ProductFormProps> = ({
   
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-  const [fetchLoading, setFetchLoading] = useState(false);
-  const [apiError, setApiError] = useState<string | null>(null);
-  
-  // Specification fields
+  const [fetchLoading, setFetchLoading] = useState(false);  const [apiError, setApiError] = useState<string | null>(null);
   const [specKeys, setSpecKeys] = useState<string[]>([]);
-  
+
   useEffect(() => {
     fetchCategories();
+    fetchSuppliers();
     
     if (productId) {
       fetchProductDetails();
     }
   }, [productId, companyId]);
-  
-  const fetchCategories = async () => {
+    const fetchCategories = async () => {
     try {
       const response = await productService.getCategories(companyId);
       setCategories(response.data || []);
@@ -163,8 +171,23 @@ const ProductForm: React.FC<ProductFormProps> = ({
     }
   };
   
-  // Fixing type mismatches and ensuring compatibility with the updated Product interface
-  // Correcting the fetchProductDetails function to align with the updated Product type
+  const fetchSuppliers = async () => {
+    try {
+      const response = await companyService.getSuppliers();
+      const suppliersList = response.data || [];
+      setSuppliers(suppliersList
+        .filter(supplier => supplier.type === 'supplier')
+        .map(supplier => ({
+          id: supplier.id,
+          name: supplier.name,
+          type: supplier.type as 'supplier' // Type assertion to ensure it's treated as 'supplier'
+        }))
+      );
+    } catch (err: any) {
+      console.error('Error fetching suppliers:', err);
+    }
+  };
+    // Updated the fetchProductDetails function to align with the Product type from productService
   const fetchProductDetails = async () => {
     if (!productId) return;
 
@@ -172,18 +195,18 @@ const ProductForm: React.FC<ProductFormProps> = ({
     setApiError(null);
 
     try {
-      const product = await productService.getProductById(productId);
+      const productResponse = await productService.getProductById(productId);
+      const product = productResponse.data || productResponse; // Handle different response structures
 
       // Map API response to form data
       setFormData({
         name: product.name || '',
-        sku: product.sku || '',
         description: product.description || '',
         price: product.base_price?.toString() || '',
-        cost: '', // Assuming cost is not part of the Product type
-        categoryId: product.supplier_id || '',
+        cost: '', // Cost is not part of the Product interface
+        supplierId: product.supplier_id || '',
         status: product.status || 'active',
-        weight: product.dimensions?.length?.toString() || '', // Assuming weight is derived from dimensions
+        weight: '', // Weight is not directly in Product interface
         dimensions: {
           length: product.dimensions?.length?.toString() || '',
           width: product.dimensions?.width?.toString() || '',
@@ -199,37 +222,30 @@ const ProductForm: React.FC<ProductFormProps> = ({
 
       // Set specification keys
       setSpecKeys(Object.keys(product.specifications || {}));
-    } catch (err: any) {
-      setApiError(err.message || 'Failed to load product details');
+    } catch (err: any) {      setApiError(err.message || 'Failed to load product details');
       console.error('Error fetching product:', err);
     } finally {
       setFetchLoading(false);
     }
-  };
-  
-  const validateForm = () => {
+  };  const validateForm = () => {
     const newErrors: Record<string, string> = {};
     
+    // Required fields according to ProductCreateInput in productService
     if (!formData.name.trim()) {
       newErrors.name = 'Product name is required';
-    }
-    
-    if (!formData.sku.trim()) {
-      newErrors.sku = 'SKU is required';
     }
     
     if (!formData.price.trim()) {
       newErrors.price = 'Price is required';
     } else if (isNaN(parseFloat(formData.price)) || parseFloat(formData.price) < 0) {
       newErrors.price = 'Price must be a valid positive number';
+    }    if (!formData.supplierId || !suppliers.some(s => s.id === formData.supplierId)) {
+      newErrors.supplierId = 'Please select a valid supplier';
     }
     
+    // Optional fields validation
     if (formData.cost.trim() && (isNaN(parseFloat(formData.cost)) || parseFloat(formData.cost) < 0)) {
       newErrors.cost = 'Cost must be a valid positive number';
-    }
-    
-    if (!formData.categoryId) {
-      newErrors.categoryId = 'Category is required';
     }
     
     if (formData.inventory.quantity.trim() && (isNaN(parseInt(formData.inventory.quantity)) || parseInt(formData.inventory.quantity) < 0)) {
@@ -261,6 +277,24 @@ const ProductForm: React.FC<ProductFormProps> = ({
     return Object.keys(newErrors).length === 0;
   };
   
+  const calculateMargins = (price: string, cost: string) => {
+    const priceNum = parseFloat(price);
+    const costNum = parseFloat(cost);
+    
+    if (!isNaN(priceNum) && !isNaN(costNum) && costNum > 0) {
+      const margin = priceNum - costNum;
+      const marginPercentage = (margin / costNum) * 100;
+      return {
+        margin: Number(margin.toFixed(2)),
+        marginPercentage: Number(marginPercentage.toFixed(2))
+      };
+    }
+    return {
+      margin: 0,
+      marginPercentage: 0
+    };
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
     const { name, value } = e.target;
     if (!name) return;
@@ -277,11 +311,25 @@ const ProductForm: React.FC<ProductFormProps> = ({
           [child]: value
         }
       }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value
-      }));
+    } else {      setFormData((prev) => {
+        const newData = {
+          ...prev,
+          [name]: value
+        };
+        
+        // Recalculate margins when price or cost changes
+        if (name === 'price' || name === 'cost') {
+          const newPrice = name === 'price' ? String(value) : newData.price;
+          const newCost = name === 'cost' ? String(value) : newData.cost;
+          const margins = calculateMargins(newPrice, newCost);
+          return {
+            ...newData,
+            computedFields: margins
+          };
+        }
+        
+        return newData;
+      });
     }
     
     // Clear error for the field being edited
@@ -292,13 +340,27 @@ const ProductForm: React.FC<ProductFormProps> = ({
       }));
     }
   };
-
   const handleSelectChange = (e: SelectChangeEvent<string>) => {
-    handleChange(e as any);
+    const { name = e.target.name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    // Clear error if it exists
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
   };
 
-  const handleStatusChange = (e: SelectChangeEvent<'active' | 'inactive' | 'out_of_stock' | 'discontinued'>) => {
-    handleChange(e as any);
+  const handleStatusChange = (e: SelectChangeEvent<string>) => {
+    setFormData(prev => ({
+      ...prev,
+      status: e.target.value as 'active' | 'inactive' | 'out_of_stock' | 'discontinued'
+    }));
+    // Clear error if it exists
+    if (errors.status) {
+      setErrors(prev => ({ ...prev, status: '' }));
+    }
   };
   
   const handleSpecificationChange = (key: string, value: string) => {
@@ -349,7 +411,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
   };
   
   const removeSpecification = (key: string) => {
-    setSpecKeys(specKeys.filter((k) => k !== key));
+    setSpecKeys(specKeys.filter((k: string) => k !== key));
     
     setFormData((prev) => {
       const { [key]: _, ...restSpecs } = prev.specifications;
@@ -374,39 +436,54 @@ const ProductForm: React.FC<ProductFormProps> = ({
       ...prev,
       images: prev.images.filter((_, i) => i !== index)
     }));
-  };
-  
-  const handleSubmit = async () => {
+  };  const handleSubmit = async () => {
     if (!validateForm()) return;
     
     setLoading(true);
     setApiError(null);
     
-    try {
-      // Prepare data for API
+    try {      // Prepare data for API according to ProductCreateInput or ProductUpdateInput from productService
       const productData: ProductApiInput = {
         name: formData.name,
-        sku: formData.sku,
         description: formData.description,
         base_price: parseFloat(formData.price),
-        supplier_id: formData.categoryId,
-        status: formData.status === 'discontinued' ? 'inactive' : formData.status, // Allow out_of_stock status
-        unit: 'piece', // Required field
-        dimensions: formData.dimensions.length || formData.dimensions.width || formData.dimensions.height ? {
-          length: formData.dimensions.length ? parseFloat(formData.dimensions.length) : undefined,
-          width: formData.dimensions.width ? parseFloat(formData.dimensions.width) : undefined,
-          height: formData.dimensions.height ? parseFloat(formData.dimensions.height) : undefined,
-        } : undefined,
-        inventory: formData.inventory.quantity || formData.inventory.lowStockThreshold ? {
-          quantity: formData.inventory.quantity ? parseInt(formData.inventory.quantity) : undefined,
-          lowStockThreshold: formData.inventory.lowStockThreshold 
-            ? parseInt(formData.inventory.lowStockThreshold) 
-            : undefined,
-        } : undefined,
-        images: formData.images.length > 0 ? formData.images : undefined,
-        specifications: Object.keys(formData.specifications).length > 0 ? formData.specifications : undefined,
-        company_id: companyId,
+        supplier_id: formData.supplierId,
+        status: formData.status === 'discontinued' ? 'inactive' : formData.status,
+        unit: 'piece', // Default unit value
       };
+      
+      // Add optional fields only if they have values
+      
+      if (formData.dimensions.length || formData.dimensions.width || formData.dimensions.height) {
+        productData.dimensions = {};
+        if (formData.dimensions.length) {
+          productData.dimensions.length = parseFloat(formData.dimensions.length);
+        }
+        if (formData.dimensions.width) {
+          productData.dimensions.width = parseFloat(formData.dimensions.width);
+        }
+        if (formData.dimensions.height) {
+          productData.dimensions.height = parseFloat(formData.dimensions.height);
+        }
+      }
+      
+      if (formData.inventory.quantity || formData.inventory.lowStockThreshold) {
+        productData.inventory = {};
+        if (formData.inventory.quantity) {
+          productData.inventory.quantity = parseInt(formData.inventory.quantity);
+        }
+        if (formData.inventory.lowStockThreshold) {
+          productData.inventory.lowStockThreshold = parseInt(formData.inventory.lowStockThreshold);
+        }
+      }
+      
+      if (formData.images.length > 0) {
+        productData.images = formData.images;
+      }
+      
+      if (Object.keys(formData.specifications).length > 0) {
+        productData.specifications = formData.specifications;
+      }
       
       let savedProduct;
       
@@ -426,123 +503,175 @@ const ProductForm: React.FC<ProductFormProps> = ({
       setLoading(false);
     }
   };
-  
-  const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
+    const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    // Validate the current tab before moving to another
+    if (tabValue === 0) {
+      validateBasicInfo(formData, setErrors);
+    }
+    
     setTabValue(newValue);
   };
 
   // Basic Info Tab Panel Content
   const renderBasicInfoTab = () => (
-    <Stack spacing={3}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-        <TextField
-          name="name"
-          label="Product Name"
-          fullWidth
-          required
-          value={formData.name}
-          onChange={handleChange}
-          error={!!errors.name}
-          helperText={errors.name}
-          disabled={loading}
-        />
-        <TextField
-          name="sku"
-          label="SKU"
-          fullWidth
-          required
-          value={formData.sku}
-          onChange={handleChange}
-          error={!!errors.sku}
-          helperText={errors.sku}
-          disabled={loading}
-        />
-      </Stack>
+    <Box>
+      <FormSection 
+        title="Basic Information" 
+        tooltip="Enter the fundamental details about your product"
+      >
+        <Stack spacing={3}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+            <TextField
+              name="name"
+              label="Product Name"
+              fullWidth
+              required
+              value={formData.name}
+              onChange={handleChange}
+              error={!!errors.name}
+              helperText={errors.name || "Enter a descriptive name for your product"}
+              disabled={loading}
+              inputProps={{
+                'aria-describedby': 'product-name-helper-text'
+              }}
+            />
+          </Stack>
 
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-        <TextField
-          name="price"
-          label="Price"
-          fullWidth
-          required
-          type="number"
-          inputProps={{ min: 0, step: 0.01 }}
-          value={formData.price}
-          onChange={handleChange}
-          error={!!errors.price}
-          helperText={errors.price}
-          disabled={loading}
-          InputProps={{
-            startAdornment: <InputAdornment position="start">$</InputAdornment>,
-          }}
-        />
-        <TextField
-          name="cost"
-          label="Cost"
-          fullWidth
-          type="number"
-          inputProps={{ min: 0, step: 0.01 }}
-          value={formData.cost}
-          onChange={handleChange}
-          error={!!errors.cost}
-          helperText={errors.cost}
-          disabled={loading}
-          InputProps={{
-            startAdornment: <InputAdornment position="start">$</InputAdornment>,
-          }}
-        />
-      </Stack>
-
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-        <FormControl fullWidth required error={!!errors.categoryId}>
-          <InputLabel id="category-label">Category</InputLabel>
-          <Select
-            labelId="category-label"
-            name="categoryId"
-            value={formData.categoryId}
-            onChange={handleSelectChange}
+          <TextField
+            name="description"
+            label="Description"
+            fullWidth
+            multiline
+            rows={4}
+            value={formData.description}
+            onChange={handleChange}
             disabled={loading}
-            label="Category"
-          >
-            <MenuItem value="" disabled>Select a category</MenuItem>
-            {categories.map((category) => (
-              <MenuItem key={category.id} value={category.id}>
-                {category.name}
-              </MenuItem>
-            ))}
-          </Select>
-          {errors.categoryId && <FormHelperText>{errors.categoryId}</FormHelperText>}
-        </FormControl>
+            helperText="Provide a detailed description of the product's features and benefits"
+            inputProps={{
+              'aria-describedby': 'product-description-helper-text'
+            }}
+          />
+        </Stack>
+      </FormSection>
+      
+      <FormSection 
+        title="Pricing" 
+        tooltip="Set product pricing and view profit margins"
+      >
+        <Stack spacing={3}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+            <TextField
+              name="price"
+              label="Selling Price"
+              fullWidth
+              required
+              type="number"
+              inputProps={{ min: 0, step: 0.01, 'aria-describedby': 'price-helper-text' }}
+              value={formData.price}
+              onChange={handleChange}
+              error={!!errors.price}
+              helperText={errors.price || "The price customers will pay for this product"}
+              disabled={loading}
+              InputProps={{
+                startAdornment: <InputAdornment position="start">$</InputAdornment>,
+              }}
+            />
+            <TextField
+              name="cost"
+              label="Cost"
+              fullWidth
+              type="number"
+              inputProps={{ min: 0, step: 0.01, 'aria-describedby': 'cost-helper-text' }}
+              value={formData.cost}
+              onChange={handleChange}
+              error={!!errors.cost}
+              helperText={errors.cost || "Your cost to acquire or produce this product"}
+              disabled={loading}
+              InputProps={{
+                startAdornment: <InputAdornment position="start">$</InputAdornment>,
+              }}
+            />
+          </Stack>
 
-        <FormControl fullWidth>
-          <InputLabel id="status-label">Status</InputLabel>
-          <Select
-            labelId="status-label"
-            name="status"
-            value={formData.status}
-            onChange={handleStatusChange}
-            disabled={loading}
-            label="Status"
-          >
-            <MenuItem value="active">Active</MenuItem>
-            <MenuItem value="inactive">Inactive</MenuItem>
-            <MenuItem value="out_of_stock">Out of Stock</MenuItem>
-            <MenuItem value="discontinued">Discontinued</MenuItem>
-          </Select>
-        </FormControl>
-      </Stack>
+          {formData.computedFields && (formData.price || formData.cost) && (
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                label="Profit Margin"
+                fullWidth
+                value={`$${formData.computedFields.margin.toFixed(2)}`}
+                InputProps={{
+                  readOnly: true,
+                }}
+                disabled
+                helperText="The dollar amount of profit per unit"
+              />
+              <TextField
+                label="Margin Percentage"
+                fullWidth
+                value={`${formData.computedFields.marginPercentage.toFixed(2)}%`}
+                InputProps={{
+                  readOnly: true,
+                }}
+                disabled
+                helperText="Percentage of profit relative to cost"
+              />
+            </Stack>
+          )}
+        </Stack>
+      </FormSection>
+      
+      <FormSection title="Product Classification">
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+          <FormControl fullWidth required error={!!errors.supplierId}>
+            <InputLabel id="supplierId-label">Supplier</InputLabel>
+            <Select
+              labelId="supplierId-label"
+              name="supplierId"
+              value={formData.supplierId}
+              onChange={handleSelectChange}
+              disabled={loading}
+              label="Supplier"
+              inputProps={{
+                'aria-describedby': 'supplier-helper-text'
+              }}
+            >
+              <MenuItem value="" disabled>Select a supplier</MenuItem>
+              {suppliers.map((supplier) => (
+                <MenuItem key={supplier.id} value={supplier.id}>
+                  {supplier.name}
+                </MenuItem>
+              ))}
+            </Select>
+            <FormHelperText id="supplier-helper-text">
+              {errors.supplierId || "Select the supplier you purchase this product from"}
+            </FormHelperText>
+          </FormControl>
 
-      <TextField
-        name="description"
-        label="Description"
-        fullWidth
-        multiline
-        rows={4}
-        value={formData.description}
-        onChange={handleChange}
-        disabled={loading}
-      />
-    </Stack>
+          <FormControl fullWidth>
+            <InputLabel id="status-label">Status</InputLabel>
+            <Select
+              labelId="status-label"
+              name="status"
+              value={formData.status}
+              onChange={handleStatusChange}
+              disabled={loading}
+              label="Status"
+              inputProps={{
+                'aria-describedby': 'status-helper-text'
+              }}
+            >
+              <MenuItem value="active">Active</MenuItem>
+              <MenuItem value="inactive">Inactive</MenuItem>
+              <MenuItem value="out_of_stock">Out of Stock</MenuItem>
+              <MenuItem value="discontinued">Discontinued</MenuItem>
+            </Select>
+            <FormHelperText id="status-helper-text">
+              Determines if the product is available for purchase
+            </FormHelperText>
+          </FormControl>
+        </Stack>
+      </FormSection>
+    </Box>
   );
 
   return (
@@ -713,7 +842,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
               </Typography>
             )}
             
-            {specKeys.map((key, index) => (
+            {specKeys.map((key: string, index: number) => (
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} key={key} sx={{ mb: 2 }}>
                 <TextField
                   fullWidth
@@ -861,3 +990,55 @@ const ProductForm: React.FC<ProductFormProps> = ({
 };
 
 export default ProductForm;
+
+// New component for form section with tooltip support
+interface FormSectionProps {
+  title: string;
+  tooltip?: string;
+  children: React.ReactNode;
+}
+
+const FormSection: React.FC<FormSectionProps> = ({ title, tooltip, children }) => {
+  return (
+    <Box sx={{ mb: 4 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h6" component="h3">{title}</Typography>
+        {tooltip && (
+          <Tooltip title={tooltip} arrow>
+            <IconButton size="small" sx={{ ml: 0.5 }}>
+              <HelpOutlineIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
+      <Divider sx={{ mb: 2 }} />
+      {children}
+    </Box>
+  );
+};
+
+// Add this function to validate only the basic info tab
+const validateBasicInfo = (formData: any, setErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>, showErrors = true) => {
+  const newErrors: Record<string, string> = {};
+  
+  if (!formData.name.trim()) {
+    newErrors.name = 'Product name is required';
+  }
+  
+  if (!formData.price.trim()) {
+    newErrors.price = 'Price is required';
+  } else if (isNaN(parseFloat(formData.price)) || parseFloat(formData.price) < 0) {
+    newErrors.price = 'Price must be a valid positive number';
+  }
+  
+  if (!formData.supplierId) {
+    newErrors.supplierId = 'Please select a valid supplier';
+  }
+  
+  if (showErrors) {
+    setErrors(prev => ({ ...prev, ...newErrors }));
+  }
+  
+  return Object.keys(newErrors).length === 0;
+};
+

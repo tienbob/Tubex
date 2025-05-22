@@ -15,7 +15,6 @@ const WhiteLabelFooter: React.FC<WhiteLabelFooterProps> = ({
 }) => {
   const { theme } = useTheme();
   const currentYear = new Date().getFullYear();
-
   return (
     <Box 
       component="footer" 
@@ -29,14 +28,14 @@ const WhiteLabelFooter: React.FC<WhiteLabelFooterProps> = ({
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        {showLogo && (
+        {showLogo && theme.logoUrl && (
           <Box 
             component="img"
             sx={{
               height: 30,
               mr: 2
             }}
-            alt={`${theme.companyName} logo`}
+            alt={`${theme.companyName || 'Company'} logo`}
             src={theme.logoUrl}
           />
         )}
@@ -45,7 +44,7 @@ const WhiteLabelFooter: React.FC<WhiteLabelFooterProps> = ({
           <Typography variant="body2" color="text.secondary">
             {'© '}
             <Link color="inherit" href="#">
-              {theme.companyName}
+              {theme.companyName || 'Company'}
             </Link>{' '}
             {currentYear}
           </Typography>

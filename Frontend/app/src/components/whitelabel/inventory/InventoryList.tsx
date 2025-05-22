@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useReducer, useEffect, useCallback } from 'react';
 import {
   Box,
   Button,
@@ -25,6 +25,7 @@ import WarningIcon from '@mui/icons-material/Warning';
 import DataTable, { Column } from '../DataTable';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { inventoryService } from '../../../services/api';
+import { InventoryItem } from '../../../services/api/inventoryService';
 
 interface InventoryListProps {
   companyId: string; // Required parameter
@@ -36,7 +37,139 @@ interface InventoryListProps {
   maxHeight?: number | string;
   onInventorySelect?: (inventoryId: string) => void;
   onTransferClick?: (product: { id: string; name: string }) => void;
+};
+
+// Define types for inventory and warehouse
+interface Inventory extends InventoryItem {
+  product_name?: string;
+  unit?: string;
+  warehouse_name?: string;
+  threshold?: number;
+  warehouse_capacity?: number;
+  last_updated?: string;
+  [key: string]: any; // For additional properties
 }
+
+interface Warehouse {
+  id: string;
+  name: string;
+  [key: string]: any; // For additional properties
+}
+
+// Define state interface
+interface InventoryListState {
+  inventory: Inventory[];
+  loading: boolean;
+  error: string | null;
+  searchTerm: string;
+  selectedWarehouse: string;
+  warehouses: Warehouse[];
+  page: number;
+  rowsPerPage: number;
+  totalCount: number;
+  batchFilter: string;
+  sortBy: string;
+  sortDirection: 'asc' | 'desc';
+}
+
+// Define action types
+type InventoryListAction =
+  | { type: 'SET_INVENTORY'; payload: { data: Inventory[], totalCount: number } }
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_ERROR'; payload: string | null }
+  | { type: 'SET_SEARCH_TERM'; payload: string }
+  | { type: 'SET_SELECTED_WAREHOUSE'; payload: string }
+  | { type: 'SET_WAREHOUSES'; payload: Warehouse[] }
+  | { type: 'SET_PAGE'; payload: number }
+  | { type: 'SET_ROWS_PER_PAGE'; payload: number }
+  | { type: 'SET_BATCH_FILTER'; payload: string }
+  | { type: 'SET_SORT_BY'; payload: string }
+  | { type: 'SET_SORT_DIRECTION'; payload: 'asc' | 'desc' };
+
+// Define initial state
+const initialState: InventoryListState = {
+  inventory: [],
+  loading: false,
+  error: null,
+  searchTerm: '',
+  selectedWarehouse: '',
+  warehouses: [],
+  page: 0,
+  rowsPerPage: 10,
+  totalCount: 0,
+  batchFilter: '',
+  sortBy: 'product_name',
+  sortDirection: 'asc'
+};
+
+// Define reducer function
+const inventoryListReducer = (state: InventoryListState, action: InventoryListAction): InventoryListState => {
+  switch (action.type) {
+    case 'SET_INVENTORY':
+      return {
+        ...state,
+        inventory: action.payload.data,
+        totalCount: action.payload.totalCount
+      };
+    case 'SET_LOADING':
+      return {
+        ...state,
+        loading: action.payload
+      };
+    case 'SET_ERROR':
+      return {
+        ...state,
+        error: action.payload
+      };
+    case 'SET_SEARCH_TERM':
+      return {
+        ...state,
+        searchTerm: action.payload
+      };
+    case 'SET_SELECTED_WAREHOUSE':
+      return {
+        ...state,
+        selectedWarehouse: action.payload,
+        page: 0 // Reset to first page when changing warehouse
+      };
+    case 'SET_WAREHOUSES':
+      return {
+        ...state,
+        warehouses: action.payload
+      };
+    case 'SET_PAGE':
+      return {
+        ...state,
+        page: action.payload
+      };
+    case 'SET_ROWS_PER_PAGE':
+      return {
+        ...state,
+        rowsPerPage: action.payload,
+        page: 0 // Reset to first page when changing rows per page
+      };
+    case 'SET_BATCH_FILTER':
+      return {
+        ...state,
+        batchFilter: action.payload,
+        page: 0 // Reset to first page when changing filter
+      };
+    case 'SET_SORT_BY':
+      return {
+        ...state,
+        sortBy: action.payload,
+        page: 0 // Reset to first page when changing sort
+      };
+    case 'SET_SORT_DIRECTION':
+      return {
+        ...state,
+        sortDirection: action.payload,
+        page: 0 // Reset to first page when changing sort direction
+      };
+    default:
+      return state;
+  }
+};
 
 const InventoryList: React.FC<InventoryListProps> = ({
   companyId,
@@ -53,22 +186,11 @@ const InventoryList: React.FC<InventoryListProps> = ({
   const { theme: whitelabelTheme } = useTheme();
   const muiTheme = useMuiTheme();
 
-  // All useState hooks must be called at the top level, before any conditional returns
-  const [inventory, setInventory] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedWarehouse, setSelectedWarehouse] = useState(warehouseId || '');
-  const [warehouses, setWarehouses] = useState<any[]>([]);
-  
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [totalCount, setTotalCount] = useState(0);
-  
-  const [batchFilter, setBatchFilter] = useState('');
-  const [sortBy, setSortBy] = useState('product_name');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  // Use reducer for state management
+  const [state, dispatch] = useReducer(inventoryListReducer, {
+    ...initialState,
+    selectedWarehouse: warehouseId || ''
+  });
   
   // Custom button style based on the whitelabel theme
   const buttonStyle = {
@@ -80,43 +202,48 @@ const InventoryList: React.FC<InventoryListProps> = ({
         `${whitelabelTheme.primaryColor}dd` : muiTheme.palette.primary.dark,
     },
   };
-
-  const fetchInventory = async () => {
+  const fetchInventory = useCallback(async () => {
     if (!companyId) {
-      setError('Company ID is required');
+      dispatch({ type: 'SET_ERROR', payload: 'Company ID is required' });
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'SET_ERROR', payload: null });
     
     try {
       const params: any = {
-        page: page + 1, // API uses 1-based page indexing
-        limit: rowsPerPage,
-        search: searchTerm || undefined,
-        warehouseId: selectedWarehouse || undefined, // Changed to match service parameters
-        companyId: companyId, // Ensure this matches the service parameter name
-        sortBy: sortBy, // Changed to match service parameters
-        sortDirection: sortDirection,
+        page: state.page + 1, // API uses 1-based page indexing
+        limit: state.rowsPerPage,
+        search: state.searchTerm || undefined,
+        warehouseId: state.selectedWarehouse || undefined,
+        companyId: companyId,
+        sortBy: state.sortBy,
+        sortDirection: state.sortDirection,
       };
       
-      if (batchFilter) {
-        params.batchId = batchFilter; // Changed to camelCase to match service conventions
+      if (state.batchFilter) {
+        params.batchId = state.batchFilter;
       }
       
       const response = await inventoryService.getInventory(params);
-      setInventory(response.data || []);
-      setTotalCount(response.pagination?.total || 0);
+      dispatch({ 
+        type: 'SET_INVENTORY', 
+        payload: {
+          data: response.data || [],
+          totalCount: response.pagination?.total || 0
+        }
+      });
     } catch (err: any) {
-      setError(err.message || 'Failed to load inventory');
+      dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to load inventory' });
       console.error('Error fetching inventory:', err);
     } finally {
-      setLoading(false);
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, [companyId, state.page, state.rowsPerPage, state.searchTerm, state.selectedWarehouse, 
+      state.batchFilter, state.sortBy, state.sortDirection]);
   
-  const fetchWarehouses = async () => {
+  const fetchWarehouses = useCallback(async () => {
     if (warehouseId) return; // Don't fetch warehouses if one is specified
     if (!companyId) {
       console.error('Company ID is required to fetch warehouses');
@@ -125,41 +252,66 @@ const InventoryList: React.FC<InventoryListProps> = ({
     
     try {
       const response = await inventoryService.getWarehouses(companyId);
-      setWarehouses(response.data || []);
+      
+      // Handle different potential response structures
+      let warehousesList: Array<any> = [];
+      
+      // If response.data is an array
+      if (Array.isArray(response.data)) {
+        warehousesList = response.data;
+      } 
+      // If response.data contains a warehouses property that is an array
+      else if (response.data && typeof response.data === 'object' && 'warehouses' in response.data && 
+              Array.isArray((response.data as any).warehouses)) {
+        warehousesList = (response.data as any).warehouses;
+      }
+      // If response.data.data contains the warehouses array
+      else if (response.data && typeof response.data === 'object' && 'data' in response.data && 
+              Array.isArray((response.data as any).data)) {
+        warehousesList = (response.data as any).data;
+      }
+      // Default to empty array if no matching structure is found
+      else {
+        console.error('Unexpected API response format:', response);
+        warehousesList = [];
+      }
+      
+      dispatch({ type: 'SET_WAREHOUSES', payload: warehousesList });
     } catch (err: any) {
       console.error('Error fetching warehouses:', err);
+      // Always set warehouses to an empty array on error
+      dispatch({ type: 'SET_WAREHOUSES', payload: [] });
     }
-  };
-  
-  // useEffect hooks must also be called at the top level
+  }, [companyId, warehouseId]);
+    // useEffect hooks
   useEffect(() => {
     if (companyId) {
       fetchWarehouses();
     }
-  }, [companyId, warehouseId]);
+  }, [companyId, warehouseId, fetchWarehouses]);
   
   useEffect(() => {
     if (companyId) {
       fetchInventory();
     }
-  }, [page, rowsPerPage, selectedWarehouse, companyId, sortBy, sortDirection, batchFilter, searchTerm]);
+  }, [fetchInventory]);
   
-  const handleSearch = () => {
-    setPage(0); // Reset to first page when searching
+  const handleSearch = useCallback(() => {
+    dispatch({ type: 'SET_PAGE', payload: 0 }); // Reset to first page when searching
     fetchInventory();
-  };
+  }, [fetchInventory]);
   
-  const handleSearchKeyPress = (e: React.KeyboardEvent) => {
+  const handleSearchKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleSearch();
     }
-  };
+  }, [handleSearch]);
   
-  const handleWarehouseChange = (event: SelectChangeEvent<string>) => {
+  const handleWarehouseChange = useCallback((event: SelectChangeEvent<string>) => {
     const { value } = event.target;
-    setSelectedWarehouse(value);
-    setPage(0);
-  };
+    dispatch({ type: 'SET_SELECTED_WAREHOUSE', payload: value });
+    // Page reset is handled in the reducer
+  }, []);
   
   const formatQuantityWithUnit = (quantity: number, unit: string) => {
     return `${quantity.toLocaleString()} ${unit || ''}`;
@@ -291,7 +443,7 @@ const InventoryList: React.FC<InventoryListProps> = ({
       }}>
         <Typography variant="h6" component="h2">
           Inventory
-          {inventory.some(item => item.quantity <= (item.threshold || 0)) && (
+          {state.inventory.some(item => item.quantity <= (item.threshold || 0)) && (
             <Tooltip title="Some products have low stock">
               <WarningIcon 
                 color="warning" 
@@ -311,8 +463,8 @@ const InventoryList: React.FC<InventoryListProps> = ({
             <TextField
               placeholder="Search products..."
               size="small"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={state.searchTerm}
+              onChange={(e) => dispatch({ type: 'SET_SEARCH_TERM', payload: e.target.value })}
               onKeyPress={handleSearchKeyPress}
               InputProps={{
                 startAdornment: (
@@ -320,13 +472,13 @@ const InventoryList: React.FC<InventoryListProps> = ({
                     <SearchIcon />
                   </InputAdornment>
                 ),
-                endAdornment: searchTerm && (
+                endAdornment: state.searchTerm && (
                   <InputAdornment position="end">
                     <Button 
                       size="small" 
                       onClick={() => {
-                        setSearchTerm('');
-                        if (!searchTerm) return;
+                        dispatch({ type: 'SET_SEARCH_TERM', payload: '' });
+                        if (!state.searchTerm) return;
                         setTimeout(() => handleSearch(), 0);
                       }}
                     >
@@ -337,21 +489,21 @@ const InventoryList: React.FC<InventoryListProps> = ({
               }}
             />
             
-            {!warehouseId && warehouses.length > 0 && (
+            {!warehouseId && state.warehouses.length > 0 && (
               <FormControl sx={{ minWidth: 150 }} size="small">
                 <InputLabel id="warehouse-filter-label">Warehouse</InputLabel>
                 <Select
                   labelId="warehouse-filter-label"
-                  value={selectedWarehouse}
+                  value={state.selectedWarehouse}
                   onChange={handleWarehouseChange}
                   label="Warehouse"
                 >
                   <MenuItem value="">All Warehouses</MenuItem>
-                  {warehouses.map((warehouse) => (
+                  {Array.isArray(state.warehouses) ? state.warehouses.map((warehouse) => (
                     <MenuItem key={warehouse.id} value={warehouse.id}>
                       {warehouse.name}
                     </MenuItem>
-                  ))}
+                  )) : null}
                 </Select>
               </FormControl>
             )}
@@ -378,19 +530,20 @@ const InventoryList: React.FC<InventoryListProps> = ({
       
       <DataTable
         columns={columns}
-        data={inventory}
-        loading={loading}
-        error={error}
+        data={state.inventory}
+        loading={state.loading}
+        error={state.error}
         pagination={{
-          page,
-          totalCount,
-          rowsPerPage,
-          onPageChange: (newPage) => setPage(newPage),
+          page: state.page,
+          totalCount: state.totalCount,
+          rowsPerPage: state.rowsPerPage,
+          onPageChange: (newPage) => dispatch({ type: 'SET_PAGE', payload: newPage }),
           onRowsPerPageChange: (newRowsPerPage) => {
-            setRowsPerPage(newRowsPerPage);
-            setPage(0);
+            dispatch({ type: 'SET_ROWS_PER_PAGE', payload: newRowsPerPage });
+            // Page reset is handled in the reducer
           },
         }}
+        onRowClick={onInventorySelect ? (row) => onInventorySelect(row.id) : undefined}
       />
     </Box>
   );
