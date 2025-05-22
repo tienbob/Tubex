@@ -14,6 +14,7 @@ import { PriceList } from './models/sql/price-list';
 import { PriceListItem } from './models/sql/price-list-item';
 import { ProductPriceHistory } from './models/sql/product-price-history';
 import { Payment } from './models/sql/payment';
+import { ProductCategory } from './models/sql/product-category';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -38,12 +39,12 @@ export const AppDataSource = new DataSource({
     Quote,
     QuoteItem,
     Invoice,
-    InvoiceItem,
-    PriceList,
+    InvoiceItem,    PriceList,
     PriceListItem,
     ProductPriceHistory,
-    Payment
-  ],  
+    Payment,
+    ProductCategory
+  ],
   migrations: [
     // New organized migrations (one file per table)
     'src/database/migrations/1684000000000-CreateCompanyTable.ts',
@@ -59,10 +60,11 @@ export const AppDataSource = new DataSource({
     'src/database/migrations/1684000009000-CreateUserAuditLogTable.ts',
     'src/database/migrations/1715862288000-CreateQuoteTable.ts',
     'src/database/migrations/1715862490000-CreatePriceListTables.ts',
-    'src/database/migrations/1715862389000-CreateInvoiceTable.ts',
+    'src/database/migrations/1715862389000-CreateInvoiceTable.ts',    
     'src/database/migrations/1715862389001-CreateInvoiceItemTable.ts',
     'src/database/migrations/1715862389002-CreateQuoteItemTable.ts',
-    'src/database/migrations/1742098765432-CreatePaymentTable.ts'
+    'src/database/migrations/1742098765432-CreatePaymentTable.ts',
+    'src/database/migrations/1747500000000-CreateProductCategoryTable.ts'
     
     // Keep old migrations for reference but comment them out
     /* 

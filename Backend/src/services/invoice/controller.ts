@@ -204,27 +204,40 @@ export const invoiceController = {
         const page = parseInt(req.query.page as string) || 1;
         const limit = parseInt(req.query.limit as string) || 10;
         const status = req.query.status as string;
-
+        const sortBy = req.query.sortBy as string || 'createdAt';
+        const sortOrder = (req.query.sortOrder as string || 'desc').toUpperCase() as 'ASC' | 'DESC';
+        
+        // Get companyId from route params or user
+        const targetCompanyId = req.params.companyId || req.user.id;
         const skip = (page - 1) * limit;
 
         const queryBuilder = AppDataSource.getRepository(Invoice)
             .createQueryBuilder('invoice')
             .leftJoinAndSelect('invoice.items', 'items')
-            .leftJoinAndSelect('items.product', 'product')
-            .orderBy('invoice.createdAt', 'DESC')
-            .skip(skip)
-            .take(limit);
+            .leftJoinAndSelect('items.product', 'product');
+        
+        // If companyId is provided, filter by it
+        if (targetCompanyId) {
+            queryBuilder.andWhere('invoice.customerId = :customerId', { customerId: targetCompanyId });
+        } else if (req.user.role !== 'admin') {
+            // If not admin and no company specified, show only user's invoices
+            queryBuilder.andWhere('invoice.customerId = :customerId', { customerId: req.user.id });
+        }
 
+        // Apply sorting with validation
+        const validSortFields = ['createdAt', 'updatedAt', 'issueDate', 'dueDate', 'totalAmount', 'invoiceNumber'];
+        if (validSortFields.includes(sortBy)) {
+            queryBuilder.orderBy(`invoice.${sortBy}`, sortOrder === 'ASC' ? 'ASC' : 'DESC');
+        } else {
+            queryBuilder.orderBy('invoice.createdAt', 'DESC'); // Default sorting
+        }
+        
         // Apply filters
         if (status) {
             queryBuilder.andWhere('invoice.status = :status', { status });
         }
-
-        // If not admin, only show user's own invoices
-        if (req.user.role !== 'admin') {
-            queryBuilder.andWhere('invoice.customerId = :customerId', { customerId: req.user.id });
-        }
-
+        
+        queryBuilder.skip(skip).take(limit);
         const [invoices, total] = await queryBuilder.getManyAndCount();
 
         res.status(200).json({
