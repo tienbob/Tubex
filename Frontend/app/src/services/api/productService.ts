@@ -171,8 +171,7 @@ export const productService = {
         if (!data.supplier_id || data.supplier_id.trim() === '') {
         throw new Error('Supplier ID is required');
       }
-      
-      const response = await post<{data: Product}>(`/products/company/${companyId}`, data);
+        const response = await post<{data: Product}>(`/products`, data);
       return response.data.data;
     } catch (error) {
       if (error instanceof AxiosError) {

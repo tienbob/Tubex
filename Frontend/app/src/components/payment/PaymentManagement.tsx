@@ -427,7 +427,8 @@ const PaymentManagement: React.FC = () => {
       <Paper sx={{ width: '100%', overflow: 'hidden' }}>
         <TableContainer sx={{ maxHeight: 'calc(100vh - 320px)' }}>
           <Table stickyHeader aria-label="sticky table">
-            <TableHead>              <TableRow>
+            <TableHead>
+              <TableRow>
                 <TableCell>ID</TableCell>
                 <TableCell>Date</TableCell>
                 <TableCell>Customer Name</TableCell>
@@ -449,13 +450,14 @@ const PaymentManagement: React.FC = () => {
                   <TableCell colSpan={9} align="center" sx={{ color: 'error.main' }}>
                     Error loading payments: {error}
                   </TableCell>
-                </TableRow>
-              ) : payments.length === 0 ? (
+                </TableRow>              ) : payments.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} align="center">No payments found</TableCell>
                 </TableRow>
-              ) : (                payments.map((payment) => (
-                  <TableRow key={payment.id} hover>                    <TableCell>{payment.transactionId}</TableCell>
+              ) : (
+                payments.map((payment) => (
+                  <TableRow key={payment.id} hover>
+                    <TableCell>{payment.transactionId}</TableCell>
                     <TableCell>{format(new Date(payment.paymentDate), 'MMM dd, yyyy')}</TableCell>
                     <TableCell>{payment.customerName || payment.customerId}</TableCell>
                     <TableCell>{formatCurrency(payment.amount)}</TableCell>

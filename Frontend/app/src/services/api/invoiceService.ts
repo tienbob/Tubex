@@ -1,4 +1,4 @@
-import { get, post, put, del, getFile } from './apiClient';
+import { get, post, put, del, getFile, getCurrentCompanyId } from './apiClient';
 import { AxiosError } from 'axios';
 
 // Custom error class for API errors
@@ -118,14 +118,6 @@ export interface InvoiceFilters {
   companyId?: string;
 }
 
-// Helper function to get current company ID
-function getCurrentCompanyId(): string | undefined {
-  // This function should retrieve the company ID from your app context/state
-  // For example, from your auth context or localStorage
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  return user.companyId || user.company_id || undefined;
-}
-
 /**
  * Create a new invoice
  */
@@ -153,13 +145,28 @@ export const createInvoice = async (invoiceData: CreateInvoiceRequest): Promise<
 /**
  * Get all invoices with optional filters
  */
-export const getInvoices = async (filters?: InvoiceFilters): Promise<{ data: Invoice[]; pagination: ApiResponse<Invoice[]>['pagination'] }> => {
-  try {
-    const companyId = getCurrentCompanyId();
-    if (!companyId) {
-      throw new Error('Company ID not available');
+export const getInvoices = async (filters?: InvoiceFilters, companyId?: string): Promise<{ data: Invoice[]; pagination: ApiResponse<Invoice[]>['pagination'] }> => {  try {
+    let currentCompanyId = companyId;
+    
+    if (!currentCompanyId) {
+      try {
+        currentCompanyId = getCurrentCompanyId(true); // This will throw if not found
+      } catch (error) {
+        console.error('getInvoices: Company ID not available', { 
+          companyId, 
+          error: error,
+          localStorage: localStorage.getItem('user'),
+          userInfo: localStorage.getItem('user_info')
+        });
+        throw new Error('Company ID not available. Please ensure you are logged in and have a company associated with your account.');
+      }
     }
-    const response = await get<ApiResponse<Invoice[]>>(`/invoices/company/${companyId}`, { 
+    
+    console.log('getInvoices: Making API call', { 
+      companyId: currentCompanyId, 
+      filters,
+      url: `/invoices/company/${currentCompanyId}`
+    });const response = await get<ApiResponse<Invoice[]>>(`/invoices/company/${currentCompanyId}`, { 
       params: {
         limit: 10,
         page: 1,
@@ -174,16 +181,22 @@ export const getInvoices = async (filters?: InvoiceFilters): Promise<{ data: Inv
         totalItems: response.data.data.length,
         totalPages: 1
       }
-    };
-  } catch (error) {
+    };  } catch (error) {
+    console.error('getInvoices: API call failed', { error, companyId: companyId || getCurrentCompanyId() });
     const axiosError = error as AxiosError;
     if (axiosError.response) {
+      console.error('getInvoices: HTTP error response', {
+        status: axiosError.response.status,
+        data: axiosError.response.data,
+        headers: axiosError.response.headers
+      });
       throw new ApiError(
         (axiosError.response.data as any)?.message || 'Failed to fetch invoices',
         axiosError.response.status,
         axiosError.response.data
       );
     }
+    console.error('getInvoices: Network or other error', axiosError.message);
     throw new ApiError('Failed to fetch invoices', 500);
   }
 };

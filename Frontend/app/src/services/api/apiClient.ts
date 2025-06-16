@@ -2,6 +2,38 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { enableMockApi, isMockApiEnabled, toggleMockApi } from '../mock/mockService';
 import { API_BASE_URL, USE_MOCK_API } from '../../config/api.config';
 
+/**
+ * Get token from storage (handles both old string format and new object format)
+ */
+const getTokenFromStorage = (key: string): string | null => {
+  try {
+    const stored = localStorage.getItem(key);
+    if (!stored) return null;
+    
+    // Try to parse as JSON (new format)
+    try {
+      const tokenData = JSON.parse(stored);
+      if (tokenData.token && tokenData.expiration) {
+        // Check if token has expired based on our custom expiration
+        if (Date.now() > tokenData.expiration) {
+          console.log(`Token expired (custom expiration), removing from storage`);
+          localStorage.removeItem(key);
+          return null;
+        }
+        return tokenData.token;
+      }
+    } catch {
+      // Not JSON, assume old string format
+      return stored;
+    }
+    
+    return stored;
+  } catch (error) {
+    console.error(`Error getting token from ${key}:`, error);
+    return null;
+  }
+};
+
 // Initialize mock API based on configuration
 if (USE_MOCK_API) {
   toggleMockApi(true);
@@ -31,7 +63,7 @@ export { toggleMockApi, isMockApiEnabled };
 // Request interceptor for API calls
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token');
+    const token = getTokenFromStorage('access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -55,8 +87,7 @@ apiClient.interceptors.response.use(
   (response) => {
     console.log(`API Response [${response.status}]:`, response.data);
     return response;
-  },
-  async (error) => {
+  },  async (error) => {
     console.error('API Response Error:', error.response || error.message);
     const originalRequest = error.config;
     
@@ -68,9 +99,24 @@ apiClient.interceptors.response.use(
       
       originalRequest._retry = true;
       try {
-        const refreshToken = localStorage.getItem('refresh_token');
-        if (!refreshToken) {
+        const refreshTokenData = localStorage.getItem('refresh_token');
+        if (!refreshTokenData) {
           throw new Error('No refresh token available');
+        }
+        
+        // Handle both old and new token formats
+        let refreshToken;
+        try {
+          const parsed = JSON.parse(refreshTokenData);
+          refreshToken = parsed.token || refreshTokenData;
+          
+          // Check if refresh token has expired based on custom expiration
+          if (parsed.expiration && Date.now() > parsed.expiration) {
+            throw new Error('Refresh token expired');
+          }
+        } catch (parseError) {
+          // Old format, use as-is
+          refreshToken = refreshTokenData;
         }
         
         console.log('Token refresh attempt with originalRequest:', {
@@ -85,18 +131,45 @@ apiClient.interceptors.response.use(
           data: { refreshToken },
           headers: { 'Content-Type': 'application/json' }
         });
-        
-        const newToken = response.data?.data?.accessToken || 
+          const newToken = response.data?.data?.accessToken || 
                          response.data?.accessToken;
                         
         if (newToken) {
           console.log('Token refresh successful, got new token');
-          localStorage.setItem('access_token', newToken);
+          
+          // Get existing token data to preserve rememberMe setting
+          const existingTokenData = localStorage.getItem('access_token');
+          let rememberMe = false;
+          let customExpiration = Date.now() + (24 * 60 * 60 * 1000); // Default 1 day
+          
+          try {
+            const parsed = JSON.parse(existingTokenData || '{}');
+            rememberMe = parsed.rememberMe || false;
+            customExpiration = rememberMe 
+              ? Date.now() + (7 * 24 * 60 * 60 * 1000) // 7 days
+              : Date.now() + (24 * 60 * 60 * 1000); // 1 day
+          } catch {
+            // Use defaults if parsing fails
+          }
+          
+          // Store new token with preserved expiration settings
+          const tokenData = {
+            token: newToken,
+            expiration: customExpiration,
+            rememberMe
+          };
+          
+          localStorage.setItem('access_token', JSON.stringify(tokenData));
           
           // If refreshToken was also returned, update it
           if (response.data?.data?.refreshToken || response.data?.refreshToken) {
             const newRefreshToken = response.data?.data?.refreshToken || response.data?.refreshToken;
-            localStorage.setItem('refresh_token', newRefreshToken);
+            const refreshTokenData = {
+              token: newRefreshToken,
+              expiration: customExpiration,
+              rememberMe
+            };
+            localStorage.setItem('refresh_token', JSON.stringify(refreshTokenData));
           }
           
           // Update axios instance auth header

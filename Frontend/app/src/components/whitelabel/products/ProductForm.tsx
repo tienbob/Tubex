@@ -125,9 +125,12 @@ const ProductForm: React.FC<ProductFormProps> = ({
   onCancel,
 }) => {
   const isEditMode = !!productId;
-    const [tabValue, setTabValue] = useState(0);
+  const [tabValue, setTabValue] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  
+  // Debug log to see component state
+  console.log('ProductForm render - suppliers state:', suppliers.length, suppliers);
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
     description: '',
@@ -170,21 +173,37 @@ const ProductForm: React.FC<ProductFormProps> = ({
       console.error('Error fetching categories:', err);
     }
   };
-  
   const fetchSuppliers = async () => {
     try {
+      console.log('Fetching suppliers...');
       const response = await companyService.getSuppliers();
+      console.log('Suppliers API response:', response);
+      console.log('Response data:', response.data);
+      console.log('Response data type:', typeof response.data);
+      console.log('Response data is array:', Array.isArray(response.data));
+      
       const suppliersList = response.data || [];
-      setSuppliers(suppliersList
-        .filter(supplier => supplier.type === 'supplier')
+      console.log('Suppliers list before filtering:', suppliersList);
+      console.log('Suppliers list length:', suppliersList.length);
+      
+      const filteredSuppliers = suppliersList
+        .filter(supplier => {
+          console.log('Checking supplier:', supplier);
+          console.log('Supplier type:', supplier.type);
+          return supplier.type === 'supplier';
+        })
         .map(supplier => ({
           id: supplier.id,
           name: supplier.name,
           type: supplier.type as 'supplier' // Type assertion to ensure it's treated as 'supplier'
-        }))
-      );
+        }));
+      
+      console.log('Filtered suppliers:', filteredSuppliers);
+      console.log('Filtered suppliers length:', filteredSuppliers.length);
+      setSuppliers(filteredSuppliers);
     } catch (err: any) {
       console.error('Error fetching suppliers:', err);
+      console.error('Error details:', err.response?.data);
     }
   };
     // Updated the fetchProductDetails function to align with the Product type from productService
@@ -621,8 +640,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
       </FormSection>
       
       <FormSection title="Product Classification">
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-          <FormControl fullWidth required error={!!errors.supplierId}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>          <FormControl fullWidth required error={!!errors.supplierId}>
             <InputLabel id="supplierId-label">Supplier</InputLabel>
             <Select
               labelId="supplierId-label"
@@ -636,11 +654,17 @@ const ProductForm: React.FC<ProductFormProps> = ({
               }}
             >
               <MenuItem value="" disabled>Select a supplier</MenuItem>
-              {suppliers.map((supplier) => (
-                <MenuItem key={supplier.id} value={supplier.id}>
-                  {supplier.name}
-                </MenuItem>
-              ))}
+              {suppliers.length === 0 && (
+                <MenuItem value="" disabled>No suppliers available</MenuItem>
+              )}
+              {suppliers.map((supplier) => {
+                console.log('Rendering supplier option:', supplier);
+                return (
+                  <MenuItem key={supplier.id} value={supplier.id}>
+                    {supplier.name}
+                  </MenuItem>
+                );
+              })}
             </Select>
             <FormHelperText id="supplier-helper-text">
               {errors.supplierId || "Select the supplier you purchase this product from"}

@@ -44,10 +44,9 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    
-    try {
-      console.log('Login attempt with:', { email: formData.email });
-      const response = await login(formData.email, formData.password);
+      try {
+      console.log('Login attempt with:', { email: formData.email, rememberMe });
+      const response = await login(formData.email, formData.password, rememberMe);
       console.log('Login response:', response);
       
       // Verify we got necessary data

@@ -6,7 +6,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   user: UserInfo | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<any>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<any>;
   logout: () => void;
   validateToken: () => Promise<boolean>;
 }
@@ -29,39 +29,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('AuthProvider: Initializing auth state');
     initializeAuth();
   }, []);
-  
   const initializeAuth = async () => {
     setLoading(true);
     try {
-      // First check if we have an access token
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        console.log('No access token found, user is not authenticated');
+      // First check if we have an access token using the auth service method
+      const isAuth = authService.isAuthenticated();
+      if (!isAuth) {
+        console.log('User is not authenticated');
         setUser(null);
         return;
       }
       
-      // Then validate the token
-      const isValid = await validateToken();
-      if (!isValid) {
-        console.log('Token is invalid or expired');
-        setUser(null);
-        return;
+      // Attempt to refresh token if needed (for Remember Me functionality)
+      try {
+        await authService.autoRefreshToken();
+      } catch (error) {
+        console.warn('Token auto-refresh failed:', error);
+        // Continue anyway, the user might still be authenticated
       }
       
       // Get user info from storage
-      const storedUser = localStorage.getItem('user_info');
+      const storedUser = authService.getCurrentUser();
       if (storedUser) {
-        try {
-          const parsedUser = JSON.parse(storedUser);
-          console.log('User info retrieved from storage:', parsedUser);
-          setUser(parsedUser);
-        } catch (error) {
-          console.error('Failed to parse stored user info:', error);
-          setUser(null);
-        }
+        console.log('User info retrieved from storage:', storedUser);
+        setUser(storedUser);
       } else {
-        console.log('No user info found in storage');
+        console.log('No valid user info found in storage');
         setUser(null);
       }
     } catch (error) {
@@ -71,12 +64,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     }
   };
-  
-  const login = async (email: string, password: string) => {
+    const login = async (email: string, password: string, rememberMe: boolean = false) => {
     try {
       const response = await authService.login({
         email,
         password,
+        rememberMe,
       });
       
       console.log('Login successful, auth response:', response);

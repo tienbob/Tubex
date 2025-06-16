@@ -5,8 +5,6 @@ import {
   Container,
   Typography,
   IconButton,
-  Tab,
-  Tabs
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ProductList from '../components/whitelabel/products/ProductList';

@@ -13,12 +13,20 @@ const PriceListManagement: React.FC = () => {
   const [form, setForm] = useState<CreatePriceListRequest>({ name: '', type: PriceListType.STANDARD, items: [] });
   const [formError, setFormError] = useState<string | null>(null);
   const navigate = useNavigate();
-
   useEffect(() => {
+    console.log('PriceListManagement: Loading price lists...');
     setLoading(true);
+    setError(null);
+    
     getPriceLists()
-      .then((res) => setPriceLists(res.data))
-      .catch((err) => setError(err.message))
+      .then((res) => {
+        console.log('PriceListManagement: Successfully loaded price lists', res);
+        setPriceLists(res.data);
+      })
+      .catch((err) => {
+        console.error('PriceListManagement: Failed to load price lists', err);
+        setError(err.message || 'Failed to fetch price lists');
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -28,23 +36,30 @@ const PriceListManagement: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
-
   const handleCreate = async () => {
+    console.log('PriceListManagement: Creating price list...', form);
     setFormError(null);
+    
     if (!form.name || !form.type) {
       setFormError('Name and Type are required.');
       return;
     }
+    
     try {
-      await createPriceList({ ...form, items: [] }); // Items can be added in a more advanced form
+      const result = await createPriceList({ ...form, items: [] }); // Items can be added in a more advanced form
+      console.log('PriceListManagement: Successfully created price list', result);
       setOpen(false);
+      
+      // Refresh the list
       setLoading(true);
-      getPriceLists()
-        .then((res) => setPriceLists(res.data))
-        .catch((err) => setError(err.message))
-        .finally(() => setLoading(false));
+      const updatedLists = await getPriceLists();
+      console.log('PriceListManagement: Successfully refreshed price lists', updatedLists);
+      setPriceLists(updatedLists.data);
     } catch (err: any) {
-      setFormError(err.message);
+      console.error('PriceListManagement: Failed to create price list', err);
+      setFormError(err.message || 'Failed to create price list');
+    } finally {
+      setLoading(false);
     }
   };
 

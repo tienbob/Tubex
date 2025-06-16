@@ -152,13 +152,12 @@ const invoiceListReducer = (state: InvoiceListState, action: InvoiceListAction):
 const InvoiceList: React.FC<InvoiceListProps> = ({ companyId }) => {
   const navigate = useNavigate();
   const [state, dispatch] = useReducer(invoiceListReducer, initialState);
-  useEffect(() => {
-    fetchInvoices();
-  }, [state.filters, companyId]);
-
   const fetchInvoices = useCallback(async () => {
     dispatch({ type: 'SET_LOADING', payload: true });
     dispatch({ type: 'SET_ERROR', payload: null });
+    
+    console.log('InvoiceList: Starting fetch with companyId:', companyId);
+    
     try {
       // Apply filters
       const apiFilters: InvoiceFilters = {
@@ -181,25 +180,48 @@ const InvoiceList: React.FC<InvoiceListProps> = ({ companyId }) => {
         // Search by invoice number or customer name - backend should handle this
         // This is a placeholder - actual implementation depends on backend search capability
         apiFilters.sortBy = state.searchTerm;
-      }
+      }      console.log('Fetching invoices with filters:', apiFilters);
 
-      console.log('Fetching invoices with filters:', apiFilters);
-
-      const response = await getInvoices(apiFilters);
+      const response = await getInvoices(apiFilters, companyId);
       dispatch({ 
         type: 'SET_INVOICES', 
         payload: { 
           invoices: response.data, 
           total: response.pagination?.totalPages || 0 
-        } 
-      });
+        }      });
     } catch (err: any) {
-      dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to fetch invoices' });
-      console.error('Error fetching invoices:', err);
+      let errorMessage = 'Failed to fetch invoices';
+      
+      if (err.message) {
+        errorMessage = err.message;
+      } else if (err.status === 404) {
+        errorMessage = 'Invoices endpoint not found. Please check if the backend server is running.';
+      } else if (err.status === 401) {
+        errorMessage = 'Authentication failed. Please log in again.';
+      } else if (err.status === 403) {
+        errorMessage = 'Access denied. Please check your permissions.';
+      } else if (err.status >= 500) {
+        errorMessage = 'Server error. Please try again later or contact support.';
+      } else if (err.code === 'NETWORK_ERROR' || err.message?.includes('Network Error')) {
+        errorMessage = 'Network error. Please check your internet connection and that the backend server is running.';
+      }
+      
+      dispatch({ type: 'SET_ERROR', payload: errorMessage });
+      console.error('Error fetching invoices:', {
+        error: err,
+        message: errorMessage,
+        companyId: companyId,
+        filters: state.filters,
+        userInfo: localStorage.getItem('user'),
+        userInfoParsed: localStorage.getItem('user_info')
+      });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
-    }
-  }, [state.filters, state.statusFilter, state.dateRange, state.searchTerm, companyId]);
+    }  }, [state.filters, state.statusFilter, state.dateRange, state.searchTerm, companyId]);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [fetchInvoices]);
 
   const handleCreateInvoice = () => {
     navigate('/invoices/create');

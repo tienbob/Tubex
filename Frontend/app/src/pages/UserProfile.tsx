@@ -20,6 +20,7 @@ import {
   Cancel as CancelIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import { LogoutButton } from '../components/common';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -400,8 +401,7 @@ const UserProfile: React.FC = () => {
           </Box>
           
           <Divider sx={{ my: 4 }} />
-          
-          <Box>
+            <Box>
             <Typography variant="h6" gutterBottom>
               Two-Factor Authentication
             </Typography>
@@ -414,6 +414,21 @@ const UserProfile: React.FC = () => {
             >
               Enable 2FA
             </Button>
+          </Box>
+          
+          <Divider sx={{ my: 4 }} />
+          
+          <Box>
+            <Typography variant="h6" gutterBottom>
+              Account Access
+            </Typography>
+            <Typography variant="body2" color="text.secondary" paragraph>
+              Sign out of your account securely. You'll need to sign in again to access your account.
+            </Typography>
+            <LogoutButton 
+              size="medium"
+              showConfirmation={true}
+            />
           </Box>
         </TabPanel>
         

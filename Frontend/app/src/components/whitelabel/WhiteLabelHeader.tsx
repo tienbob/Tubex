@@ -34,6 +34,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import ConfirmationDialog from './ConfirmationDialog';
 
 interface WhiteLabelHeaderProps {
   showLogo?: boolean;
@@ -45,40 +46,46 @@ const WhiteLabelHeader: React.FC<WhiteLabelHeaderProps> = ({
   const { theme } = useTheme();
   const muiTheme = useMuiTheme();
   const navigate = useNavigate();
-  
-  // PROBLEM #1: Remove duplicate auth declarations - use only one
-  const auth = useAuth();
-  const logout = auth.logout;
+  // FIXED: Use single auth declaration
+  const { isAuthenticated, user, loading, logout } = useAuth();
   
   const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   
   const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'));
-  
-  // Debug - log auth state in header
+    // Debug - log auth state in header
   useEffect(() => {
     console.log("WhiteLabelHeader - Auth state:", { 
-      isAuthenticated: auth.isAuthenticated,
-      user: auth.user,
-      loading: auth.loading
+      isAuthenticated,
+      user,
+      loading
     });
-  }, [auth.isAuthenticated, auth.user, auth.loading]);
+  }, [isAuthenticated, user, loading]);
   
   // Determine if user is logged in, accounting for loading state
-  const userIsLoggedIn = auth.isAuthenticated && !auth.loading && !!auth.user;
+  const userIsLoggedIn = isAuthenticated && !loading && !!user;
   
   const handleUserMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setUserMenuAnchor(event.currentTarget);
   };
-  
-  const handleUserMenuClose = () => {
+    const handleUserMenuClose = () => {
     setUserMenuAnchor(null);
   };
   
-  const handleLogout = () => {
+  const handleLogoutClick = () => {
     handleUserMenuClose();
+    setLogoutDialogOpen(true);
+  };
+
+  const handleLogoutConfirm = () => {
+    setLogoutDialogOpen(false);
     logout();
     navigate('/login');
+  };
+
+  const handleLogoutCancel = () => {
+    setLogoutDialogOpen(false);
   };
   
   const handleMobileMenuToggle = () => {
@@ -130,9 +137,8 @@ const WhiteLabelHeader: React.FC<WhiteLabelHeaderProps> = ({
                   <ListItemIcon><SettingsIcon /></ListItemIcon>
                   <ListItemText primary="Settings" />
                 </ListItemButton>
-              </ListItem>
-              <ListItem disablePadding>
-                <ListItemButton onClick={handleLogout}>
+              </ListItem>              <ListItem disablePadding>
+                <ListItemButton onClick={handleLogoutClick}>
                   <ListItemIcon><LogoutIcon /></ListItemIcon>
                   <ListItemText primary="Logout" />
                 </ListItemButton>
@@ -227,13 +233,12 @@ const WhiteLabelHeader: React.FC<WhiteLabelHeaderProps> = ({
                 onClick={handleUserMenuOpen}
                 color="inherit"
                 edge="end"
-              >
-                <Avatar 
+              >                <Avatar 
                   sx={{ width: 32, height: 32 }} 
-                  alt={auth.user?.firstName || 'User'}
+                  alt={user?.firstName || 'User'}
                 >
-                  {/* PROBLEM #3: Fix user reference */}
-                  {auth.user?.firstName ? auth.user.firstName[0].toUpperCase() : 'U'}
+                  {/* FIXED: Updated user reference */}
+                  {user?.firstName ? user.firstName[0].toUpperCase() : 'U'}
                 </Avatar>
               </IconButton>
               <Menu
@@ -242,13 +247,12 @@ const WhiteLabelHeader: React.FC<WhiteLabelHeaderProps> = ({
                 onClose={handleUserMenuClose}
                 transformOrigin={{ horizontal: 'right', vertical: 'top' }}
                 anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-              >
-                <Box sx={{ p: 1.5 }}>
+              >                <Box sx={{ p: 1.5 }}>
                   <Typography variant="subtitle1">
-                    {auth.user?.firstName} {auth.user?.lastName}
+                    {user?.firstName} {user?.lastName}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {auth.user?.email}
+                    {user?.email}
                   </Typography>
                 </Box>
                 <Divider />
@@ -264,8 +268,7 @@ const WhiteLabelHeader: React.FC<WhiteLabelHeaderProps> = ({
                   </ListItemIcon>
                   Settings
                 </MenuItem>
-                <Divider />
-                <MenuItem onClick={handleLogout}>
+                <Divider />                <MenuItem onClick={handleLogoutClick}>
                   <ListItemIcon>
                     <LogoutIcon fontSize="small" />
                   </ListItemIcon>
@@ -313,10 +316,21 @@ const WhiteLabelHeader: React.FC<WhiteLabelHeaderProps> = ({
               <MenuIcon />
             </IconButton>
           )}
-        </Toolbar>
-      </AppBar>
+        </Toolbar>      </AppBar>
       
       {renderMobileMenu()}
+      
+      {/* Logout Confirmation Dialog */}
+      <ConfirmationDialog
+        open={logoutDialogOpen}
+        title="Confirm Logout"
+        content="Are you sure you want to logout? You will need to sign in again to access your account."
+        onConfirm={handleLogoutConfirm}
+        onCancel={handleLogoutCancel}
+        confirmText="Logout"
+        cancelText="Cancel"
+        confirmColor="error"
+      />
     </>
   );
 };

@@ -1,4 +1,4 @@
-import { get, post, put, del, getFile } from './apiClient';
+import { get, post, put, del, getFile, getCurrentCompanyId } from './apiClient';
 import { AxiosError } from 'axios';
 
 // Custom error class for API errors
@@ -97,15 +97,6 @@ export interface QuoteFilters {
 }
 
 /**
- * Helper function to get current company ID
- */
-function getCurrentCompanyId(): string | undefined {
-  // This function should retrieve the company ID from your app context/state
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  return user.companyId || user.company_id || undefined;
-}
-
-/**
  * Create a new quote
  */
 export const createQuote = async (quoteData: CreateQuoteRequest): Promise<Quote> => {
@@ -114,7 +105,7 @@ export const createQuote = async (quoteData: CreateQuoteRequest): Promise<Quote>
     if (!companyId) {
       throw new Error('Company ID not available');
     }
-    const response = await post<ApiResponse<Quote>>(`/quotes/company/${companyId}`, quoteData);
+    const response = await post<ApiResponse<Quote>>(`/quotes`, quoteData);
     return response.data.data;
   } catch (error) {
     const axiosError = error as AxiosError;
@@ -138,10 +129,17 @@ export const getQuotes = async (filters?: QuoteFilters): Promise<{ data: Quote[]
     if (!companyId) {
       throw new Error('Company ID not available');
     }
-    const response = await get<ApiResponse<Quote[]>>(`/quotes/company/${companyId}`, { 
+      console.log('getQuotes: Making API call', { 
+      companyId, 
+      filters,
+      url: `/quotes`
+    });
+    
+    const response = await get<ApiResponse<Quote[]>>(`/quotes`, { 
       params: {
         limit: 10,
         page: 1,
+        companyId, // Pass companyId as a query parameter instead
         ...filters
       } 
     });
@@ -176,7 +174,7 @@ export const getQuoteById = async (quoteId: string): Promise<Quote> => {
     if (!companyId) {
       throw new Error('Company ID not available');
     }
-    const response = await get<ApiResponse<Quote>>(`/quotes/company/${companyId}/${quoteId}`);
+    const response = await get<ApiResponse<Quote>>(`/quotes/${quoteId}`);
     return response.data.data;
   } catch (error) {
     const axiosError = error as AxiosError;
@@ -200,7 +198,7 @@ export const updateQuote = async (quoteId: string, quoteData: Partial<Quote>): P
     if (!companyId) {
       throw new Error('Company ID not available');
     }
-    const response = await put<ApiResponse<Quote>>(`/quotes/company/${companyId}/${quoteId}`, quoteData);
+    const response = await put<ApiResponse<Quote>>(`/quotes/${quoteId}`, quoteData);
     return response.data.data;
   } catch (error) {
     const axiosError = error as AxiosError;
@@ -224,7 +222,7 @@ export const deleteQuote = async (quoteId: string): Promise<void> => {
     if (!companyId) {
       throw new Error('Company ID not available');
     }
-    await del<ApiResponse<void>>(`/quotes/company/${companyId}/${quoteId}`);
+    await del<ApiResponse<void>>(`/quotes/${quoteId}`);
   } catch (error) {
     const axiosError = error as AxiosError;
     if (axiosError.response) {
@@ -246,9 +244,8 @@ export const generateQuotePdf = async (quoteId: string): Promise<Blob> => {
     const companyId = getCurrentCompanyId();
     if (!companyId) {
       throw new Error('Company ID not available');
-    }
-    const response = await getFile(`/quotes/company/${companyId}/${quoteId}/pdf`);
-    return response.data;
+    }    // TODO: Backend PDF generation endpoint not implemented
+    throw new ApiError('PDF generation not implemented', 501);
   } catch (error) {
     const axiosError = error as AxiosError;
     throw new ApiError(
@@ -269,15 +266,11 @@ export const sendQuoteByEmail = async (quoteId: string, emailData: {
   ccEmails?: string[]
 }): Promise<{ success: boolean; message: string }> => {
   try {
-    const companyId = getCurrentCompanyId();
-    if (!companyId) {
+    const companyId = getCurrentCompanyId();    if (!companyId) {
       throw new Error('Company ID not available');
     }
-    const response = await post<ApiResponse<{ success: boolean; message: string }>>(
-      `/quotes/company/${companyId}/${quoteId}/send`, 
-      emailData
-    );
-    return response.data.data;
+    // TODO: Backend send quote endpoint not implemented
+    throw new ApiError('Send quote not implemented', 501);
   } catch (error) {
     const axiosError = error as AxiosError;
     if (axiosError.response) {
@@ -304,11 +297,8 @@ export const convertQuoteToInvoice = async (quoteId: string, invoiceData?: {
     if (!companyId) {
       throw new Error('Company ID not available');
     }
-    const response = await post<ApiResponse<{ invoiceId: string }>>(
-      `/quotes/company/${companyId}/${quoteId}/convert-to-invoice`,
-      invoiceData || {}
-    );
-    return response.data.data;
+    // TODO: Backend convert quote endpoint not implemented
+    throw new ApiError('Convert quote to invoice not implemented', 501);
   } catch (error) {
     const axiosError = error as AxiosError;
     if (axiosError.response) {
@@ -328,17 +318,13 @@ export const convertQuoteToInvoice = async (quoteId: string, invoiceData?: {
 export const acceptQuote = async (quoteId: string, acceptData?: {
   acceptedBy?: string,
   notes?: string
-}): Promise<Quote> => {
-  try {
+}): Promise<Quote> => {  try {
     const companyId = getCurrentCompanyId();
     if (!companyId) {
       throw new Error('Company ID not available');
     }
-    const response = await put<ApiResponse<Quote>>(
-      `/quotes/company/${companyId}/${quoteId}/accept`,
-      acceptData || {}
-    );
-    return response.data.data;
+    // TODO: Backend accept quote endpoint not implemented
+    throw new ApiError('Accept quote not implemented', 501);
   } catch (error) {
     const axiosError = error as AxiosError;
     if (axiosError.response) {
@@ -358,17 +344,13 @@ export const acceptQuote = async (quoteId: string, acceptData?: {
 export const declineQuote = async (quoteId: string, declineData?: {
   reason?: string,
   notes?: string
-}): Promise<Quote> => {
-  try {
+}): Promise<Quote> => {  try {
     const companyId = getCurrentCompanyId();
     if (!companyId) {
       throw new Error('Company ID not available');
     }
-    const response = await put<ApiResponse<Quote>>(
-      `/quotes/company/${companyId}/${quoteId}/decline`,
-      declineData || {}
-    );
-    return response.data.data;
+    // TODO: Backend decline quote endpoint not implemented
+    throw new ApiError('Decline quote not implemented', 501);
   } catch (error) {
     const axiosError = error as AxiosError;
     if (axiosError.response) {

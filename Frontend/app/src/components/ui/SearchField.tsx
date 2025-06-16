@@ -59,7 +59,6 @@ const SearchField: React.FC<SearchFieldProps> = ({
   const {
     searchValue,
     isSearching,
-    isActive,
     handleSearchChange,
     clearSearch,
     executeSearch

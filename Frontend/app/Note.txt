@@ -1,0 +1,406 @@
+Compiled with warnings.
+
+[eslint] 
+src\components\payment\CreatePaymentModal.tsx
+  Line 23:10:  'Customer' is defined but never used  @typescript-eslint/no-unused-vars
+
+src\components\payment\PaymentManagement.tsx
+  Line 16:15:  'useMuiTheme' is defined but never used                                                        
+                                                           @typescript-eslint/no-unused-vars
+  Line 39:19:  'PaymentMethod' is defined but never used                                                      
+                                                           @typescript-eslint/no-unused-vars
+  Line 39:34:  'PaymentType' is defined but never used                                                        
+                                                           @typescript-eslint/no-unused-vars
+  Line 76:10:  'customerOptions' is assigned a value but never used                                           
+                                                           @typescript-eslint/no-unused-vars
+  Line 77:10:  'customerSearchTerm' is assigned a value but never used                                        
+                                                           @typescript-eslint/no-unused-vars
+  Line 83:10:  'isDeleteConfirmOpen' is assigned a value but never used                                       
+                                                           @typescript-eslint/no-unused-vars
+  Line 103:6:  React Hook useEffect has missing dependencies: 'customerMap', 'fetchPayments', and 'searchCustomers'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  Line 156:9:  'handleCustomerSearch' is assigned a value but never used                                      
+                                                           @typescript-eslint/no-unused-vars
+  Line 181:9:  'handleDeletePayment' is assigned a value but never used                                       
+                                                           @typescript-eslint/no-unused-vars
+
+src\components\payment\UpdatePaymentModal.tsx
+  Line 23:3:  'PaymentMethod' is defined but never used  @typescript-eslint/no-unused-vars
+  Line 24:3:  'PaymentType' is defined but never used    @typescript-eslint/no-unused-vars
+
+src\components\whitelabel\ConfirmationDialog.tsx
+  Line 33:11:  'theme' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+src\components\whitelabel\SideNavigation.tsx
+  Line 23:8:  'DescriptionIcon' is defined but never used  @typescript-eslint/no-unused-vars
+  Line 25:8:  'SettingsIcon' is defined but never used     @typescript-eslint/no-unused-vars
+  Line 26:8:  'WarehouseIcon' is defined but never used    @typescript-eslint/no-unused-vars
+  Line 27:8:  'PaymentIcon' is defined but never used      @typescript-eslint/no-unused-vars
+  Line 33:8:  'ReceiptIcon' is defined but never used      @typescript-eslint/no-unused-vars
+  Line 34:8:  'LocalOfferIcon' is defined but never used   @typescript-eslint/no-unused-vars
+
+src\components\whitelabel\TenantConfigPanel.tsx
+  Line 19:26:  'setPreviewVisible' is assigned a value but never used  @typescript-eslint/no-unused-vars      
+
+src\components\whitelabel\inventory\InventoryAdjustForm.tsx
+  Line 47:6:  React Hook useEffect has a missing dependency: 'fetchInventoryDetails'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\whitelabel\inventory\InventoryList.tsx
+  Line 297:6:  React Hook useEffect has a missing dependency: 'companyId'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\whitelabel\invoices\InvoiceForm.tsx
+  Line 33:11:  'SaveIcon' is defined but never used                                                           
+                     @typescript-eslint/no-unused-vars
+  Line 43:3:   'InvoiceStatus' is defined but never used                                                      
+                     @typescript-eslint/no-unused-vars
+  Line 108:6:  React Hook useEffect has a missing dependency: 'calculateTotals'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\whitelabel\invoices\InvoiceList.tsx
+  Line 19:10:  'AddIcon' is defined but never used                       @typescript-eslint/no-unused-vars    
+  Line 22:13:  'DownloadIcon' is defined but never used                  @typescript-eslint/no-unused-vars    
+  Line 23:20:  'CalendarIcon' is defined but never used                  @typescript-eslint/no-unused-vars    
+  Line 29:38:  'PaymentTerm' is defined but never used                   @typescript-eslint/no-unused-vars    
+  Line 226:9:  'handleCreateInvoice' is assigned a value but never used  @typescript-eslint/no-unused-vars    
+
+src\components\whitelabel\orders\CreateOrderForm.tsx
+  Line 8:3:   'Divider' is defined but never used                                                             
+                    @typescript-eslint/no-unused-vars
+  Line 82:6:  React Hook useEffect has a missing dependency: 'fetchWarehouses'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\whitelabel\orders\OrderList.tsx
+  Line 49:11:  'OrderResponse' is defined but never used                                                      
+                       @typescript-eslint/no-unused-vars
+  Line 279:6:  React Hook useEffect has a missing dependency: 'state.isSearching'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 303:6:  React Hook useEffect has a missing dependency: 'state.page'. Either include it or remove the dependency array         react-hooks/exhaustive-deps
+
+src\components\whitelabel\products\ProductForm.tsx
+  Line 129:10:  'categories' is assigned a value but never used                                               
+                                                  @typescript-eslint/no-unused-vars
+  Line 164:6:   React Hook useEffect has missing dependencies: 'fetchCategories' and 'fetchProductDetails'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\whitelabel\products\ProductList.tsx
+  Line 56:9:   'buttonStyle' is assigned a value but never used                                               
+                     @typescript-eslint/no-unused-vars
+  Line 102:6:  React Hook useEffect has a missing dependency: 'fetchCategories'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 106:6:  React Hook useEffect has a missing dependency: 'fetchProducts'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+  Line 154:9:  'formatCurrency' is assigned a value but never used                                            
+                     @typescript-eslint/no-unused-vars
+  Line 210:9:  'rowActions' is assigned a value but never used                                                
+                     @typescript-eslint/no-unused-vars
+  Line 246:9:  'bulkActions' is assigned a value but never used                                               
+                     @typescript-eslint/no-unused-vars
+
+src\components\whitelabel\products\ProductPriceHistory.tsx
+  Line 22:3:  'InputLabel' is defined but never used                                                          
+                     @typescript-eslint/no-unused-vars
+  Line 62:6:  React Hook useEffect has a missing dependency: 'loadPriceHistory'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\whitelabel\users\EmployeeInvitationGenerator.tsx
+  Line 16:18:  'addDays' is defined but never used               @typescript-eslint/no-unused-vars
+  Line 34:10:  'companyName' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+src\components\whitelabel\users\PendingEmployeesList.tsx
+  Line 13:3:  'Chip' is defined but never used  @typescript-eslint/no-unused-vars
+
+src\components\whitelabel\users\UserForm.tsx
+  Line 97:6:  React Hook useEffect has a missing dependency: 'fetchUserDetails'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\whitelabel\users\UserList.tsx
+  Line 123:6:  React Hook useEffect has a missing dependency: 'isSearching'. Either include it or remove the dependency array            react-hooks/exhaustive-deps
+  Line 149:6:  React Hook useEffect has a missing dependency: 'searchAbortController'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 156:6:  React Hook useEffect has a missing dependency: 'page'. Either include it or remove the dependency array                   react-hooks/exhaustive-deps
+
+src\components\whitelabel\verification\CompanyVerificationList.tsx
+  Line 42:9:   'buttonStyles' is assigned a value but never used           @typescript-eslint/no-unused-vars  
+  Line 80:9:   'handleApprove' is assigned a value but never used          @typescript-eslint/no-unused-vars  
+  Line 95:9:   'openRejectDialog' is assigned a value but never used       @typescript-eslint/no-unused-vars  
+  Line 126:9:  'formatDate' is assigned a value but never used             @typescript-eslint/no-unused-vars  
+  Line 131:9:  'handleDocumentPreview' is assigned a value but never used  @typescript-eslint/no-unused-vars  
+
+src\contexts\CompanySettingsContext.tsx
+  Line 69:6:  React Hook useEffect has a missing dependency: 'loadUserSettings'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\contexts\ToastContext.tsx
+  Line 36:10:  'toasts' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+src\pages\Dashboard.tsx
+  Line 56:9:   'location' is assigned a value but never used                                                  
+                    @typescript-eslint/no-unused-vars
+  Line 143:6:  React Hook useEffect has a missing dependency: 'fetchInventory'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\pages\InventoryManagement.tsx
+  Line 57:10:  'inventory' is assigned a value but never used                                                 
+                        @typescript-eslint/no-unused-vars
+  Line 57:21:  'setInventory' is assigned a value but never used                                              
+                        @typescript-eslint/no-unused-vars
+  Line 58:10:  'loading' is assigned a value but never used                                                   
+                        @typescript-eslint/no-unused-vars
+  Line 59:10:  'error' is assigned a value but never used                                                     
+                        @typescript-eslint/no-unused-vars
+  Line 88:6:   React Hook useEffect has a missing dependency: 'fetchAlerts'. Either include it or remove the dependency array         react-hooks/exhaustive-deps
+  Line 163:6:  React Hook useEffect has a missing dependency: 'fetchInventoryItem'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\pages\OrderManagement.tsx
+  Line 8:3:    'Tabs' is defined but never used                                                               
+                 @typescript-eslint/no-unused-vars
+  Line 9:3:    'Tab' is defined but never used                                                                
+                 @typescript-eslint/no-unused-vars
+  Line 36:10:  'TabPanel' is defined but never used                                                           
+                 @typescript-eslint/no-unused-vars
+  Line 52:10:  'a11yProps' is defined but never used                                                          
+                 @typescript-eslint/no-unused-vars
+  Line 70:10:  'tabValue' is assigned a value but never used                                                  
+                 @typescript-eslint/no-unused-vars
+  Line 91:9:   'params' is assigned a value but never used                                                    
+                 @typescript-eslint/no-unused-vars
+  Line 105:6:  React Hook useEffect has a missing dependency: 'fetchOrders'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 168:9:  'handleTabChange' is assigned a value but never used                                           
+                 @typescript-eslint/no-unused-vars
+
+src\pages\ProductManagement.tsx
+  Line 8:3:    'Tab' is defined but never used                       @typescript-eslint/no-unused-vars        
+  Line 9:3:    'Tabs' is defined but never used                      @typescript-eslint/no-unused-vars        
+  Line 19:10:  'activeTab' is assigned a value but never used        @typescript-eslint/no-unused-vars        
+  Line 72:9:   'handleTabChange' is assigned a value but never used  @typescript-eslint/no-unused-vars        
+
+src\pages\Settings.tsx
+  Line 81:11:  'theme' is assigned a value but never used                                                     
+                 @typescript-eslint/no-unused-vars
+  Line 307:6:  React Hook useEffect has a missing dependency: 'updateTheme'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\pages\WarehouseManagement.tsx
+  Line 35:10:  'loading' is assigned a value but never used                                                   
+                     @typescript-eslint/no-unused-vars
+  Line 51:6:   React Hook useEffect has a missing dependency: 'fetchWarehouses'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 57:6:   React Hook useEffect has a missing dependency: 'fetchInventory'. Either include it or remove the dependency array   react-hooks/exhaustive-deps
+
+src\services\api\apiClient.ts
+  Line 2:10:  'enableMockApi' is defined but never used  @typescript-eslint/no-unused-vars
+
+src\services\api\authService.ts
+  Line 743:21:  Unreachable code  no-unreachable
+
+src\services\api\companyService.ts
+  Line 4:10:  'getCurrentCompanyId' is defined but never used  @typescript-eslint/no-unused-vars
+
+src\services\api\inventoryService.ts
+  Line 1:33:  'del' is defined but never used             @typescript-eslint/no-unused-vars
+  Line 1:38:  'getWithCompany' is defined but never used  @typescript-eslint/no-unused-vars
+
+src\services\api\orderService.ts
+  Line 1:33:  'getWithCompany' is defined but never used  @typescript-eslint/no-unused-vars
+
+src\services\api\productService.ts
+  Line 1:31:  'getWithCompany' is defined but never used  @typescript-eslint/no-unused-vars
+
+src\services\api\quoteService.ts
+  Line 1:31:  'getFile' is defined but never used  @typescript-eslint/no-unused-vars
+
+src\services\api\warehouseService.ts
+  Line 1:8:  'axios' is defined but never used  @typescript-eslint/no-unused-vars
+
+src\utils\companySettings.ts
+  Line 182:9:  'companySettings' is assigned a value but never used  @typescript-eslint/no-unused-vars        
+
+Search for the keywords to learn more about each warning.
+To ignore, add // eslint-disable-next-line to the line before.
+
+WARNING in [eslint]
+src\components\payment\CreatePaymentModal.tsx
+  Line 23:10:  'Customer' is defined but never used  @typescript-eslint/no-unused-vars
+
+src\components\payment\PaymentManagement.tsx
+  Line 16:15:  'useMuiTheme' is defined but never used                                                        
+                                                           @typescript-eslint/no-unused-vars
+  Line 39:19:  'PaymentMethod' is defined but never used                                                      
+                                                           @typescript-eslint/no-unused-vars
+  Line 39:34:  'PaymentType' is defined but never used                                                        
+                                                           @typescript-eslint/no-unused-vars
+  Line 76:10:  'customerOptions' is assigned a value but never used                                           
+                                                           @typescript-eslint/no-unused-vars
+  Line 77:10:  'customerSearchTerm' is assigned a value but never used                                        
+                                                           @typescript-eslint/no-unused-vars
+  Line 83:10:  'isDeleteConfirmOpen' is assigned a value but never used                                       
+                                                           @typescript-eslint/no-unused-vars
+  Line 103:6:  React Hook useEffect has missing dependencies: 'customerMap', 'fetchPayments', and 'searchCustomers'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  Line 156:9:  'handleCustomerSearch' is assigned a value but never used                                      
+                                                           @typescript-eslint/no-unused-vars
+  Line 181:9:  'handleDeletePayment' is assigned a value but never used                                       
+                                                           @typescript-eslint/no-unused-vars
+
+src\components\payment\UpdatePaymentModal.tsx
+  Line 23:3:  'PaymentMethod' is defined but never used  @typescript-eslint/no-unused-vars
+  Line 24:3:  'PaymentType' is defined but never used    @typescript-eslint/no-unused-vars
+
+src\components\whitelabel\ConfirmationDialog.tsx
+  Line 33:11:  'theme' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+src\components\whitelabel\SideNavigation.tsx
+  Line 23:8:  'DescriptionIcon' is defined but never used  @typescript-eslint/no-unused-vars
+  Line 25:8:  'SettingsIcon' is defined but never used     @typescript-eslint/no-unused-vars
+  Line 26:8:  'WarehouseIcon' is defined but never used    @typescript-eslint/no-unused-vars
+  Line 27:8:  'PaymentIcon' is defined but never used      @typescript-eslint/no-unused-vars
+  Line 33:8:  'ReceiptIcon' is defined but never used      @typescript-eslint/no-unused-vars
+  Line 34:8:  'LocalOfferIcon' is defined but never used   @typescript-eslint/no-unused-vars
+
+src\components\whitelabel\TenantConfigPanel.tsx
+  Line 19:26:  'setPreviewVisible' is assigned a value but never used  @typescript-eslint/no-unused-vars      
+
+src\components\whitelabel\inventory\InventoryAdjustForm.tsx
+  Line 47:6:  React Hook useEffect has a missing dependency: 'fetchInventoryDetails'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\whitelabel\inventory\InventoryList.tsx
+  Line 297:6:  React Hook useEffect has a missing dependency: 'companyId'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\whitelabel\invoices\InvoiceForm.tsx
+  Line 33:11:  'SaveIcon' is defined but never used                                                           
+                     @typescript-eslint/no-unused-vars
+  Line 43:3:   'InvoiceStatus' is defined but never used                                                      
+                     @typescript-eslint/no-unused-vars
+  Line 108:6:  React Hook useEffect has a missing dependency: 'calculateTotals'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\whitelabel\invoices\InvoiceList.tsx
+  Line 19:10:  'AddIcon' is defined but never used                       @typescript-eslint/no-unused-vars    
+  Line 22:13:  'DownloadIcon' is defined but never used                  @typescript-eslint/no-unused-vars    
+  Line 23:20:  'CalendarIcon' is defined but never used                  @typescript-eslint/no-unused-vars    
+  Line 29:38:  'PaymentTerm' is defined but never used                   @typescript-eslint/no-unused-vars    
+  Line 226:9:  'handleCreateInvoice' is assigned a value but never used  @typescript-eslint/no-unused-vars    
+
+src\components\whitelabel\orders\CreateOrderForm.tsx
+  Line 8:3:   'Divider' is defined but never used                                                             
+                    @typescript-eslint/no-unused-vars
+  Line 82:6:  React Hook useEffect has a missing dependency: 'fetchWarehouses'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\whitelabel\orders\OrderList.tsx
+  Line 49:11:  'OrderResponse' is defined but never used                                                      
+                       @typescript-eslint/no-unused-vars
+  Line 279:6:  React Hook useEffect has a missing dependency: 'state.isSearching'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 303:6:  React Hook useEffect has a missing dependency: 'state.page'. Either include it or remove the dependency array         react-hooks/exhaustive-deps
+
+src\components\whitelabel\products\ProductForm.tsx
+  Line 129:10:  'categories' is assigned a value but never used                                               
+                                                  @typescript-eslint/no-unused-vars
+  Line 164:6:   React Hook useEffect has missing dependencies: 'fetchCategories' and 'fetchProductDetails'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\whitelabel\products\ProductList.tsx
+  Line 56:9:   'buttonStyle' is assigned a value but never used                                               
+                     @typescript-eslint/no-unused-vars
+  Line 102:6:  React Hook useEffect has a missing dependency: 'fetchCategories'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 106:6:  React Hook useEffect has a missing dependency: 'fetchProducts'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+  Line 154:9:  'formatCurrency' is assigned a value but never used                                            
+                     @typescript-eslint/no-unused-vars
+  Line 210:9:  'rowActions' is assigned a value but never used                                                
+                     @typescript-eslint/no-unused-vars
+  Line 246:9:  'bulkActions' is assigned a value but never used                                               
+                     @typescript-eslint/no-unused-vars
+
+src\components\whitelabel\products\ProductPriceHistory.tsx
+  Line 22:3:  'InputLabel' is defined but never used                                                          
+                     @typescript-eslint/no-unused-vars
+  Line 62:6:  React Hook useEffect has a missing dependency: 'loadPriceHistory'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\whitelabel\users\EmployeeInvitationGenerator.tsx
+  Line 16:18:  'addDays' is defined but never used               @typescript-eslint/no-unused-vars
+  Line 34:10:  'companyName' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+src\components\whitelabel\users\PendingEmployeesList.tsx
+  Line 13:3:  'Chip' is defined but never used  @typescript-eslint/no-unused-vars
+
+src\components\whitelabel\users\UserForm.tsx
+  Line 97:6:  React Hook useEffect has a missing dependency: 'fetchUserDetails'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\components\whitelabel\users\UserList.tsx
+  Line 123:6:  React Hook useEffect has a missing dependency: 'isSearching'. Either include it or remove the dependency array            react-hooks/exhaustive-deps
+  Line 149:6:  React Hook useEffect has a missing dependency: 'searchAbortController'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 156:6:  React Hook useEffect has a missing dependency: 'page'. Either include it or remove the dependency array                   react-hooks/exhaustive-deps
+
+src\components\whitelabel\verification\CompanyVerificationList.tsx
+  Line 42:9:   'buttonStyles' is assigned a value but never used           @typescript-eslint/no-unused-vars  
+  Line 80:9:   'handleApprove' is assigned a value but never used          @typescript-eslint/no-unused-vars  
+  Line 95:9:   'openRejectDialog' is assigned a value but never used       @typescript-eslint/no-unused-vars  
+  Line 126:9:  'formatDate' is assigned a value but never used             @typescript-eslint/no-unused-vars  
+  Line 131:9:  'handleDocumentPreview' is assigned a value but never used  @typescript-eslint/no-unused-vars  
+
+src\contexts\CompanySettingsContext.tsx
+  Line 69:6:  React Hook useEffect has a missing dependency: 'loadUserSettings'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\contexts\ToastContext.tsx
+  Line 36:10:  'toasts' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+src\pages\Dashboard.tsx
+  Line 56:9:   'location' is assigned a value but never used                                                  
+                    @typescript-eslint/no-unused-vars
+  Line 143:6:  React Hook useEffect has a missing dependency: 'fetchInventory'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\pages\InventoryManagement.tsx
+  Line 57:10:  'inventory' is assigned a value but never used                                                 
+                        @typescript-eslint/no-unused-vars
+  Line 57:21:  'setInventory' is assigned a value but never used                                              
+                        @typescript-eslint/no-unused-vars
+  Line 58:10:  'loading' is assigned a value but never used                                                   
+                        @typescript-eslint/no-unused-vars
+  Line 59:10:  'error' is assigned a value but never used                                                     
+                        @typescript-eslint/no-unused-vars
+  Line 88:6:   React Hook useEffect has a missing dependency: 'fetchAlerts'. Either include it or remove the dependency array         react-hooks/exhaustive-deps
+  Line 163:6:  React Hook useEffect has a missing dependency: 'fetchInventoryItem'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\pages\OrderManagement.tsx
+  Line 8:3:    'Tabs' is defined but never used                                                               
+                 @typescript-eslint/no-unused-vars
+  Line 9:3:    'Tab' is defined but never used                                                                
+                 @typescript-eslint/no-unused-vars
+  Line 36:10:  'TabPanel' is defined but never used                                                           
+                 @typescript-eslint/no-unused-vars
+  Line 52:10:  'a11yProps' is defined but never used                                                          
+                 @typescript-eslint/no-unused-vars
+  Line 70:10:  'tabValue' is assigned a value but never used                                                  
+                 @typescript-eslint/no-unused-vars
+  Line 91:9:   'params' is assigned a value but never used                                                    
+                 @typescript-eslint/no-unused-vars
+  Line 105:6:  React Hook useEffect has a missing dependency: 'fetchOrders'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 168:9:  'handleTabChange' is assigned a value but never used                                           
+                 @typescript-eslint/no-unused-vars
+
+src\pages\ProductManagement.tsx
+  Line 8:3:    'Tab' is defined but never used                       @typescript-eslint/no-unused-vars        
+  Line 9:3:    'Tabs' is defined but never used                      @typescript-eslint/no-unused-vars        
+  Line 19:10:  'activeTab' is assigned a value but never used        @typescript-eslint/no-unused-vars        
+  Line 72:9:   'handleTabChange' is assigned a value but never used  @typescript-eslint/no-unused-vars        
+
+src\pages\Settings.tsx
+  Line 81:11:  'theme' is assigned a value but never used                                                     
+                 @typescript-eslint/no-unused-vars
+  Line 307:6:  React Hook useEffect has a missing dependency: 'updateTheme'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+src\pages\WarehouseManagement.tsx
+  Line 35:10:  'loading' is assigned a value but never used                                                   
+                     @typescript-eslint/no-unused-vars
+  Line 51:6:   React Hook useEffect has a missing dependency: 'fetchWarehouses'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  Line 57:6:   React Hook useEffect has a missing dependency: 'fetchInventory'. Either include it or remove the dependency array   react-hooks/exhaustive-deps
+
+src\services\api\apiClient.ts
+  Line 2:10:  'enableMockApi' is defined but never used  @typescript-eslint/no-unused-vars
+
+src\services\api\authService.ts
+  Line 743:21:  Unreachable code  no-unreachable
+
+src\services\api\companyService.ts
+  Line 4:10:  'getCurrentCompanyId' is defined but never used  @typescript-eslint/no-unused-vars
+
+src\services\api\inventoryService.ts
+  Line 1:33:  'del' is defined but never used             @typescript-eslint/no-unused-vars
+  Line 1:38:  'getWithCompany' is defined but never used  @typescript-eslint/no-unused-vars
+
+src\services\api\orderService.ts
+  Line 1:33:  'getWithCompany' is defined but never used  @typescript-eslint/no-unused-vars
+
+src\services\api\productService.ts
+  Line 1:31:  'getWithCompany' is defined but never used  @typescript-eslint/no-unused-vars
+
+src\services\api\quoteService.ts
+  Line 1:31:  'getFile' is defined but never used  @typescript-eslint/no-unused-vars
+
+src\services\api\warehouseService.ts
+  Line 1:8:  'axios' is defined but never used  @typescript-eslint/no-unused-vars
+
+src\utils\companySettings.ts
+  Line 182:9:  'companySettings' is assigned a value but never used  @typescript-eslint/no-unused-vars        

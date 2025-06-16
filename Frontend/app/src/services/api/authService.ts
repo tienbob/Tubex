@@ -46,6 +46,7 @@ export interface UserInfo {
 export interface LoginRequest {
   email: string;
   password: string;
+  rememberMe?: boolean;
 }
 
 export interface RegisterRequest {
@@ -152,6 +153,38 @@ export interface InvitationCodeResponse {
 }
 
 /**
+ * Get token from storage (handles both old string format and new object format)
+ */
+const getTokenFromStorage = (key: string): string | null => {
+  try {
+    const stored = localStorage.getItem(key);
+    if (!stored) return null;
+    
+    // Try to parse as JSON (new format)
+    try {
+      const tokenData = JSON.parse(stored);
+      if (tokenData.token && tokenData.expiration) {
+        // Check if token has expired based on our custom expiration
+        if (Date.now() > tokenData.expiration) {
+          console.log(`Token expired (custom expiration), removing from storage`);
+          localStorage.removeItem(key);
+          return null;
+        }
+        return tokenData.token;
+      }
+    } catch {
+      // Not JSON, assume old string format
+      return stored;
+    }
+    
+    return stored;
+  } catch (error) {
+    console.error(`Error getting token from ${key}:`, error);
+    return null;
+  }
+};
+
+/**
  * Decode JWT and check expiry
  */
 const isTokenValid = (token: string | null): boolean => {
@@ -196,8 +229,7 @@ const validateTokenWithBackend = async (token: string): Promise<boolean> => {
 export const authService = {
   /**
    * Login with email and password
-   */
-  login: async (credentials: LoginRequest): Promise<AuthResponse> => {
+   */  login: async (credentials: LoginRequest): Promise<AuthResponse> => {
     try {
       // Input validation
       if (!credentials.email || !credentials.email.includes('@')) {
@@ -207,16 +239,33 @@ export const authService = {
       if (!credentials.password || credentials.password.trim() === '') {
         throw new Error('Password is required');
       }
-      
+
       const response = await post<AuthResponse>('/auth/login', credentials);
       
       // Extract data from response
       const responseData = response.data?.data || response.data;
       
       if (responseData?.accessToken) {
-        // Store the tokens in secure storage
-        localStorage.setItem('access_token', responseData.accessToken);
-        localStorage.setItem('refresh_token', responseData.refreshToken);
+        // Calculate token expiration based on remember me option
+        const tokenExpiration = credentials.rememberMe 
+          ? Date.now() + (7 * 24 * 60 * 60 * 1000) // 7 days
+          : Date.now() + (24 * 60 * 60 * 1000); // 1 day (default)
+        
+        // Store the tokens with expiration info
+        const tokenData = {
+          token: responseData.accessToken,
+          expiration: tokenExpiration,
+          rememberMe: credentials.rememberMe || false
+        };
+        
+        const refreshTokenData = {
+          token: responseData.refreshToken,
+          expiration: tokenExpiration,
+          rememberMe: credentials.rememberMe || false
+        };
+        
+        localStorage.setItem('access_token', JSON.stringify(tokenData));
+        localStorage.setItem('refresh_token', JSON.stringify(refreshTokenData));
         
         // Create a normalized user object
         const userInfo: UserInfo = {
@@ -229,8 +278,16 @@ export const authService = {
           lastName: responseData.lastName || ''
         };
         
-        // Store user info
-        localStorage.setItem('user_info', JSON.stringify(userInfo));
+        // Store user info with expiration
+        const userInfoData = {
+          ...userInfo,
+          expiration: tokenExpiration,
+          rememberMe: credentials.rememberMe || false
+        };
+        
+        localStorage.setItem('user_info', JSON.stringify(userInfoData));
+        
+        console.log(`Tokens stored with ${credentials.rememberMe ? '7 day' : '1 day'} expiration`);
       } else {
         throw new Error('Authentication failed: No access token in response');
       }
@@ -267,11 +324,25 @@ export const authService = {
       }
       
       const response = await post<AuthResponse>('/auth/register', data);
-      
-      // Store tokens in localStorage if provided
+        // Store tokens in localStorage if provided
       if (response.data?.data?.accessToken) {
-        localStorage.setItem('access_token', response.data.data.accessToken);
-        localStorage.setItem('refresh_token', response.data.data.refreshToken);
+        // Use default 1 day expiration for registration
+        const tokenExpiration = Date.now() + (24 * 60 * 60 * 1000);
+        
+        const tokenData = {
+          token: response.data.data.accessToken,
+          expiration: tokenExpiration,
+          rememberMe: false
+        };
+        
+        const refreshTokenData = {
+          token: response.data.data.refreshToken,
+          expiration: tokenExpiration,
+          rememberMe: false
+        };
+        
+        localStorage.setItem('access_token', JSON.stringify(tokenData));
+        localStorage.setItem('refresh_token', JSON.stringify(refreshTokenData));
         
         const userInfo: UserInfo = {
           userId: response.data.data.userId,
@@ -283,7 +354,13 @@ export const authService = {
           lastName: response.data.data.lastName || ''
         };
         
-        localStorage.setItem('user_info', JSON.stringify(userInfo));
+        const userInfoData = {
+          ...userInfo,
+          expiration: tokenExpiration,
+          rememberMe: false
+        };
+        
+        localStorage.setItem('user_info', JSON.stringify(userInfoData));
       }
       
       return response.data;
@@ -389,11 +466,25 @@ export const authService = {
       }
       
       const response = await post<AuthResponse>('/auth/register-employee', data);
-      
-      // Store tokens if verification is not required
+        // Store tokens if verification is not required
       if (response.data?.data?.accessToken && !response.data.data.requiresVerification) {
-        localStorage.setItem('access_token', response.data.data.accessToken);
-        localStorage.setItem('refresh_token', response.data.data.refreshToken);
+        // Use default 1 day expiration for employee registration
+        const tokenExpiration = Date.now() + (24 * 60 * 60 * 1000);
+        
+        const tokenData = {
+          token: response.data.data.accessToken,
+          expiration: tokenExpiration,
+          rememberMe: false
+        };
+        
+        const refreshTokenData = {
+          token: response.data.data.refreshToken,
+          expiration: tokenExpiration,
+          rememberMe: false
+        };
+        
+        localStorage.setItem('access_token', JSON.stringify(tokenData));
+        localStorage.setItem('refresh_token', JSON.stringify(refreshTokenData));
         
         const userInfo: UserInfo = {
           userId: response.data.data.userId,
@@ -405,7 +496,13 @@ export const authService = {
           lastName: response.data.data.lastName || data.lastName
         };
         
-        localStorage.setItem('user_info', JSON.stringify(userInfo));
+        const userInfoData = {
+          ...userInfo,
+          expiration: tokenExpiration,
+          rememberMe: false
+        };
+        
+        localStorage.setItem('user_info', JSON.stringify(userInfoData));
       }
       
       return response.data;
@@ -465,8 +562,7 @@ export const authService = {
       }
       throw error;
     }  },
-  
-  /**
+    /**
    * Refresh the access token using refresh token
    */
   refreshToken: async (refreshTokenData: RefreshTokenRequest): Promise<AuthResponse> => {
@@ -478,7 +574,30 @@ export const authService = {
       const response = await post<AuthResponse>('/auth/refresh-token', refreshTokenData);
       
       if (response.data?.data?.accessToken) {
-        localStorage.setItem('access_token', response.data.data.accessToken);
+        // Get existing token data to preserve rememberMe setting
+        const existingTokenData = localStorage.getItem('access_token');
+        let rememberMe = false;
+        
+        try {
+          const parsed = JSON.parse(existingTokenData || '{}');
+          rememberMe = parsed.rememberMe || false;
+        } catch (e) {
+          // If parsing fails, assume false
+          rememberMe = false;
+        }
+        
+        // Calculate new expiration based on remember me setting
+        const tokenExpiration = rememberMe 
+          ? Date.now() + (7 * 24 * 60 * 60 * 1000) // 7 days
+          : Date.now() + (24 * 60 * 60 * 1000); // 1 day
+        
+        const tokenData = {
+          token: response.data.data.accessToken,
+          expiration: tokenExpiration,
+          rememberMe
+        };
+        
+        localStorage.setItem('access_token', JSON.stringify(tokenData));
       }
       
       return response.data;
@@ -552,29 +671,67 @@ export const authService = {
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user_info');
   },
-  
-  /**
-   * Check if user is authenticated (valid, non-expired token)
-   */
+    /**
+   * Check if user is authenticated (considering both JWT expiration and custom expiration)
+   */  
   isAuthenticated: (): boolean => {
-    const token = localStorage.getItem('access_token');
-    const isValid = isTokenValid(token);
-    console.log('Authentication check:', { hasToken: !!token, isValid });
+    const tokenData = localStorage.getItem('access_token');
+    if (!tokenData) return false;
     
-    if (!isValid) {
-      // Remove invalid token
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('user_info');
+    try {
+      const parsed = JSON.parse(tokenData);
+      
+      // Check our custom expiration first (for Remember Me functionality)
+      if (parsed.expiration && Date.now() > parsed.expiration) {
+        console.log('Token expired (custom expiration), user session ended');
+        authService.logout();
+        return false;
+      }
+      
+      // Get the actual token
+      const token = parsed.token || tokenData; // fallback for old format
+      
+      // Check JWT expiration
+      const isJwtValid = isTokenValid(token);
+      console.log('Authentication check:', { 
+        hasToken: !!token, 
+        isJwtValid,
+        customExpirationValid: !parsed.expiration || Date.now() <= parsed.expiration,
+        rememberMe: parsed.rememberMe || false
+      });
+      
+      // If JWT is expired but we're within our custom expiration window (Remember Me),
+      // we should attempt to refresh the token
+      if (!isJwtValid && parsed.expiration && Date.now() <= parsed.expiration) {
+        console.log('JWT expired but within Remember Me window, token refresh needed');
+        // Return true for now, let the refresh happen in the background
+        return true;
+      }
+      
+      if (!isJwtValid) {
+        // Both JWT and custom expiration failed
+        authService.logout();
+        return false;
+      }
+      
+      return true;
+    } catch (e) {
+      // If parsing fails, treat as old format
+      const token = tokenData;
+      const isValid = isTokenValid(token);
+      console.log('Authentication check (old format):', { hasToken: !!token, isValid });
+      
+      if (!isValid) {
+        authService.logout();
+      }
+      return isValid;
     }
-    return isValid;
   },
-
   /**
    * Validate token with backend and auto-logout if invalid
    */
   validateToken: async (): Promise<boolean> => {
-    const token = localStorage.getItem('access_token');
+    const token = getTokenFromStorage('access_token');
     if (!token) {
       console.log('No token to validate');
       return false;
@@ -605,7 +762,6 @@ export const authService = {
       return false;
     }
   },
-
   /**
    * Get current user info from localStorage
    */
@@ -614,7 +770,28 @@ export const authService = {
     if (!userInfo) return null;
     
     try {
-      return JSON.parse(userInfo) as UserInfo;
+      const parsed = JSON.parse(userInfo);
+      
+      // Check if user info has expiration and if it's expired
+      if (parsed.expiration && Date.now() > parsed.expiration) {
+        console.log('User info expired, removing from storage');
+        localStorage.removeItem('user_info');
+        return null;
+      }
+      
+      // Return only the user info part, excluding meta data like expiration
+      const userInfoData: UserInfo = {
+        userId: parsed.userId,
+        companyId: parsed.companyId,
+        email: parsed.email,
+        role: parsed.role,
+        status: parsed.status,
+        firstName: parsed.firstName,
+        lastName: parsed.lastName,
+        avatarUrl: parsed.avatarUrl
+      };
+      
+      return userInfoData;
     } catch (error) {
       console.error('Error parsing user info:', error);
       return null;
@@ -651,11 +828,24 @@ export const authService = {
       try {
         // Parse the tokens JSON string
         const tokens = JSON.parse(decodeURIComponent(tokensParam));
-        
-        if (tokens.accessToken && tokens.refreshToken) {
-          // Store tokens in localStorage
-          localStorage.setItem('access_token', tokens.accessToken);
-          localStorage.setItem('refresh_token', tokens.refreshToken);
+          if (tokens.accessToken && tokens.refreshToken) {
+          // Store tokens in localStorage with default 1 day expiration
+          const tokenExpiration = Date.now() + (24 * 60 * 60 * 1000);
+          
+          const tokenData = {
+            token: tokens.accessToken,
+            expiration: tokenExpiration,
+            rememberMe: false
+          };
+          
+          const refreshTokenData = {
+            token: tokens.refreshToken,
+            expiration: tokenExpiration,
+            rememberMe: false
+          };
+          
+          localStorage.setItem('access_token', JSON.stringify(tokenData));
+          localStorage.setItem('refresh_token', JSON.stringify(refreshTokenData));
           
           // Return the parsed data
           return {
@@ -697,11 +887,25 @@ export const authService = {
       }
       
       const response = await post<AuthResponse>('/auth/complete-oauth-registration', data);
-      
-      // Store tokens in localStorage
+        // Store tokens in localStorage
       if (response.data?.data?.accessToken) {
-        localStorage.setItem('access_token', response.data.data.accessToken);
-        localStorage.setItem('refresh_token', response.data.data.refreshToken);
+        // Use default 1 day expiration for OAuth registration
+        const tokenExpiration = Date.now() + (24 * 60 * 60 * 1000);
+        
+        const tokenData = {
+          token: response.data.data.accessToken,
+          expiration: tokenExpiration,
+          rememberMe: false
+        };
+        
+        const refreshTokenData = {
+          token: response.data.data.refreshToken,
+          expiration: tokenExpiration,
+          rememberMe: false
+        };
+        
+        localStorage.setItem('access_token', JSON.stringify(tokenData));
+        localStorage.setItem('refresh_token', JSON.stringify(refreshTokenData));
         
         const userInfo: UserInfo = {
           userId: response.data.data.userId,
@@ -713,7 +917,13 @@ export const authService = {
           lastName: response.data.data.lastName || ''
         };
         
-        localStorage.setItem('user_info', JSON.stringify(userInfo));
+        const userInfoData = {
+          ...userInfo,
+          expiration: tokenExpiration,
+          rememberMe: false
+        };
+        
+        localStorage.setItem('user_info', JSON.stringify(userInfoData));
       }
       
       return response.data;
@@ -801,5 +1011,62 @@ export const authService = {
       }
       throw error;
     }
-  }
+  },
+
+  /**
+   * Automatically refresh token if needed (for Remember Me functionality)
+   */
+  autoRefreshToken: async (): Promise<boolean> => {
+    const tokenData = localStorage.getItem('access_token');
+    const refreshTokenData = localStorage.getItem('refresh_token');
+    
+    if (!tokenData || !refreshTokenData) {
+      return false;
+    }
+    
+    try {
+      const parsedToken = JSON.parse(tokenData);
+      const parsedRefreshToken = JSON.parse(refreshTokenData);
+      
+      // Check if we're within our custom expiration window
+      if (parsedToken.expiration && Date.now() > parsedToken.expiration) {
+        console.log('Custom expiration exceeded, cannot refresh');
+        return false;
+      }
+      
+      // Check if JWT token is expired or will expire soon (within 5 minutes)
+      const token = parsedToken.token || tokenData;
+      const fiveMinutesFromNow = Date.now() + (5 * 60 * 1000);
+      
+      try {
+        const decoded: any = jwtDecode(token);
+        const tokenExpiresAt = decoded.exp * 1000;
+        
+        if (tokenExpiresAt > fiveMinutesFromNow) {
+          // Token is still valid for more than 5 minutes, no need to refresh
+          return true;
+        }
+        
+        console.log('Token expires soon, attempting refresh...');
+        
+        // Attempt to refresh the token
+        const refreshToken = parsedRefreshToken.token || refreshTokenData;
+        const response = await authService.refreshToken({ refreshToken });
+        
+        if (response.data?.accessToken) {
+          console.log('Token refresh successful');
+          return true;
+        }
+      } catch (e) {
+        console.error('Error during token refresh:', e);
+        return false;
+      }
+      
+      return false;
+    } catch (e) {
+      // Handle old format tokens
+      console.log('Token in old format, treating as valid');
+      return isTokenValid(tokenData);
+    }
+  },
 };

@@ -15,12 +15,14 @@ import { inventoryRoutes } from './services/inventory/routes';
 import { userManagementRoutes } from './services/user-management/routes';
 import { warehouseRoutes } from './services/warehouse/routes';
 import { companyVerificationRoutes } from './services/company-verification/routes';
+import { companyRoutes } from './services/company/routes';
 import { errorHandler } from './middleware/errorHandler';
 import compression from 'compression';
 import { rateLimiter } from './middleware/rateLimiter';
 import { quoteRoutes } from './services/quote/routes';
 import { priceListRoutes } from './services/price-list/routes';
 import { paymentRoutes } from './services/payment/routes';
+import { invoiceRoutes } from './services/invoice/routes';
 
 // Configure logger
 export const logger = winston.createLogger({
@@ -73,6 +75,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/v1/auth', authRoutes); // Support alternative path format
 app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/companies', companyRoutes); // New company management routes
 app.use('/api/v1/company/manage', userManagementRoutes); // New user management routes
 app.use('/api/v1/products', productRoutes);
 app.use('/api/v1/companies/:companyId/product-categories', productCategoryRoutes); // New product categories route
@@ -82,6 +85,7 @@ app.use('/api/v1/inventory', inventoryRoutes);
 app.use('/api/v1/quotes', quoteRoutes); // New quote management routes
 app.use('/api/v1/price-lists', priceListRoutes); // New price list management routes
 app.use('/api/v1/payments', paymentRoutes); // New payment management routes
+app.use('/api/v1/invoices', invoiceRoutes); // New invoice management routes
 app.use('/api/v1/company-verification', companyVerificationRoutes);
 
 // API version health check endpoint

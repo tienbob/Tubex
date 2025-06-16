@@ -23,7 +23,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import { inventoryService, warehouseService } from '../services/api';
 import { InventoryItem } from '../services/api/inventoryService';
-import { Warehouse, ApiError } from '../services/api/warehouseService';
+import { Warehouse, ContactInfo, ApiError } from '../services/api/warehouseService';
 import { useAuth } from '../contexts/AuthContext';
 
 const WarehouseManagement: React.FC = () => {
@@ -31,7 +31,16 @@ const WarehouseManagement: React.FC = () => {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>('');
   const [openDialog, setOpenDialog] = useState(false);
-  const [newWarehouse, setNewWarehouse] = useState({ name: '', address: '', capacity: '' });
+  const [newWarehouse, setNewWarehouse] = useState({ 
+    name: '', 
+    address: '', 
+    capacity: '',
+    contactInfo: {
+      name: '',
+      phone: '',
+      email: ''
+    }
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -102,7 +111,6 @@ const WarehouseManagement: React.FC = () => {
       setLoading(false);
     }
   };
-
   const fetchInventory = async () => {
     try {
       setLoading(true);
@@ -110,10 +118,13 @@ const WarehouseManagement: React.FC = () => {
         companyId,
         warehouseId: selectedWarehouse
       });
-      setInventory(response.data);
+      // Handle different response structures
+      const inventoryData = response?.data || response || [];
+      setInventory(Array.isArray(inventoryData) ? inventoryData : []);
       setError(null);
     } catch (err) {
       setError('Failed to fetch inventory');
+      setInventory([]); // Set empty array on error
       console.error(err);
     } finally {
       setLoading(false);
@@ -127,10 +138,19 @@ const WarehouseManagement: React.FC = () => {
   const handleOpenDialog = () => {
     setOpenDialog(true);
   };
-
   const handleCloseDialog = () => {
     setOpenDialog(false);
-    setNewWarehouse({ name: '', address: '', capacity: '' });
+    setError(null);
+    setNewWarehouse({ 
+      name: '', 
+      address: '', 
+      capacity: '',
+      contactInfo: {
+        name: '',
+        phone: '',
+        email: ''
+      }
+    });
   };
   const handleCreateWarehouse = async () => {
     try {
@@ -141,17 +161,36 @@ const WarehouseManagement: React.FC = () => {
       if (!newWarehouse.address.trim()) {
         setError('Warehouse address is required');
         return;
-      }
-      if (!newWarehouse.capacity || isNaN(Number(newWarehouse.capacity)) || Number(newWarehouse.capacity) <= 0) {
+      }      if (!newWarehouse.capacity || isNaN(Number(newWarehouse.capacity)) || Number(newWarehouse.capacity) <= 0) {
         setError('Valid warehouse capacity is required');
         return;
       }
-
-      await warehouseService.createWarehouse(companyId, {
+      if (!newWarehouse.contactInfo.name.trim()) {
+        setError('Contact name is required');
+        return;
+      }
+      if (!newWarehouse.contactInfo.phone.trim()) {
+        setError('Contact phone is required');
+        return;
+      }
+      if (!newWarehouse.contactInfo.email.trim()) {
+        setError('Contact email is required');
+        return;
+      }
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(newWarehouse.contactInfo.email)) {
+        setError('Valid contact email is required');
+        return;
+      }      await warehouseService.createWarehouse(companyId, {
         name: newWarehouse.name.trim(),
         address: newWarehouse.address.trim(),
         capacity: Number(newWarehouse.capacity),
-        // Removed 'status' as it is not part of 'WarehouseCreateInput'
+        contactInfo: {
+          name: newWarehouse.contactInfo.name.trim(),
+          phone: newWarehouse.contactInfo.phone.trim(),
+          email: newWarehouse.contactInfo.email.trim()
+        }
       });
       
       await handleCloseDialog();
@@ -269,25 +308,34 @@ const WarehouseManagement: React.FC = () => {
                       <TableCell>Status</TableCell>
                       <TableCell align="right">Actions</TableCell>
                     </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {inventory.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>{item.product?.name}</TableCell>
-                        <TableCell align="right">{item.quantity}</TableCell>
-                        <TableCell>{item.location || 'N/A'}</TableCell>
-                        <TableCell>
-                          {item.quantity <= (item.min_threshold || 0) ? 'Low Stock' : 'In Stock'}
-                        </TableCell>
-                        <TableCell align="right">
-                          <Tooltip title="Edit">
-                            <IconButton size="small">
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
+                  </TableHead>                  <TableBody>
+                    {Array.isArray(inventory) && inventory.length > 0 ? (
+                      inventory.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>{item.product?.name}</TableCell>
+                          <TableCell align="right">{item.quantity}</TableCell>
+                          <TableCell>{item.location || 'N/A'}</TableCell>
+                          <TableCell>
+                            {item.quantity <= (item.min_threshold || 0) ? 'Low Stock' : 'In Stock'}
+                          </TableCell>
+                          <TableCell align="right">
+                            <Tooltip title="Edit">
+                              <IconButton size="small">
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={5} sx={{ textAlign: 'center', py: 3 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            {selectedWarehouse ? 'No inventory items found for this warehouse' : 'Select a warehouse to view inventory'}
+                          </Typography>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    )}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -298,40 +346,129 @@ const WarehouseManagement: React.FC = () => {
             )}
           </Paper>
         </Box>
-      </Box>
+      </Box>      {/* Add Warehouse Dialog */}
+      <Dialog 
+        open={openDialog} 
+        onClose={handleCloseDialog}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: { minHeight: '500px' }
+        }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Typography variant="h5" component="div">
+            Add New Warehouse
+          </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ px: 3, py: 2 }}>
+          {error && (
+            <Box sx={{ mb: 3, p: 2, backgroundColor: 'error.light', borderRadius: 1 }}>
+              <Typography color="error" variant="body2">
+                {error}
+              </Typography>
+            </Box>
+          )}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {/* Basic Information Section */}
+            <Box>
+              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+                Basic Information
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <TextField
+                  label="Warehouse Name"
+                  fullWidth
+                  variant="outlined"
+                  value={newWarehouse.name}
+                  onChange={(e) => setNewWarehouse({ ...newWarehouse, name: e.target.value })}
+                  sx={{ '& .MuiOutlinedInput-root': { height: '56px' } }}
+                />
+                <TextField
+                  label="Address"
+                  fullWidth
+                  variant="outlined"
+                  multiline
+                  rows={3}
+                  value={newWarehouse.address}
+                  onChange={(e) => setNewWarehouse({ ...newWarehouse, address: e.target.value })}
+                />
+                <TextField
+                  label="Capacity"
+                  fullWidth
+                  variant="outlined"
+                  type="number"
+                  value={newWarehouse.capacity}
+                  onChange={(e) => setNewWarehouse({ ...newWarehouse, capacity: e.target.value })}
+                  sx={{ '& .MuiOutlinedInput-root': { height: '56px' } }}
+                  InputProps={{
+                    endAdornment: <Typography variant="body2" color="text.secondary">units</Typography>
+                  }}
+                />
+              </Box>
+            </Box>
 
-      {/* Add Warehouse Dialog */}
-      <Dialog open={openDialog} onClose={handleCloseDialog}>
-        <DialogTitle>Add New Warehouse</DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              label="Warehouse Name"
-              fullWidth
-              value={newWarehouse.name}
-              onChange={(e) => setNewWarehouse({ ...newWarehouse, name: e.target.value })}
-            />
-            <TextField
-              label="Address"
-              fullWidth
-              multiline
-              rows={2}
-              value={newWarehouse.address}
-              onChange={(e) => setNewWarehouse({ ...newWarehouse, address: e.target.value })}
-            />
-            <TextField
-              label="Capacity"
-              fullWidth
-              type="number"
-              value={newWarehouse.capacity}
-              onChange={(e) => setNewWarehouse({ ...newWarehouse, capacity: e.target.value })}
-            />
+            {/* Contact Information Section */}
+            <Box>
+              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+                Contact Information
+              </Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+                <TextField
+                  label="Contact Name"
+                  fullWidth
+                  variant="outlined"
+                  value={newWarehouse.contactInfo.name}
+                  onChange={(e) => setNewWarehouse({ 
+                    ...newWarehouse, 
+                    contactInfo: { ...newWarehouse.contactInfo, name: e.target.value }
+                  })}
+                  sx={{ '& .MuiOutlinedInput-root': { height: '56px' } }}
+                />
+                <TextField
+                  label="Contact Phone"
+                  fullWidth
+                  variant="outlined"
+                  value={newWarehouse.contactInfo.phone}
+                  onChange={(e) => setNewWarehouse({ 
+                    ...newWarehouse, 
+                    contactInfo: { ...newWarehouse.contactInfo, phone: e.target.value }
+                  })}
+                  sx={{ '& .MuiOutlinedInput-root': { height: '56px' } }}
+                />
+              </Box>
+              <Box sx={{ mt: 2 }}>
+                <TextField
+                  label="Contact Email"
+                  fullWidth
+                  variant="outlined"
+                  type="email"
+                  value={newWarehouse.contactInfo.email}
+                  onChange={(e) => setNewWarehouse({ 
+                    ...newWarehouse, 
+                    contactInfo: { ...newWarehouse.contactInfo, email: e.target.value }
+                  })}
+                  sx={{ '& .MuiOutlinedInput-root': { height: '56px' } }}
+                />
+              </Box>
+            </Box>
           </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button onClick={handleCreateWarehouse} variant="contained" color="primary">
-            Create
+        <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+          <Button 
+            onClick={handleCloseDialog} 
+            variant="outlined"
+            sx={{ minWidth: '100px', height: '40px' }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleCreateWarehouse} 
+            variant="contained" 
+            color="primary"
+            sx={{ minWidth: '100px', height: '40px' }}
+          >
+            Create Warehouse
           </Button>
         </DialogActions>
       </Dialog>
