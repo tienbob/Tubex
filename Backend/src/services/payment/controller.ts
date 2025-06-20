@@ -28,14 +28,46 @@ export const paymentController = {
         const queryRunner = AppDataSource.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();
-        
-        try {
+          try {
+            // CRITICAL FIX: Determine company context for multi-tenant security
+            let companyId: string;
+            
+            // Get company context from order or invoice
+            if (orderId) {
+                const order = await queryRunner.manager.findOne(Order, { where: { id: orderId } });
+                if (!order) {
+                    throw new AppError(404, 'Order not found');
+                }
+                // SECURITY: Verify user has access to this order's company
+                if (req.user.companyId !== order.companyId) {
+                    throw new AppError(403, 'Unauthorized access to order');
+                }
+                companyId = order.companyId;
+            } else if (invoiceId) {
+                const invoice = await queryRunner.manager.findOne(Invoice, { 
+                    where: { id: invoiceId },
+                    relations: ['createdBy']
+                });
+                if (!invoice) {
+                    throw new AppError(404, 'Invoice not found');
+                }
+                // SECURITY: Verify user has access to this invoice's company
+                if (req.user.companyId !== invoice.createdBy.company_id) {
+                    throw new AppError(403, 'Unauthorized access to invoice');
+                }
+                companyId = invoice.createdBy.company_id;
+            } else {
+                // If no order or invoice, use user's company
+                companyId = req.user.companyId;
+            }
+
             // Create payment record
             const payment = new Payment();
             payment.transactionId = transactionId;
             payment.orderId = orderId;
             payment.invoiceId = invoiceId;
             payment.customerId = customerId;
+            payment.companyId = companyId; // CRITICAL FIX: Add company context
             payment.amount = amount;
             payment.paymentMethod = paymentMethod;
             payment.paymentType = paymentType;
@@ -109,8 +141,7 @@ export const paymentController = {
             await queryRunner.release();
         }
     },
-    
-    async getPayments(req: Request, res: Response) {
+      async getPayments(req: Request, res: Response) {
         const { 
             orderId, 
             invoiceId, 
@@ -124,9 +155,16 @@ export const paymentController = {
         const page = parseInt(req.query.page as string) || 1;
         const limit = parseInt(req.query.limit as string) || 20;
         const skip = (page - 1) * limit;
-        
-        try {
+          try {
+            // SECURITY: Ensure user is authenticated
+            if (!req.user) {
+                throw new AppError(401, 'Authentication required');
+            }
+            
             const whereClause: FindOptionsWhere<Payment> = {};
+            
+            // CRITICAL FIX: Always filter by company for multi-tenant security
+            whereClause.companyId = req.user.companyId;
             
             if (orderId) whereClause.orderId = orderId as string;
             if (invoiceId) whereClause.invoiceId = invoiceId as string;
@@ -173,18 +211,25 @@ export const paymentController = {
             throw error;
         }
     },
-    
-    async getPaymentById(req: Request, res: Response) {
+      async getPaymentById(req: Request, res: Response) {
         const { id } = req.params;
         
         try {
+            // SECURITY: Ensure user is authenticated
+            if (!req.user) {
+                throw new AppError(401, 'Authentication required');
+            }
+            
             const payment = await AppDataSource.getRepository(Payment).findOne({
-                where: { id },
+                where: { 
+                    id,
+                    companyId: req.user.companyId // CRITICAL FIX: Filter by company for security
+                },
                 relations: ['order', 'invoice', 'recordedBy', 'reconciledBy']
             });
             
             if (!payment) {
-                throw new AppError(404, 'Payment not found');
+                throw new AppError(404, 'Payment not found or access denied');
             }
             
             res.status(200).json({

@@ -12,7 +12,11 @@
     "test:integration": "cross-env NODE_ENV=test mocha -r ts-node/register -r dotenv/config -r ./tests/setup.ts 'tests/integration/**/*.test.ts' --exit",
     "test:watch": "cross-env NODE_ENV=test mocha -r ts-node/register -r dotenv/config -r ./tests/setup.ts 'tests/**/*.test.ts' --watch --watch-extensions ts",
     "test:coverage": "nyc npm test",
-    "typeorm": "typeorm-ts-node-commonjs -d data-source.ts",
+    "typeorm": "typeorm-ts-node-commonjs",
+    "migration:generate": "npm run typeorm -- migration:generate -d data-source.ts",
+    "migration:run": "npm run typeorm -- migration:run -d data-source.ts",
+    "migration:revert": "npm run typeorm -- migration:revert -d data-source.ts",
+    "migration:show": "npm run typeorm -- migration:show -d data-source.ts",
     "test-invoice-pdf": "node test-invoice-pdf.js"
   },
   "dependencies": {

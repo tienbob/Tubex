@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany, JoinColumn } from "typeorm";
 import { User } from "./user";
 import { Product } from "./product";
+import { Company } from "./company";
 
 export enum QuoteStatus {
     DRAFT = 'draft',
@@ -16,32 +17,22 @@ export class Quote {
     @PrimaryGeneratedColumn("uuid")
     id: string;
 
-    @Column()
+    @Column({ name: "customer_id" })
     customerId: string;
 
-    @Column({ unique: true })
+    @Column({ unique: true, name: "quote_number" })
     quoteNumber: string;
 
     @Column({
         type: "enum",
         enum: QuoteStatus,
-        default: QuoteStatus.DRAFT
-    })
+        default: QuoteStatus.DRAFT    })
     status: QuoteStatus;
 
-    @Column("decimal", { precision: 10, scale: 2 })
+    @Column("decimal", { precision: 10, scale: 2, name: "total_amount" })
     totalAmount: number;
 
-    @Column({ type: "jsonb", nullable: true })
-    deliveryAddress: {
-        street: string;
-        city: string;
-        province: string;
-        postalCode: string;
-        country: string;
-    };
-
-    @Column({ type: "date", nullable: true })
+    @Column({ type: "date", name: "valid_until" })
     validUntil: Date;
 
     @Column({ nullable: true })
@@ -54,16 +45,24 @@ export class Quote {
     items: QuoteItem[];
 
     @ManyToOne(() => User)
-    @JoinColumn({ name: "createdById" })
+    @JoinColumn({ name: "created_by_id" })
     createdBy: User;
 
-    @Column()
+    @Column({ name: "created_by_id" })
     createdById: string;
 
-    @CreateDateColumn()
+    // Add company relationship and column that was missing
+    @ManyToOne(() => Company)
+    @JoinColumn({ name: "company_id" })
+    company: Company;
+
+    @Column({ name: "company_id" })
+    companyId: string;
+
+    @CreateDateColumn({ name: "created_at" })
     createdAt: Date;
 
-    @UpdateDateColumn()
+    @UpdateDateColumn({ name: "updated_at" })
     updatedAt: Date;
 }
 
@@ -73,23 +72,24 @@ export class QuoteItem {
     id: string;
 
     @ManyToOne(() => Quote, quote => quote.items, { onDelete: 'CASCADE' })
-    @JoinColumn({ name: "quoteId" })
+    @JoinColumn({ name: "quote_id" })
     quote: Quote;
 
-    @Column()
+    @Column({ name: "quote_id" })
     quoteId: string;
 
     @ManyToOne(() => Product)
-    @JoinColumn({ name: "productId" })
-    product: Product;
-
-    @Column()
+    @JoinColumn({ name: "product_id" })
+    product: Product;    @Column({ name: "product_id" })
     productId: string;
+
+    @Column({ nullable: true })
+    description: string;
 
     @Column("decimal", { precision: 10, scale: 2 })
     quantity: number;
 
-    @Column("decimal", { precision: 10, scale: 2 })
+    @Column("decimal", { precision: 10, scale: 2, name: "unit_price" })
     unitPrice: number;
 
     @Column("decimal", { precision: 10, scale: 2, default: 0 })
@@ -101,9 +101,9 @@ export class QuoteItem {
     @Column({ type: "jsonb", nullable: true })
     metadata: Record<string, any>;
 
-    @CreateDateColumn()
+    @CreateDateColumn({ name: "created_at" })
     createdAt: Date;
 
-    @UpdateDateColumn()
+    @UpdateDateColumn({ name: "updated_at" })
     updatedAt: Date;
 }

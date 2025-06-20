@@ -6,8 +6,7 @@ import { ValidationSchema } from '../../middleware/validationHandler';
 const addressSchema = Joi.object({
   street: Joi.string().required(),
   city: Joi.string().required(),
-  province: Joi.string().required(),
-  postalCode: Joi.string().required()
+  province: Joi.string().required()
 });
 
 const companySchema = Joi.object({
@@ -17,10 +16,8 @@ const companySchema = Joi.object({
     .messages({
       'string.pattern.base': 'Tax ID must be exactly 10 digits'
     }),
-  businessLicense: Joi.string().required(),
-  address: addressSchema.required(),
+  businessLicense: Joi.string().required(),  address: addressSchema.required(),
   businessCategory: Joi.string().required(),
-  employeeCount: Joi.number().integer().min(1),
   yearEstablished: Joi.number().integer().min(1900).max(new Date().getFullYear()),
   contactPhone: Joi.string().pattern(/^\d{10,11}$/).required()
     .messages({

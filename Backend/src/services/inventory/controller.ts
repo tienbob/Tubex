@@ -14,50 +14,137 @@ const warehouseRepository = AppDataSource.getRepository(Warehouse);
 const checkCompanyAccess = (req: Request, companyId: string): boolean => {
     const user = (req as any).user;
     
-    // If user is admin, allow access to any company
-    if (user && user.role === 'admin') {
-        return true;
+    // CRITICAL SECURITY FIX: Remove blanket admin access that could lead to horizontal privilege escalation
+    // All users (including admins) must belong to the company they're trying to access
+    if (!user || !user.companyId) {
+        return false;
     }
     
-    // For non-admin users, verify they belong to the requested company
-    return user && user.companyId === companyId;
+    // Strict company isolation: users can only access their own company's data
+    return user.companyId === companyId;
+};
+
+// Add enhanced authorization check for multi-tenant security
+const checkResourceAccess = (req: Request, companyId: string, resourceOwnerId?: string): boolean => {
+    const user = (req as any).user;
+    
+    // First check company access
+    if (!checkCompanyAccess(req, companyId)) {
+        return false;
+    }
+    
+    // Additional check for resource-specific access based on role
+    if (resourceOwnerId && user.role !== 'admin') {
+        // Non-admin users must own the resource or have explicit permission
+        return user.companyId === resourceOwnerId;
+    }
+    
+    return true;
 };
 
 export const getInventory = async (req: Request, res: Response) => {
     const { companyId, warehouseId } = req.params;
     
-    // Check if user has access to this company's data
+    // SECURITY FIX: Strict company access validation
     if (!checkCompanyAccess(req, companyId)) {
         throw new AppError(403, "Unauthorized access to company data");
     }
     
-    const query: FindOptionsWhere<Inventory> = { company_id: companyId };
+    const user = (req as any).user;
+    const userRole = user?.role;
+    
+    // SECURITY FIX: Get user's company type from company entity instead of user object
+    const userCompany = await AppDataSource.getRepository(Company).findOne({
+        where: { id: user.companyId }
+    });
+    
+    if (!userCompany) {
+        throw new AppError(403, "Invalid company association");
+    }
+    
+    const userCompanyType = userCompany.type;
+    
+    // Build query using QueryBuilder to handle product relationships
+    const queryBuilder = inventoryRepository
+        .createQueryBuilder('inventory')
+        .leftJoinAndSelect('inventory.product', 'product')
+        .leftJoinAndSelect('inventory.warehouse', 'warehouse')
+        .leftJoinAndSelect('product.supplier', 'supplier')
+        .where('inventory.company_id = :companyId', { companyId });
+    
+    // SECURITY FIX: Enhanced role-based filtering with proper company type validation
+    if (userCompanyType === 'dealer') {
+        // Dealers should only see inventory for products they have added to their catalog
+        queryBuilder.andWhere('product.dealer_id = :companyId', { companyId });
+    } else if (userCompanyType === 'supplier') {
+        // Suppliers should see inventory for their own products
+        queryBuilder.andWhere('product.supplier_id = :companyId', { companyId });
+    } else {
+        // SECURITY: Unknown company type should not have access
+        throw new AppError(403, "Invalid company type for inventory access");
+    }
     
     if (warehouseId) {
-        query.warehouse_id = warehouseId;
+        // SECURITY FIX: Validate warehouse ownership
+        const warehouse = await AppDataSource.getRepository(Warehouse).findOne({
+            where: { id: warehouseId, company_id: companyId }
+        });
+        
+        if (!warehouse) {
+            throw new AppError(403, "Warehouse does not belong to your company");
+        }
+        
+        queryBuilder.andWhere('inventory.warehouse_id = :warehouseId', { warehouseId });
     }
 
-    const inventory = await inventoryRepository.find({
-        where: query,
-        relations: ["product", "warehouse"],
-    });
+    const inventory = await queryBuilder.getMany();
     res.json(inventory);
 };
 
 export const getInventoryItem = async (req: Request, res: Response) => {
     const { id, companyId } = req.params;
     
-    // Check if user has access to this company's data
+    // SECURITY FIX: Strict company access validation
     if (!checkCompanyAccess(req, companyId)) {
         throw new AppError(403, "Unauthorized access to company data");
     }
     
-    const item = await inventoryRepository.findOne({
-        where: { id, company_id: companyId },
-        relations: ["product", "warehouse"],
+    const user = (req as any).user;
+    
+    // SECURITY FIX: Get user's company type from company entity
+    const userCompany = await AppDataSource.getRepository(Company).findOne({
+        where: { id: user.companyId }
     });
+    
+    if (!userCompany) {
+        throw new AppError(403, "Invalid company association");
+    }
+    
+    const userCompanyType = userCompany.type;
+    
+    // Build query using QueryBuilder to handle product relationships
+    const queryBuilder = inventoryRepository
+        .createQueryBuilder('inventory')
+        .leftJoinAndSelect('inventory.product', 'product')
+        .leftJoinAndSelect('inventory.warehouse', 'warehouse')
+        .leftJoinAndSelect('product.supplier', 'supplier')
+        .where('inventory.id = :id', { id })
+        .andWhere('inventory.company_id = :companyId', { companyId });
+    
+    // SECURITY FIX: Enhanced role-based filtering
+    if (userCompanyType === 'dealer') {
+        // Dealers should only see inventory for products they have added to their catalog
+        queryBuilder.andWhere('product.dealer_id = :companyId', { companyId });
+    } else if (userCompanyType === 'supplier') {
+        // Suppliers should see inventory for their own products
+        queryBuilder.andWhere('product.supplier_id = :companyId', { companyId });
+    } else {
+        throw new AppError(403, "Invalid company type for inventory access");
+    }
+    
+    const item = await queryBuilder.getOne();
     if (!item) {
-        throw new AppError(404, "Inventory item not found");
+        throw new AppError(404, "Inventory item not found or access denied");
     }
     res.json(item);
 };
@@ -77,12 +164,27 @@ export const createInventoryItem = async (req: Request, res: Response) => {
         const { product_id, warehouse_id, quantity, unit, min_threshold, max_threshold, reorder_point, reorder_quantity, auto_reorder } = req.body;
 
         // Validate warehouse access
-        await inventoryValidation.validateWarehouseAccess(warehouse_id, companyId, queryRunner);
-
-        // Check if product exists
-        const product = await queryRunner.manager.findOne(Product, { where: { id: product_id } });
+        await inventoryValidation.validateWarehouseAccess(warehouse_id, companyId, queryRunner);        // Check if product exists and belongs to this company
+        const user = (req as any).user;
+        const userRole = user?.role;
+        const userCompanyType = user?.companyType;
+        
+        const productQueryBuilder = queryRunner.manager
+            .createQueryBuilder(Product, 'product')
+            .where('product.id = :product_id', { product_id });
+        
+        // Apply dealer/supplier filtering based on user role and company type
+        if (userRole === 'dealer' || (userRole === 'admin' && userCompanyType === 'dealer')) {
+            // Dealers and admins in dealer companies can only create inventory for products they have added
+            productQueryBuilder.andWhere('product.dealer_id = :companyId', { companyId });
+        } else if (userRole === 'supplier' || (userRole === 'admin' && userCompanyType === 'supplier')) {
+            // Suppliers and admins in supplier companies can create inventory for their products
+            productQueryBuilder.andWhere('product.supplier_id = :companyId', { companyId });
+        }
+        
+        const product = await productQueryBuilder.getOne();
         if (!product) {
-            throw new AppError(404, "Product not found");
+            throw new AppError(404, "Product not found or you don't have permission to manage inventory for this product");
         }
 
         // Check if inventory record already exists
@@ -111,14 +213,13 @@ export const createInventoryItem = async (req: Request, res: Response) => {
             auto_reorder,
         });
 
-        await queryRunner.manager.save(newItem);
-
-        // Check if initial quantity requires batch tracking
+        await queryRunner.manager.save(newItem);        // Check if initial quantity requires batch tracking
         if (quantity > 0) {
             const initialBatch = new Batch();
             initialBatch.batch_number = `INIT-${product_id}-${Date.now()}`;
             initialBatch.product_id = product_id;
             initialBatch.warehouse_id = warehouse_id;
+            initialBatch.company_id = companyId; // CRITICAL FIX: Add company_id for multi-tenant isolation
             initialBatch.quantity = quantity;
             initialBatch.unit = unit;
             initialBatch.metadata = { 
@@ -151,15 +252,33 @@ export const updateInventoryItem = async (req: Request, res: Response) => {
         throw new AppError(403, "Unauthorized access to company data");
     }
     
-    const { quantity, min_threshold, max_threshold, reorder_point, reorder_quantity, auto_reorder, status } = req.body;
-
-    const item = await inventoryRepository.findOne({
-        where: { id, company_id: companyId },
-    });
+    const user = (req as any).user;
+    const userRole = user?.role;
+    const userCompanyType = user?.companyType;
+    
+    // Build query using QueryBuilder to handle product relationships
+    const queryBuilder = inventoryRepository
+        .createQueryBuilder('inventory')
+        .leftJoinAndSelect('inventory.product', 'product')
+        .where('inventory.id = :id', { id })
+        .andWhere('inventory.company_id = :companyId', { companyId });
+    
+    // Apply dealer/supplier filtering based on user role and company type
+    if (userRole === 'dealer' || (userRole === 'admin' && userCompanyType === 'dealer')) {
+        // Dealers and admins in dealer companies should only update inventory for products they have added
+        queryBuilder.andWhere('product.dealer_id = :companyId', { companyId });
+    } else if (userRole === 'supplier' || (userRole === 'admin' && userCompanyType === 'supplier')) {
+        // Suppliers and admins in supplier companies should update inventory for their products
+        queryBuilder.andWhere('product.supplier_id = :companyId', { companyId });
+    }
+    
+    const item = await queryBuilder.getOne();
 
     if (!item) {
-        throw new AppError(404, "Inventory item not found");
+        throw new AppError(404, "Inventory item not found or you don't have permission to manage this inventory");
     }
+    
+    const { quantity, min_threshold, max_threshold, reorder_point, reorder_quantity, auto_reorder, status } = req.body;
 
     Object.assign(item, {
         quantity,
@@ -187,16 +306,33 @@ export const adjustInventoryQuantity = async (req: Request, res: Response) => {
             throw new AppError(403, "Unauthorized access to company data");
         }
         
-        const { adjustment, reason, batch_number, manufacturing_date, expiry_date } = req.body;
+        const { adjustment, reason, batch_number, manufacturing_date, expiry_date } = req.body;        const user = (req as any).user;
+        const userRole = user?.role;
+        const userCompanyType = user?.companyType;
+        
+        // Build query using QueryBuilder to handle product relationships
+        const itemQueryBuilder = queryRunner.manager
+            .createQueryBuilder(Inventory, 'inventory')
+            .leftJoinAndSelect('inventory.product', 'product')
+            .leftJoinAndSelect('inventory.warehouse', 'warehouse')
+            .where('inventory.id = :id', { id })
+            .andWhere('inventory.company_id = :companyId', { companyId });
+        
+        // Apply dealer/supplier filtering based on user role and company type
+        if (userRole === 'dealer' || (userRole === 'admin' && userCompanyType === 'dealer')) {
+            // Dealers and admins in dealer companies should only adjust inventory for products they have added
+            itemQueryBuilder.andWhere('product.dealer_id = :companyId', { companyId });
+        } else if (userRole === 'supplier' || (userRole === 'admin' && userCompanyType === 'supplier')) {
+            // Suppliers and admins in supplier companies should adjust inventory for their products
+            itemQueryBuilder.andWhere('product.supplier_id = :companyId', { companyId });
+        }
 
-        const item = await queryRunner.manager.findOne(Inventory, {
-            where: { id, company_id: companyId },
-            relations: ["warehouse", "product"],
-            lock: { mode: "pessimistic_write" }
-        });
+        const item = await itemQueryBuilder
+            .setLock("pessimistic_write")
+            .getOne();
 
         if (!item) {
-            throw new AppError(404, "Inventory item not found");
+            throw new AppError(404, "Inventory item not found or you don't have permission to adjust this inventory");
         }
 
         const newQuantity = Number(item.quantity) + Number(adjustment);
@@ -206,14 +342,13 @@ export const adjustInventoryQuantity = async (req: Request, res: Response) => {
 
         // Update inventory quantity
         item.quantity = newQuantity;
-        await queryRunner.manager.save(item);
-
-        // Create batch record for incoming stock
+        await queryRunner.manager.save(item);        // Create batch record for incoming stock
         if (batch_number && adjustment > 0) {
             const batch = new Batch();
             batch.batch_number = batch_number;
             batch.product_id = item.product_id;
             batch.warehouse_id = item.warehouse_id;
+            batch.company_id = companyId; // CRITICAL FIX: Add company_id for multi-tenant isolation
             batch.quantity = adjustment;
             batch.unit = item.unit;
             batch.manufacturing_date = manufacturing_date ? new Date(manufacturing_date) : null;
@@ -333,12 +468,30 @@ export const deleteInventoryItem = async (req: Request, res: Response) => {
         throw new AppError(403, "Unauthorized access to company data");
     }
     
-    const item = await inventoryRepository.findOne({
-        where: { id, company_id: companyId },
-    });
+    const user = (req as any).user;
+    const userRole = user?.role;
+    const userCompanyType = user?.companyType;
+    
+    // Build query using QueryBuilder to handle product relationships
+    const queryBuilder = inventoryRepository
+        .createQueryBuilder('inventory')
+        .leftJoinAndSelect('inventory.product', 'product')
+        .where('inventory.id = :id', { id })
+        .andWhere('inventory.company_id = :companyId', { companyId });
+    
+    // Apply dealer/supplier filtering based on user role and company type
+    if (userRole === 'dealer' || (userRole === 'admin' && userCompanyType === 'dealer')) {
+        // Dealers and admins in dealer companies should only delete inventory for products they have added
+        queryBuilder.andWhere('product.dealer_id = :companyId', { companyId });
+    } else if (userRole === 'supplier' || (userRole === 'admin' && userCompanyType === 'supplier')) {
+        // Suppliers and admins in supplier companies should delete inventory for their products
+        queryBuilder.andWhere('product.supplier_id = :companyId', { companyId });
+    }
+    
+    const item = await queryBuilder.getOne();
 
     if (!item) {
-        throw new AppError(404, "Inventory item not found");
+        throw new AppError(404, "Inventory item not found or you don't have permission to delete this inventory");
     }
 
     await inventoryRepository.remove(item);
@@ -353,15 +506,29 @@ export const checkLowStock = async (req: Request, res: Response) => {
         throw new AppError(403, "Unauthorized access to company data");
     }
     
-    const lowStockItems = await inventoryRepository
+    const user = (req as any).user;
+    const userRole = user?.role;
+    const userCompanyType = user?.companyType;
+    
+    const queryBuilder = inventoryRepository
         .createQueryBuilder("inventory")
         .leftJoinAndSelect("inventory.product", "product")
         .leftJoinAndSelect("inventory.warehouse", "warehouse")
+        .leftJoinAndSelect("product.supplier", "supplier")
         .where("inventory.company_id = :companyId", { companyId })
         .andWhere("inventory.quantity <= inventory.min_threshold")
-        .andWhere("inventory.status = :status", { status: "active" })
-        .getMany();
+        .andWhere("inventory.status = :status", { status: "active" });
+    
+    // Apply dealer/supplier filtering based on user role and company type
+    if (userRole === 'dealer' || (userRole === 'admin' && userCompanyType === 'dealer')) {
+        // Dealers and admins in dealer companies should only see low stock for products they have added
+        queryBuilder.andWhere('product.dealer_id = :companyId', { companyId });
+    } else if (userRole === 'supplier' || (userRole === 'admin' && userCompanyType === 'supplier')) {
+        // Suppliers and admins in supplier companies should see low stock for their products
+        queryBuilder.andWhere('product.supplier_id = :companyId', { companyId });
+    }
 
+    const lowStockItems = await queryBuilder.getMany();
     res.json(lowStockItems);
 };
 
@@ -374,20 +541,32 @@ export const getExpiringBatches = async (req: Request, res: Response) => {
         throw new AppError(403, "Unauthorized access to company data");
     }
 
-    const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + Number(days));
+    const user = (req as any).user;
+    const userRole = user?.role;
+    const userCompanyType = user?.companyType;
 
-    const expiringBatches = await batchRepository
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + Number(days));    const queryBuilder = batchRepository
         .createQueryBuilder("batch")
         .leftJoinAndSelect("batch.product", "product")
         .leftJoinAndSelect("batch.warehouse", "warehouse")
-        .where("warehouse.company_id = :companyId", { companyId })
+        .leftJoinAndSelect("product.supplier", "supplier")
+        .where("batch.company_id = :companyId", { companyId }) // CRITICAL FIX: Use batch.company_id for direct filtering
         .andWhere("batch.expiry_date <= :expiryDate", { expiryDate })
         .andWhere("batch.expiry_date >= :now", { now: new Date() })
         .andWhere("batch.quantity > 0")
-        .andWhere("batch.status = :status", { status: "active" })
-        .getMany();
+        .andWhere("batch.status = :status", { status: "active" });
+    
+    // Apply dealer/supplier filtering based on user role and company type
+    if (userRole === 'dealer' || (userRole === 'admin' && userCompanyType === 'dealer')) {
+        // Dealers and admins in dealer companies should only see expiring batches for products they have added
+        queryBuilder.andWhere('product.dealer_id = :companyId', { companyId });
+    } else if (userRole === 'supplier' || (userRole === 'admin' && userCompanyType === 'supplier')) {
+        // Suppliers and admins in supplier companies should see expiring batches for their products
+        queryBuilder.andWhere('product.supplier_id = :companyId', { companyId });
+    }
 
+    const expiringBatches = await queryBuilder.getMany();
     res.json(expiringBatches);
 };
 
@@ -411,6 +590,27 @@ export const transferStock = async (req: Request, res: Response) => {
 
     if (warehouses.length !== 2) {
         throw new AppError(404, "Invalid warehouse IDs");
+    }    const user = (req as any).user;
+    const userRole = user?.role;
+    const userCompanyType = user?.companyType;
+    
+    // Validate that the product belongs to this company based on role
+    const productQueryBuilder = AppDataSource.getRepository(Product)
+        .createQueryBuilder('product')
+        .where('product.id = :product_id', { product_id });
+    
+    // Apply dealer/supplier filtering based on user role and company type
+    if (userRole === 'dealer' || (userRole === 'admin' && userCompanyType === 'dealer')) {
+        // Dealers and admins in dealer companies can only transfer inventory for products they have added
+        productQueryBuilder.andWhere('product.dealer_id = :companyId', { companyId });
+    } else if (userRole === 'supplier' || (userRole === 'admin' && userCompanyType === 'supplier')) {
+        // Suppliers and admins in supplier companies can transfer inventory for their products
+        productQueryBuilder.andWhere('product.supplier_id = :companyId', { companyId });
+    }
+    
+    const product = await productQueryBuilder.getOne();
+    if (!product) {
+        throw new AppError(404, "Product not found or you don't have permission to transfer inventory for this product");
     }
 
     await AppDataSource.transaction(async (transactionalEntityManager) => {

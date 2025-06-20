@@ -18,13 +18,14 @@ import {
   SelectChangeEvent,
   Tooltip,
 } from '@mui/material';
-import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import FormContainer from '../FormContainer';
 import FormButtons from '../FormButtons';
 import ProductPriceHistory from './ProductPriceHistory';
-import { productService, companyService } from '../../../services/api';
+import DealerProductForm from './DealerProductForm';
+import { productService, companyService, warehouseService, inventoryService } from '../../../services/api';
+import { useAuth } from '../../../contexts/AuthContext';
 
 // Types
 interface TabPanelProps {
@@ -45,25 +46,34 @@ interface Supplier {
   type: 'supplier';
 }
 
+interface Warehouse {
+  id: string;
+  name: string;
+  address?: string;
+  type: 'main' | 'secondary' | 'distribution' | 'storage';
+  status: 'active' | 'inactive' | 'under_maintenance';
+}
+
 interface ProductFormData {
   name: string;
   description: string;
   price: string;
   cost: string;
+  categoryId: string;
   supplierId: string;
   status: 'active' | 'inactive' | 'out_of_stock' | 'discontinued';
-  weight: string;
-  dimensions: {
-    length: string;
-    width: string;
-    height: string;
-  };
   inventory: {
     quantity: string;
     lowStockThreshold: string;
+    warehouses: Array<{
+      warehouseId: string;
+      quantity: string;
+      minThreshold: string;
+      maxThreshold: string;
+      reorderPoint: string;
+      reorderQuantity: string;
+    }>;
   };
-  images: string[];
-  specifications: Record<string, string>;
   computedFields?: {
     margin: number;
     marginPercentage: number;
@@ -83,6 +93,7 @@ interface ProductApiInput {
   base_price: number;
   unit: string;
   supplier_id: string;
+  category_id: string;
   status?: 'active' | 'inactive' | 'out_of_stock';
   sku?: string;
   dimensions?: {
@@ -124,42 +135,104 @@ const ProductForm: React.FC<ProductFormProps> = ({
   onSave,
   onCancel,
 }) => {
+  const { user } = useAuth();
+  const [userCompanyType, setUserCompanyType] = useState<string | null>(null);
+  const [isLoadingCompanyType, setIsLoadingCompanyType] = useState(true);
+
+  // Fetch user's company type
+  useEffect(() => {
+    const fetchUserCompanyType = async () => {
+      if (user?.companyId) {
+        try {
+          const company = await companyService.getCompanyById(user.companyId);
+          setUserCompanyType(company.type);
+          console.log('User company type:', company.type);
+        } catch (error) {
+          console.error('Error fetching company type:', error);
+          setUserCompanyType(null);
+        }
+      }
+      setIsLoadingCompanyType(false);
+    };
+
+    fetchUserCompanyType();
+  }, [user?.companyId]);
+
+  // Debug logging
+  console.log('=== PRODUCTFORM DEBUG ===');
+  console.log('ProductForm - User object:', user);
+  console.log('ProductForm - User role:', user?.role);
+  console.log('ProductForm - User role type:', typeof user?.role);  console.log('ProductForm - User companyId:', user?.companyId);
+  console.log('ProductForm - User company type:', userCompanyType);
+  console.log('ProductForm - Is loading company type:', isLoadingCompanyType);
+  console.log('ProductForm - Is dealer?', user?.role === 'dealer');
+  console.log('ProductForm - Is dealer company?', userCompanyType === 'dealer');
+  console.log('ProductForm - Comparison result:', user?.role, '===', 'dealer', user?.role === 'dealer');
+  console.log('=== END PRODUCTFORM DEBUG ===');
+
+  // Show loading while fetching company type
+  if (isLoadingCompanyType) {
+    return <div>Loading...</div>;
+  }
+
+  // Render different forms based on user role OR company type
+  if (user?.role === 'dealer' || userCompanyType === 'dealer') {
+    console.log('Rendering DealerProductForm - role:', user?.role, 'companyType:', userCompanyType);    return (
+      <DealerProductForm
+        companyId={companyId}
+        onSave={onSave}
+        onCancel={onCancel}
+      />
+    );
+  }
+  
+  console.log('Rendering SupplierProductForm - role:', user?.role, 'companyType:', userCompanyType);
+  // For non-dealer users, render the SupplierProductForm
+  return (
+    <SupplierProductForm
+      productId={productId}
+      companyId={companyId}
+      onSave={onSave}
+      onCancel={onCancel}
+    />
+  );
+};
+
+// Original supplier form logic as a separate component
+const SupplierProductForm: React.FC<ProductFormProps> = ({
+  productId,
+  companyId,
+  onSave,
+  onCancel,
+}) => {
   const isEditMode = !!productId;
-  const [tabValue, setTabValue] = useState(0);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [tabValue, setTabValue] = useState(0);  const [categories, setCategories] = useState<Category[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   
   // Debug log to see component state
-  console.log('ProductForm render - suppliers state:', suppliers.length, suppliers);
-  const [formData, setFormData] = useState<ProductFormData>({
+  console.log('ProductForm render - suppliers state:', suppliers.length, suppliers);  const [formData, setFormData] = useState<ProductFormData>({
     name: '',
     description: '',
     price: '',
     cost: '',
+    categoryId: '',
     supplierId: '',
     status: 'active',
-    weight: '',
-    dimensions: {
-      length: '',
-      width: '',
-      height: '',
-    },
     inventory: {
       quantity: '',
       lowStockThreshold: '',
+      warehouses: [],
     },
-    images: [],
-    specifications: {},
   });
-  
-  const [errors, setErrors] = useState<Record<string, string>>({});
+    const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-  const [fetchLoading, setFetchLoading] = useState(false);  const [apiError, setApiError] = useState<string | null>(null);
-  const [specKeys, setSpecKeys] = useState<string[]>([]);
-
+  const [fetchLoading, setFetchLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
   useEffect(() => {
     fetchCategories();
     fetchSuppliers();
+    fetchWarehouses();
     
     if (productId) {
       fetchProductDetails();
@@ -202,8 +275,23 @@ const ProductForm: React.FC<ProductFormProps> = ({
       console.log('Filtered suppliers length:', filteredSuppliers.length);
       setSuppliers(filteredSuppliers);
     } catch (err: any) {
-      console.error('Error fetching suppliers:', err);
-      console.error('Error details:', err.response?.data);
+      console.error('Error fetching suppliers:', err);      console.error('Error details:', err.response?.data);
+    }
+  };
+
+  const fetchWarehouses = async () => {
+    try {
+      const response = await warehouseService.getWarehouses();
+      const warehousesList = response.data || [];
+      
+      // Filter only active warehouses
+      const activeWarehouses = warehousesList.filter((warehouse: Warehouse) => 
+        warehouse.status === 'active'
+      );
+      
+      setWarehouses(activeWarehouses);
+    } catch (err: any) {
+      console.error('Error fetching warehouses:', err);
     }
   };
     // Updated the fetchProductDetails function to align with the Product type from productService
@@ -215,51 +303,42 @@ const ProductForm: React.FC<ProductFormProps> = ({
 
     try {
       const productResponse = await productService.getProductById(productId);
-      const product = productResponse.data || productResponse; // Handle different response structures
-
-      // Map API response to form data
+      const product = productResponse.data || productResponse; // Handle different response structures      // Map API response to form data
       setFormData({
         name: product.name || '',
         description: product.description || '',
         price: product.base_price?.toString() || '',
         cost: '', // Cost is not part of the Product interface
+        categoryId: product.category_id || '',
         supplierId: product.supplier_id || '',
         status: product.status || 'active',
-        weight: '', // Weight is not directly in Product interface
-        dimensions: {
-          length: product.dimensions?.length?.toString() || '',
-          width: product.dimensions?.width?.toString() || '',
-          height: product.dimensions?.height?.toString() || '',
-        },
         inventory: {
           quantity: product.inventory?.quantity?.toString() || '',
           lowStockThreshold: product.inventory?.lowStockThreshold?.toString() || '',
+          warehouses: [], // Will be populated from inventory API if needed
         },
-        images: product.images || [],
-        specifications: product.specifications || {},
       });
-
-      // Set specification keys
-      setSpecKeys(Object.keys(product.specifications || {}));
-    } catch (err: any) {      setApiError(err.message || 'Failed to load product details');
+    } catch (err: any) {
+      setApiError(err.message || 'Failed to load product details');
       console.error('Error fetching product:', err);
     } finally {
       setFetchLoading(false);
     }
   };  const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
-    // Required fields according to ProductCreateInput in productService
+      // Required fields according to ProductCreateInput in productService
     if (!formData.name.trim()) {
       newErrors.name = 'Product name is required';
+    }
+    
+    if (!formData.categoryId.trim()) {
+      newErrors.categoryId = 'Product category is required';
     }
     
     if (!formData.price.trim()) {
       newErrors.price = 'Price is required';
     } else if (isNaN(parseFloat(formData.price)) || parseFloat(formData.price) < 0) {
       newErrors.price = 'Price must be a valid positive number';
-    }    if (!formData.supplierId || !suppliers.some(s => s.id === formData.supplierId)) {
-      newErrors.supplierId = 'Please select a valid supplier';
     }
     
     // Optional fields validation
@@ -270,26 +349,8 @@ const ProductForm: React.FC<ProductFormProps> = ({
     if (formData.inventory.quantity.trim() && (isNaN(parseInt(formData.inventory.quantity)) || parseInt(formData.inventory.quantity) < 0)) {
       newErrors.quantity = 'Quantity must be a valid non-negative integer';
     }
-    
-    if (formData.inventory.lowStockThreshold.trim() && (isNaN(parseInt(formData.inventory.lowStockThreshold)) || parseInt(formData.inventory.lowStockThreshold) < 0)) {
+      if (formData.inventory.lowStockThreshold.trim() && (isNaN(parseInt(formData.inventory.lowStockThreshold)) || parseInt(formData.inventory.lowStockThreshold) < 0)) {
       newErrors.lowStockThreshold = 'Low stock threshold must be a valid non-negative integer';
-    }
-    
-    if (formData.weight.trim() && (isNaN(parseFloat(formData.weight)) || parseFloat(formData.weight) < 0)) {
-      newErrors.weight = 'Weight must be a valid positive number';
-    }
-    
-    // Validate dimensions
-    if (formData.dimensions.length.trim() && (isNaN(parseFloat(formData.dimensions.length)) || parseFloat(formData.dimensions.length) < 0)) {
-      newErrors.length = 'Length must be a valid positive number';
-    }
-    
-    if (formData.dimensions.width.trim() && (isNaN(parseFloat(formData.dimensions.width)) || parseFloat(formData.dimensions.width) < 0)) {
-      newErrors.width = 'Width must be a valid positive number';
-    }
-    
-    if (formData.dimensions.height.trim() && (isNaN(parseFloat(formData.dimensions.height)) || parseFloat(formData.dimensions.height) < 0)) {
-      newErrors.height = 'Height must be a valid positive number';
     }
     
     setErrors(newErrors);
@@ -381,81 +442,48 @@ const ProductForm: React.FC<ProductFormProps> = ({
       setErrors(prev => ({ ...prev, status: '' }));
     }
   };
-  
-  const handleSpecificationChange = (key: string, value: string) => {
+
+  const addWarehouseInventory = () => {
     setFormData((prev) => ({
       ...prev,
-      specifications: {
-        ...prev.specifications,
-        [key]: value
+      inventory: {
+        ...prev.inventory,
+        warehouses: [
+          ...prev.inventory.warehouses,
+          {
+            warehouseId: '',
+            quantity: '',
+            minThreshold: '',
+            maxThreshold: '',
+            reorderPoint: '',
+            reorderQuantity: '',
+          }
+        ]
       }
     }));
   };
-  
-  const addSpecification = () => {
-    const newKey = `spec_${specKeys.length + 1}`;
-    setSpecKeys([...specKeys, newKey]);
-    
+
+  const removeWarehouseInventory = (index: number) => {
     setFormData((prev) => ({
       ...prev,
-      specifications: {
-        ...prev.specifications,
-        [newKey]: ''
+      inventory: {
+        ...prev.inventory,
+        warehouses: prev.inventory.warehouses.filter((_, i) => i !== index)
       }
     }));
   };
-  
-  const updateSpecKey = (oldKey: string, newKey: string) => {
-    if (newKey.trim() === '') return;
-    
-    // Update the key in specKeys array
-    const updatedSpecKeys = [...specKeys];
-    const index = updatedSpecKeys.indexOf(oldKey);
-    if (index !== -1) {
-      updatedSpecKeys[index] = newKey;
-      setSpecKeys(updatedSpecKeys);
-    }
-    
-    // Update the key in specifications object
-    setFormData((prev) => {
-      const { [oldKey]: value, ...rest } = prev.specifications;
-      return {
-        ...prev,
-        specifications: {
-          ...rest,
-          [newKey]: value
-        }
-      };
-    });
-  };
-  
-  const removeSpecification = (key: string) => {
-    setSpecKeys(specKeys.filter((k: string) => k !== key));
-    
-    setFormData((prev) => {
-      const { [key]: _, ...restSpecs } = prev.specifications;
-      return {
-        ...prev,
-        specifications: restSpecs
-      };
-    });
-  };
-  
-  const handleAddImage = (url: string) => {
-    if (url.trim() === '') return;
-    
+
+  const updateWarehouseInventory = (index: number, field: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
-      images: [...prev.images, url]
+      inventory: {
+        ...prev.inventory,
+        warehouses: prev.inventory.warehouses.map((warehouse, i) => 
+          i === index ? { ...warehouse, [field]: value } : warehouse
+        )
+      }
     }));
-  };
-  
-  const handleRemoveImage = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index)
-    }));
-  };  const handleSubmit = async () => {
+  };const handleSubmit = async () => {
     if (!validateForm()) return;
     
     setLoading(true);
@@ -466,25 +494,13 @@ const ProductForm: React.FC<ProductFormProps> = ({
         name: formData.name,
         description: formData.description,
         base_price: parseFloat(formData.price),
-        supplier_id: formData.supplierId,
+        category_id: formData.categoryId,
+        supplier_id: companyId, // Use the current company as the supplier since this is a supplier adding their own product
         status: formData.status === 'discontinued' ? 'inactive' : formData.status,
         unit: 'piece', // Default unit value
       };
       
       // Add optional fields only if they have values
-      
-      if (formData.dimensions.length || formData.dimensions.width || formData.dimensions.height) {
-        productData.dimensions = {};
-        if (formData.dimensions.length) {
-          productData.dimensions.length = parseFloat(formData.dimensions.length);
-        }
-        if (formData.dimensions.width) {
-          productData.dimensions.width = parseFloat(formData.dimensions.width);
-        }
-        if (formData.dimensions.height) {
-          productData.dimensions.height = parseFloat(formData.dimensions.height);
-        }
-      }
       
       if (formData.inventory.quantity || formData.inventory.lowStockThreshold) {
         productData.inventory = {};
@@ -496,14 +512,6 @@ const ProductForm: React.FC<ProductFormProps> = ({
         }
       }
       
-      if (formData.images.length > 0) {
-        productData.images = formData.images;
-      }
-      
-      if (Object.keys(formData.specifications).length > 0) {
-        productData.specifications = formData.specifications;
-      }
-      
       let savedProduct;
       
       if (isEditMode && productId) {
@@ -511,9 +519,29 @@ const ProductForm: React.FC<ProductFormProps> = ({
       } else {
         savedProduct = await productService.createProduct(productData);
       }
-      
-      if (onSave) {
+        if (onSave) {
         onSave(savedProduct);
+      }
+
+      // Create inventory records for each warehouse if this is a new product
+      if (!isEditMode && formData.inventory.warehouses.length > 0) {
+        try {          for (const warehouseInventory of formData.inventory.warehouses) {
+            if (warehouseInventory.warehouseId && warehouseInventory.quantity) {              await inventoryService.createInventoryItem({
+                product_id: savedProduct.id,
+                warehouse_id: warehouseInventory.warehouseId,
+                quantity: parseFloat(warehouseInventory.quantity),
+                unit: 'piece', // Default unit
+                min_threshold: warehouseInventory.minThreshold ? parseFloat(warehouseInventory.minThreshold) : undefined,
+                max_threshold: warehouseInventory.maxThreshold ? parseFloat(warehouseInventory.maxThreshold) : undefined,
+                reorder_point: warehouseInventory.reorderPoint ? parseFloat(warehouseInventory.reorderPoint) : undefined,
+                reorder_quantity: warehouseInventory.reorderQuantity ? parseFloat(warehouseInventory.reorderQuantity) : undefined,
+              });
+            }
+          }
+        } catch (inventoryError) {
+          console.warn('Product created but inventory setup failed:', inventoryError);
+          // Don't throw error since product was created successfully
+        }
       }
     } catch (err: any) {
       setApiError(err.message || `Failed to ${isEditMode ? 'update' : 'create'} product`);
@@ -537,8 +565,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
       <FormSection 
         title="Basic Information" 
         tooltip="Enter the fundamental details about your product"
-      >
-        <Stack spacing={3}>
+      >        <Stack spacing={3}>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
             <TextField
               name="name"
@@ -554,6 +581,35 @@ const ProductForm: React.FC<ProductFormProps> = ({
                 'aria-describedby': 'product-name-helper-text'
               }}
             />
+            <FormControl 
+              fullWidth 
+              required 
+              error={!!errors.categoryId}
+              disabled={loading}
+            >
+              <InputLabel id="category-label">Product Category</InputLabel>              <Select
+                labelId="category-label"
+                name="categoryId"
+                value={formData.categoryId}
+                onChange={handleSelectChange}
+                label="Product Category"
+                inputProps={{
+                  'aria-describedby': 'category-helper-text'
+                }}
+              >
+                <MenuItem value="" disabled>
+                  {categories.length === 0 ? 'No categories available' : 'Select a category'}
+                </MenuItem>
+                {categories.map((category) => (
+                  <MenuItem key={category.id} value={category.id}>
+                    {category.name}
+                  </MenuItem>
+                ))}
+              </Select>
+              <FormHelperText id="category-helper-text">
+                {errors.categoryId || "Choose the category that best describes your product"}
+              </FormHelperText>
+            </FormControl>
           </Stack>
 
           <TextField
@@ -634,66 +690,33 @@ const ProductForm: React.FC<ProductFormProps> = ({
                 disabled
                 helperText="Percentage of profit relative to cost"
               />
-            </Stack>
-          )}
+            </Stack>          )}
         </Stack>
       </FormSection>
       
-      <FormSection title="Product Classification">
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>          <FormControl fullWidth required error={!!errors.supplierId}>
-            <InputLabel id="supplierId-label">Supplier</InputLabel>
-            <Select
-              labelId="supplierId-label"
-              name="supplierId"
-              value={formData.supplierId}
-              onChange={handleSelectChange}
-              disabled={loading}
-              label="Supplier"
-              inputProps={{
-                'aria-describedby': 'supplier-helper-text'
-              }}
-            >
-              <MenuItem value="" disabled>Select a supplier</MenuItem>
-              {suppliers.length === 0 && (
-                <MenuItem value="" disabled>No suppliers available</MenuItem>
-              )}
-              {suppliers.map((supplier) => {
-                console.log('Rendering supplier option:', supplier);
-                return (
-                  <MenuItem key={supplier.id} value={supplier.id}>
-                    {supplier.name}
-                  </MenuItem>
-                );
-              })}
-            </Select>
-            <FormHelperText id="supplier-helper-text">
-              {errors.supplierId || "Select the supplier you purchase this product from"}
-            </FormHelperText>
-          </FormControl>
-
-          <FormControl fullWidth>
-            <InputLabel id="status-label">Status</InputLabel>
-            <Select
-              labelId="status-label"
-              name="status"
-              value={formData.status}
-              onChange={handleStatusChange}
-              disabled={loading}
-              label="Status"
-              inputProps={{
-                'aria-describedby': 'status-helper-text'
-              }}
-            >
-              <MenuItem value="active">Active</MenuItem>
-              <MenuItem value="inactive">Inactive</MenuItem>
-              <MenuItem value="out_of_stock">Out of Stock</MenuItem>
-              <MenuItem value="discontinued">Discontinued</MenuItem>
-            </Select>
-            <FormHelperText id="status-helper-text">
-              Determines if the product is available for purchase
-            </FormHelperText>
-          </FormControl>
-        </Stack>
+      <FormSection title="Product Status">
+        <FormControl fullWidth>
+          <InputLabel id="status-label">Status</InputLabel>
+          <Select
+            labelId="status-label"
+            name="status"
+            value={formData.status}
+            onChange={handleStatusChange}
+            disabled={loading}
+            label="Status"
+            inputProps={{
+              'aria-describedby': 'status-helper-text'
+            }}
+          >
+            <MenuItem value="active">Active</MenuItem>
+            <MenuItem value="inactive">Inactive</MenuItem>
+            <MenuItem value="out_of_stock">Out of Stock</MenuItem>
+            <MenuItem value="discontinued">Discontinued</MenuItem>
+          </Select>
+          <FormHelperText id="status-helper-text">
+            Determines if the product is available for purchase
+          </FormHelperText>
+        </FormControl>
       </FormSection>
     </Box>
   );
@@ -718,27 +741,16 @@ const ProductForm: React.FC<ProductFormProps> = ({
               label="Basic Info" 
               id="product-tab-0" 
               aria-controls="product-tabpanel-0"
-            />
-            <Tab 
+            />            <Tab 
               label="Inventory" 
               id="product-tab-1" 
               aria-controls="product-tabpanel-1"
             />
-            <Tab 
-              label="Details" 
-              id="product-tab-2" 
-              aria-controls="product-tabpanel-2"
-            />
-            <Tab 
-              label="Images" 
-              id="product-tab-3" 
-              aria-controls="product-tabpanel-3"
-            />
             {isEditMode && (
               <Tab 
                 label="Price History" 
-                id="product-tab-4" 
-                aria-controls="product-tabpanel-4"
+                id="product-tab-2" 
+                aria-controls="product-tabpanel-2"
               />
             )}
           </Tabs>
@@ -750,244 +762,153 @@ const ProductForm: React.FC<ProductFormProps> = ({
           aria-labelledby="product-tab-0"
         >
           {renderBasicInfoTab()}
-        </TabPanel>
-
-        {/* Inventory Tab */}
+        </TabPanel>        {/* Inventory Tab */}
         <TabPanel value={tabValue} index={1} aria-labelledby="product-tab-1">
           <Stack spacing={3}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField
-                name="inventory.quantity"
-                label="Current Stock"
-                fullWidth
-                type="number"
-                inputProps={{ min: 0, step: 1 }}
-                value={formData.inventory.quantity}
-                onChange={handleChange}
-                error={!!errors.quantity}
-                helperText={errors.quantity}
-                disabled={loading}
-              />
-              <TextField
-                name="inventory.lowStockThreshold"
-                label="Low Stock Threshold"
-                fullWidth
-                type="number"
-                inputProps={{ min: 0, step: 1 }}
-                value={formData.inventory.lowStockThreshold}
-                onChange={handleChange}
-                error={!!errors.lowStockThreshold}
-                helperText={errors.lowStockThreshold || 'Send alert when stock falls below this level'}
-                disabled={loading}
-              />
-            </Stack>
-
-            <Typography variant="subtitle1" gutterBottom>
-              Shipping Information
-            </Typography>
-
-            <TextField
-              name="weight"
-              label="Weight (kg)"
-              fullWidth
-              type="number"
-              inputProps={{ min: 0, step: 0.01 }}
-              value={formData.weight}
-              onChange={handleChange}
-              error={!!errors.weight}
-              helperText={errors.weight}
-              disabled={loading}
-            />
-
-            <Typography variant="subtitle2" gutterBottom>
-              Dimensions
-            </Typography>
-
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField
-                name="dimensions.length"
-                label="Length (cm)"
-                fullWidth
-                type="number"
-                inputProps={{ min: 0, step: 0.1 }}
-                value={formData.dimensions.length}
-                onChange={handleChange}
-                error={!!errors.length}
-                helperText={errors.length}
-                disabled={loading}
-              />
-              <TextField
-                name="dimensions.width"
-                label="Width (cm)"
-                fullWidth
-                type="number"
-                inputProps={{ min: 0, step: 0.1 }}
-                value={formData.dimensions.width}
-                onChange={handleChange}
-                error={!!errors.width}
-                helperText={errors.width}
-                disabled={loading}
-              />
-              <TextField
-                name="dimensions.height"
-                label="Height (cm)"
-                fullWidth
-                type="number"
-                inputProps={{ min: 0, step: 0.1 }}
-                value={formData.dimensions.height}
-                onChange={handleChange}
-                error={!!errors.height}
-                helperText={errors.height}
-                disabled={loading}
-              />
-            </Stack>
-          </Stack>
-        </TabPanel>
-
-        {/* Details Tab */}
-        <TabPanel value={tabValue} index={2} aria-labelledby="product-tab-2">
-          <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">Specifications</Typography>
-              <Button 
-                variant="outlined" 
-                onClick={addSpecification}
-                disabled={loading}
-              >
-                Add Specification
-              </Button>
-            </Box>
-            
-            <Divider sx={{ mb: 2 }} />
-            
-            {specKeys.length === 0 && (
-              <Typography color="text.secondary" sx={{ my: 4, textAlign: 'center' }}>
-                No specifications added yet. Click "Add Specification" to add product details.
-              </Typography>
-            )}
-            
-            {specKeys.map((key: string, index: number) => (
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} key={key} sx={{ mb: 2 }}>
+            <FormSection title="General Inventory Settings">
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                 <TextField
+                  name="inventory.quantity"
+                  label="Total Stock (All Warehouses)"
                   fullWidth
-                  label="Specification Name"
-                  value={key.startsWith('spec_') ? '' : key}
-                  onChange={(e) => updateSpecKey(key, e.target.value)}
-                  placeholder="e.g., Material, Color"
+                  type="number"
+                  inputProps={{ min: 0, step: 1 }}
+                  value={formData.inventory.quantity}
+                  onChange={handleChange}
+                  error={!!errors.quantity}
+                  helperText={errors.quantity || "This will be distributed across warehouses"}
                   disabled={loading}
                 />
                 <TextField
+                  name="inventory.lowStockThreshold"
+                  label="Global Low Stock Threshold"
                   fullWidth
-                  label="Value"
-                  value={formData.specifications[key] || ''}
-                  onChange={(e) => handleSpecificationChange(key, e.target.value)}
+                  type="number"
+                  inputProps={{ min: 0, step: 1 }}
+                  value={formData.inventory.lowStockThreshold}
+                  onChange={handleChange}
+                  error={!!errors.lowStockThreshold}
+                  helperText={errors.lowStockThreshold || 'Send alert when total stock falls below this level'}
                   disabled={loading}
                 />
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <IconButton 
-                    onClick={() => removeSpecification(key)}
-                    color="error"
-                    disabled={loading}
-                  >
-                    <DeleteOutlineIcon />
-                  </IconButton>
-                </Box>
               </Stack>
-            ))}
-          </Box>
-        </TabPanel>
+            </FormSection>
 
-        {/* Images Tab */}
-        <TabPanel value={tabValue} index={3} aria-labelledby="product-tab-3">
-          <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">Product Images</Typography>
-              <Button 
-                variant="outlined" 
-                startIcon={<AddPhotoAlternateIcon />}
-                disabled={loading}
-                onClick={() => {
-                  const url = prompt('Enter image URL:');
-                  if (url) handleAddImage(url);
-                }}
-              >
-                Add Image URL
-              </Button>
-            </Box>
-            
-            <Divider sx={{ mb: 2 }} />
-            
-            {formData.images.length === 0 && (
-              <Typography color="text.secondary" sx={{ my: 4, textAlign: 'center' }}>
-                No images added yet. Click "Add Image URL" to add product images.
-              </Typography>
-            )}
-            
-            <Stack 
-              direction="row" 
-              spacing={2} 
-              sx={{ 
-                flexWrap: 'wrap',
-                gap: 2,
-                '& > *': {
-                  flex: '1 1 calc(33.333% - 16px)',
-                  minWidth: '250px',
-                }
-              }}
-            >
-              {formData.images.map((image, index) => (
-                <Box
-                  key={index}
-                  sx={{ 
-                    position: 'relative',
-                    height: 0, 
-                    paddingTop: '100%', 
-                    border: '1px solid #ddd',
-                    borderRadius: 1,
-                    overflow: 'hidden'
-                  }}
+            <FormSection title="Warehouse Distribution">
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="subtitle1">Stock Distribution by Warehouse</Typography>
+                <Button 
+                  variant="outlined" 
+                  onClick={addWarehouseInventory}
+                  disabled={loading || warehouses.length === 0}
                 >
-                  <Box 
-                    component="img"
-                    src={image}
-                    alt={`Product image ${index + 1}`}
-                    sx={{ 
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'contain',
-                    }}
-                    onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                      e.currentTarget.src = 'https://via.placeholder.com/400?text=Image+Error';
-                    }}
-                  />
-                  <IconButton 
-                    sx={{ 
-                      position: 'absolute',
-                      top: 5,
-                      right: 5,
-                      backgroundColor: 'rgba(255,255,255,0.7)',
-                      '&:hover': {
-                        backgroundColor: 'rgba(255,255,255,0.9)',
-                      }
-                    }}
-                    size="small"
-                    onClick={() => handleRemoveImage(index)}
-                    disabled={loading}
-                  >
-                    <DeleteOutlineIcon fontSize="small" />
-                  </IconButton>
-                </Box>
-              ))}
-            </Stack>
-          </Box>
-        </TabPanel>
-
-        {/* Price History Tab - Only shown in edit mode */}
+                  Add Warehouse Stock
+                </Button>
+              </Box>
+              
+              {warehouses.length === 0 && (
+                <Typography color="text.secondary" sx={{ my: 2, textAlign: 'center' }}>
+                  No warehouses available. Create a warehouse first to manage inventory distribution.
+                </Typography>
+              )}
+              
+              {formData.inventory.warehouses.length === 0 && warehouses.length > 0 && (
+                <Typography color="text.secondary" sx={{ my: 2, textAlign: 'center' }}>
+                  No warehouse stock entries yet. Click "Add Warehouse Stock" to distribute inventory across warehouses.
+                </Typography>
+              )}
+              
+              {formData.inventory.warehouses.map((warehouseInventory, index) => (
+                <Box key={index} sx={{ border: '1px solid #ddd', borderRadius: 1, p: 2, mb: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="subtitle2">Warehouse {index + 1}</Typography>
+                    <IconButton 
+                      onClick={() => removeWarehouseInventory(index)}
+                      color="error"
+                      disabled={loading}
+                      size="small"
+                    >
+                      <DeleteOutlineIcon />
+                    </IconButton>
+                  </Box>
+                  
+                  <Stack spacing={2}>
+                    <FormControl fullWidth required>
+                      <InputLabel>Warehouse</InputLabel>
+                      <Select
+                        value={warehouseInventory.warehouseId}
+                        onChange={(e) => updateWarehouseInventory(index, 'warehouseId', e.target.value)}
+                        disabled={loading}
+                        label="Warehouse"
+                      >
+                        <MenuItem value="" disabled>Select a warehouse</MenuItem>
+                        {warehouses.map((warehouse) => (
+                          <MenuItem key={warehouse.id} value={warehouse.id}>
+                            {warehouse.name} ({warehouse.type})
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                      <TextField
+                        label="Quantity in Warehouse"
+                        type="number"
+                        inputProps={{ min: 0, step: 1 }}
+                        value={warehouseInventory.quantity}
+                        onChange={(e) => updateWarehouseInventory(index, 'quantity', e.target.value)}
+                        disabled={loading}
+                        fullWidth
+                      />
+                      <TextField
+                        label="Min Threshold"
+                        type="number"
+                        inputProps={{ min: 0, step: 1 }}
+                        value={warehouseInventory.minThreshold}
+                        onChange={(e) => updateWarehouseInventory(index, 'minThreshold', e.target.value)}
+                        disabled={loading}
+                        fullWidth
+                      />
+                      <TextField
+                        label="Max Threshold"
+                        type="number"
+                        inputProps={{ min: 0, step: 1 }}
+                        value={warehouseInventory.maxThreshold}
+                        onChange={(e) => updateWarehouseInventory(index, 'maxThreshold', e.target.value)}
+                        disabled={loading}
+                        fullWidth
+                      />
+                    </Stack>
+                    
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                      <TextField
+                        label="Reorder Point"
+                        type="number"
+                        inputProps={{ min: 0, step: 1 }}
+                        value={warehouseInventory.reorderPoint}
+                        onChange={(e) => updateWarehouseInventory(index, 'reorderPoint', e.target.value)}
+                        disabled={loading}
+                        fullWidth
+                        helperText="Auto-reorder when stock hits this level"
+                      />
+                      <TextField
+                        label="Reorder Quantity"
+                        type="number"
+                        inputProps={{ min: 0, step: 1 }}
+                        value={warehouseInventory.reorderQuantity}
+                        onChange={(e) => updateWarehouseInventory(index, 'reorderQuantity', e.target.value)}
+                        disabled={loading}
+                        fullWidth
+                        helperText="Quantity to order when reordering"
+                      />
+                    </Stack>
+                  </Stack>
+                </Box>              ))}
+            </FormSection>
+          </Stack>
+        </TabPanel>        {/* Price History Tab - Only shown in edit mode */}
         {isEditMode && (
-          <TabPanel value={tabValue} index={4} aria-labelledby="product-tab-4">
+          <TabPanel value={tabValue} index={2} aria-labelledby="product-tab-2">
             <ProductPriceHistory 
               productId={productId!}
               productName={formData.name}
@@ -1048,15 +969,10 @@ const validateBasicInfo = (formData: any, setErrors: React.Dispatch<React.SetSta
   if (!formData.name.trim()) {
     newErrors.name = 'Product name is required';
   }
-  
-  if (!formData.price.trim()) {
+    if (!formData.price.trim()) {
     newErrors.price = 'Price is required';
   } else if (isNaN(parseFloat(formData.price)) || parseFloat(formData.price) < 0) {
     newErrors.price = 'Price must be a valid positive number';
-  }
-  
-  if (!formData.supplierId) {
-    newErrors.supplierId = 'Please select a valid supplier';
   }
   
   if (showErrors) {

@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 import { Order } from "./order";
 import { Invoice } from "./invoice";
 import { User } from "./user";
+import { Company } from "./company";
 
 export enum PaymentMethod {
     CREDIT_CARD = 'credit_card',
@@ -48,10 +49,15 @@ export class Payment {
 
     @ManyToOne(() => Invoice, { nullable: true })
     @JoinColumn({ name: "invoiceId" })
-    invoice: Invoice;
+    invoice: Invoice;    @Column()
+    customerId: string;
 
     @Column()
-    customerId: string;
+    companyId: string;
+
+    @ManyToOne(() => Company)
+    @JoinColumn({ name: "companyId" })
+    company: Company;
 
     @Column("decimal", { precision: 10, scale: 2 })
     amount: number;

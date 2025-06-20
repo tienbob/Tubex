@@ -107,10 +107,11 @@ export interface PriceHistoryResponse {
   };
 }
 
-export const productService = {
-  getProducts: async (params?: any): Promise<any> => {
+export const productService = {  getProducts: async (params?: any): Promise<any> => {
     try {
       const companyId = getCurrentCompanyId(true);
+      console.log('ProductService.getProducts - companyId:', companyId);
+      console.log('ProductService.getProducts - params:', params);
       
       // Use consistent URL pattern: /products/company/{companyId}
       const response = await get<any>(`/products/company/${companyId}`, { 
@@ -121,8 +122,10 @@ export const productService = {
         }
       });
       
+      console.log('ProductService.getProducts - API response:', response.data);
       return response.data;
     } catch (error) {
+      console.error('ProductService.getProducts - Error:', error);
       if (error instanceof AxiosError) {
         throw new ApiError(
           error.response?.data?.message || 'Failed to fetch products',
@@ -373,5 +376,34 @@ export const productService = {
       }
       throw error;
     }
-  }
+  },
+
+  getProductsBySupplier: async (supplierId: string, params?: any): Promise<any> => {
+    try {
+      console.log('ProductService.getProductsBySupplier - supplierId:', supplierId);
+      console.log('ProductService.getProductsBySupplier - params:', params);
+      
+      // Fetch products from a specific supplier company
+      const response = await get<any>(`/products/company/${supplierId}`, { 
+        params: {
+          limit: 100,
+          page: 1,
+          ...params
+        }
+      });
+      
+      console.log('ProductService.getProductsBySupplier - API response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('ProductService.getProductsBySupplier - Error:', error);
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || 'Failed to fetch supplier products',
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
+  },
 };

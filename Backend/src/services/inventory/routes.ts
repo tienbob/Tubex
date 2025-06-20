@@ -2,6 +2,12 @@ import { Router, RequestHandler } from "express";
 import { authenticate } from "../../middleware/auth";
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { validationHandler } from '../../middleware/validationHandler';
+import { 
+    validateCompanyAccess, 
+    validateResourceOwnership, 
+    companyRateLimit,
+    auditSecurityEvent 
+} from '../../middleware/multiTenantSecurity';
 import {
     getInventory,
     getInventoryItem,
@@ -19,6 +25,9 @@ const inventoryRoutes = Router();
 
 // Apply JWT authentication to all inventory routes
 inventoryRoutes.use(authenticate);
+
+// Apply company-level rate limiting to prevent abuse
+inventoryRoutes.use(companyRateLimit(500, 60000) as RequestHandler); // 500 requests per minute per company
 
 /**
  * @swagger
@@ -134,7 +143,11 @@ inventoryRoutes.use(authenticate);
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
-inventoryRoutes.get("/company/:companyId", getInventory as RequestHandler);
+inventoryRoutes.get("/company/:companyId", 
+    validateCompanyAccess as RequestHandler,
+    auditSecurityEvent('inventory_list_access') as RequestHandler,
+    getInventory as RequestHandler
+);
 
 /**
  * @swagger
@@ -200,7 +213,12 @@ inventoryRoutes.get("/company/:companyId", getInventory as RequestHandler);
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
-inventoryRoutes.get("/company/:companyId/warehouse/:warehouseId", getInventory as RequestHandler);
+inventoryRoutes.get("/company/:companyId/warehouse/:warehouseId", 
+    validateCompanyAccess as RequestHandler,
+    validateResourceOwnership('warehouse') as RequestHandler,
+    auditSecurityEvent('inventory_warehouse_access') as RequestHandler,
+    getInventory as RequestHandler
+);
 
 /**
  * @swagger
@@ -288,7 +306,12 @@ inventoryRoutes.get("/company/:companyId/warehouse/:warehouseId", getInventory a
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
-inventoryRoutes.get("/company/:companyId/item/:id", getInventoryItem as RequestHandler);
+inventoryRoutes.get("/company/:companyId/item/:id", 
+    validateCompanyAccess as RequestHandler,
+    validateResourceOwnership('inventory') as RequestHandler,
+    auditSecurityEvent('inventory_item_access') as RequestHandler,
+    getInventoryItem as RequestHandler
+);
 
 /**
  * @swagger

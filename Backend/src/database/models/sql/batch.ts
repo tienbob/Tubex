@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Index } from "typeorm";
-import { Product, Warehouse } from "./index";
+import { Product, Warehouse, Company } from "./index";
 
 @Entity("batches")
 export class Batch {
@@ -20,10 +20,16 @@ export class Batch {
     @ManyToOne(() => Warehouse)
     @JoinColumn({ name: "warehouse_id" })
     @Index()
-    warehouse: Warehouse;
+    warehouse: Warehouse;    @Column()
+    warehouse_id: string;
+
+    @ManyToOne(() => Company)
+    @JoinColumn({ name: "company_id" })
+    @Index()
+    company: Company;
 
     @Column()
-    warehouse_id: string;
+    company_id: string;
 
     @Column("decimal", { precision: 10, scale: 2 })
     quantity: number;

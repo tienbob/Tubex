@@ -94,16 +94,39 @@ const InventoryManagement: React.FC = () => {
     }
 
     setAlertsLoading(true);
-    setAlertsError(null);
-
-    try {
+    setAlertsError(null);    try {
       // Fetch low stock alerts
       const lowStockResponse = await inventoryService.getLowStockItems(companyId);
-      setLowStockItems(lowStockResponse.data || []);
+      let lowStockData = lowStockResponse.data || [];
 
       // Fetch expiring batches (30 days threshold)
       const expiringResponse = await inventoryService.getExpiringBatches(companyId, 30);
-      setExpiringItems(expiringResponse.data || []);
+      let expiringData = expiringResponse.data || [];
+      
+      // Apply role-based filtering for alerts
+      if (user && user.role === 'dealer') {
+        // For dealers: show alerts for products they have added to their catalog
+        lowStockData = lowStockData.filter((item: any) => 
+          item.product?.dealer_id === companyId || item.product?.dealer_id === user.companyId
+        );
+        expiringData = expiringData.filter((item: any) => 
+          item.product?.dealer_id === companyId || item.product?.dealer_id === user.companyId
+        );
+      } else if (user && user.role === 'supplier') {
+        // For suppliers: show alerts for their own products
+        lowStockData = lowStockData.filter((item: any) => 
+          item.product?.supplier_id === companyId || item.product?.supplier_id === user.companyId
+        );
+        expiringData = expiringData.filter((item: any) => 
+          item.product?.supplier_id === companyId || item.product?.supplier_id === user.companyId
+        );
+      } else if (user && user.role === 'admin') {
+        // For admins: they can see all alerts within their company
+        // No additional filtering needed as backend handles this
+      }
+      
+      setLowStockItems(lowStockData);
+      setExpiringItems(expiringData);
     } catch (err: any) {
       console.error('Error fetching inventory alerts:', err);
       setAlertsError(err.message || 'Failed to fetch inventory alerts');
@@ -192,9 +215,23 @@ const InventoryManagement: React.FC = () => {
 
           {/* Alerts Section */}
           <Box>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom>
+            <Paper sx={{ p: 2 }}>              <Typography variant="h6" gutterBottom>
                 Inventory Alerts
+                {user && user.role === 'dealer' && (
+                  <Typography variant="caption" display="block" color="text.secondary">
+                    Showing alerts for products in your catalog
+                  </Typography>
+                )}
+                {user && user.role === 'supplier' && (
+                  <Typography variant="caption" display="block" color="text.secondary">
+                    Showing alerts for your products
+                  </Typography>
+                )}
+                {user && user.role === 'admin' && (
+                  <Typography variant="caption" display="block" color="text.secondary">
+                    Showing all alerts for your company
+                  </Typography>
+                )}
               </Typography>
 
               {alertsError && (

@@ -196,7 +196,6 @@ export const inventoryService = {
       throw error;
     }
   },
-
   async createInventoryItem(data: InventoryCreateInput): Promise<ApiResponse<InventoryItem>> {
     try {
       // Input validation
@@ -212,7 +211,13 @@ export const inventoryService = {
         throw new Error('Quantity cannot be negative');
       }
       
-      const response = await post<ApiResponse<InventoryItem>>('/inventory', data);
+      // Get company ID for the endpoint
+      const companyId = getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
+      const response = await post<ApiResponse<InventoryItem>>(`/inventory/company/${companyId}`, data);
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -225,7 +230,6 @@ export const inventoryService = {
       throw error;
     }
   },
-
   async updateInventoryItem(id: string, data: Partial<InventoryCreateInput>): Promise<ApiResponse<InventoryItem>> {
     try {
       if (!id || typeof id !== 'string') {
@@ -237,7 +241,13 @@ export const inventoryService = {
         throw new Error('Quantity cannot be negative');
       }
       
-      const response = await put<ApiResponse<InventoryItem>>(`/inventory/${id}`, data);
+      // Get company ID for the endpoint
+      const companyId = getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
+      const response = await put<ApiResponse<InventoryItem>>(`/inventory/company/${companyId}/${id}`, data);
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {

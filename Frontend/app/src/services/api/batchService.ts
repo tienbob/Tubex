@@ -1,4 +1,4 @@
-import { get, post, put, del } from './apiClient';
+import { get, post, put, del, getCurrentCompanyId } from './apiClient';
 import { AxiosError } from 'axios';
 
 // Custom error class for API errors
@@ -17,21 +17,28 @@ export class ApiError extends Error {
 export interface Batch {
   id: string;
   product_id: string;
+  warehouse_id: string;
+  company_id: string;
   batch_number: string;
   manufacturing_date: string;
   expiry_date: string;
   quantity: number;
-  supplier_id: string;
-  status: string; // Added the missing 'status' property
+  unit: string;
+  status: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface BatchCreateInput {
   product_id: string;
+  warehouse_id: string;
   batch_number: string;
   manufacturing_date: string;
   expiry_date: string;
   quantity: number;
-  supplier_id: string;
+  unit: string;
+  metadata?: Record<string, any>;
 }
 
 export interface BatchUpdateInput {
@@ -78,13 +85,17 @@ export interface ExpiringBatchesResponse {
 /**
  * Batch Management Service - Handles operations related to product batches
  */
-export const batchService = {
-  /**
+export const batchService = {  /**
    * Get all batches with optional filtering
    */
   getBatches: async (params: BatchListParams = {}): Promise<PaginationResponse<Batch>> => {
     try {
-      const response = await get<PaginationResponse<Batch>>('/batches', { params });
+      const companyId = getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
+      const response = await get<PaginationResponse<Batch>>(`/batches/company/${companyId}`, { params });
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -97,7 +108,6 @@ export const batchService = {
       throw error;
     }
   },
-
   /**
    * Get a specific batch by ID
    */
@@ -107,7 +117,12 @@ export const batchService = {
         throw new Error('Batch ID is required');
       }
       
-      const response = await get<{data: Batch}>(`/batches/${batchId}`);
+      const companyId = getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
+      const response = await get<{data: Batch}>(`/batches/company/${companyId}/${batchId}`);
       return response.data.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -130,13 +145,16 @@ export const batchService = {
       if (!data.product_id) {
         throw new Error('Product ID is required');
       }
-      
-      if (!data.batch_number || data.batch_number.trim() === '') {
+        if (!data.batch_number || data.batch_number.trim() === '') {
         throw new Error('Batch number is required');
       }
       
-      if (!data.supplier_id) {
-        throw new Error('Supplier ID is required');
+      if (!data.warehouse_id) {
+        throw new Error('Warehouse ID is required');
+      }
+      
+      if (!data.unit || data.unit.trim() === '') {
+        throw new Error('Unit is required');
       }
       
       if (typeof data.quantity !== 'number' || data.quantity <= 0) {
@@ -162,12 +180,16 @@ export const batchService = {
       if (isNaN(expiryDate.getTime())) {
         throw new Error('Invalid expiry date format');
       }
-      
-      if (expiryDate <= manufacturingDate) {
+        if (expiryDate <= manufacturingDate) {
         throw new Error('Expiry date must be after manufacturing date');
       }
       
-      const response = await post<{data: Batch}>('/batches', data);
+      const companyId = getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
+      const response = await post<{data: Batch}>(`/batches/company/${companyId}`, data);
       return response.data.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -215,10 +237,14 @@ export const batchService = {
         
         if (expiryDate <= manufacturingDate) {
           throw new Error('Expiry date must be after manufacturing date');
-        }
+        }      }
+      
+      const companyId = getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
       }
       
-      const response = await put<{data: Batch}>(`/batches/${batchId}`, data);
+      const response = await put<{data: Batch}>(`/batches/company/${companyId}/${batchId}`, data);
       return response.data.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -231,7 +257,6 @@ export const batchService = {
       throw error;
     }
   },
-
   /**
    * Delete a batch
    */
@@ -241,7 +266,12 @@ export const batchService = {
         throw new Error('Batch ID is required');
       }
       
-      await del(`/batches/${batchId}`);
+      const companyId = getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
+      await del(`/batches/company/${companyId}/${batchId}`);
     } catch (error) {
       if (error instanceof AxiosError) {
         throw new ApiError(
@@ -253,7 +283,6 @@ export const batchService = {
       throw error;
     }
   },
-
   /**
    * Get batches that are about to expire
    */
@@ -263,7 +292,12 @@ export const batchService = {
         throw new Error('Days threshold must be a positive number');
       }
       
-      const response = await get<ExpiringBatchesResponse>('/batches/expiring', { 
+      const companyId = getCurrentCompanyId();
+      if (!companyId) {
+        throw new Error('Company ID not available');
+      }
+      
+      const response = await get<ExpiringBatchesResponse>(`/batches/company/${companyId}/expiring`, { 
         params: { daysThreshold } 
       });
       return response.data;

@@ -67,10 +67,6 @@ export const quoteController = {
                 quote.validUntil = defaultValidUntil;
             }
             
-            if (deliveryAddress) {
-                quote.deliveryAddress = deliveryAddress;
-            }
-            
             if (notes) {
                 quote.notes = notes;
             }
@@ -236,7 +232,6 @@ export const quoteController = {
             // Update fields if provided
             if (status) quote.status = status;
             if (validUntil) quote.validUntil = new Date(validUntil);
-            if (deliveryAddress) quote.deliveryAddress = deliveryAddress;
             if (notes !== undefined) quote.notes = notes;
             if (metadata) quote.metadata = {...quote.metadata, ...metadata};
 
@@ -379,8 +374,7 @@ export const quoteController = {
             order.status = OrderStatus.PENDING;
             order.paymentStatus = PaymentStatus.PENDING;
             order.paymentMethod = paymentMethod;
-            order.totalAmount = quote.totalAmount;
-            order.deliveryAddress = deliveryAddress || quote.deliveryAddress;
+            order.totalAmount = quote.totalAmount
             order.metadata = {
                 ...metadata,
                 convertedFromQuote: quote.id,

@@ -26,6 +26,7 @@ import DataTable, { Column } from '../DataTable';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { inventoryService } from '../../../services/api';
 import { InventoryItem } from '../../../services/api/inventoryService';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface InventoryListProps {
   companyId: string; // Required parameter
@@ -160,8 +161,7 @@ const inventoryListReducer = (state: InventoryListState, action: InventoryListAc
         sortBy: action.payload,
         page: 0 // Reset to first page when changing sort
       };
-    case 'SET_SORT_DIRECTION':
-      return {
+    case 'SET_SORT_DIRECTION':      return {
         ...state,
         sortDirection: action.payload,
         page: 0 // Reset to first page when changing sort direction
@@ -181,10 +181,10 @@ const InventoryList: React.FC<InventoryListProps> = ({
   maxHeight,
   onInventorySelect,
   onTransferClick,
-}) => {
-  // Theme hooks
+}) => {  // Theme hooks
   const { theme: whitelabelTheme } = useTheme();
   const muiTheme = useMuiTheme();
+  const { user } = useAuth();
 
   // Use reducer for state management
   const [state, dispatch] = useReducer(inventoryListReducer, {
@@ -225,13 +225,15 @@ const InventoryList: React.FC<InventoryListProps> = ({
       if (state.batchFilter) {
         params.batchId = state.batchFilter;
       }
+        const response = await inventoryService.getInventory(params);      // SECURITY FIX: Remove client-side filtering as backend now handles all security
+      // Backend already applies proper role-based filtering based on company type
+      const inventoryData = response.data || [];
       
-      const response = await inventoryService.getInventory(params);
       dispatch({ 
         type: 'SET_INVENTORY', 
         payload: {
-          data: response.data || [],
-          totalCount: response.pagination?.total || 0
+          data: inventoryData,
+          totalCount: response.pagination?.total || inventoryData.length
         }
       });
     } catch (err: any) {
@@ -239,9 +241,8 @@ const InventoryList: React.FC<InventoryListProps> = ({
       console.error('Error fetching inventory:', err);
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
-    }
-  }, [companyId, state.page, state.rowsPerPage, state.searchTerm, state.selectedWarehouse, 
-      state.batchFilter, state.sortBy, state.sortDirection]);
+    }  }, [companyId, state.page, state.rowsPerPage, state.searchTerm, state.selectedWarehouse, 
+      state.batchFilter, state.sortBy, state.sortDirection, user]);
   
   const fetchWarehouses = useCallback(async () => {
     if (warehouseId) return; // Don't fetch warehouses if one is specified

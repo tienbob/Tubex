@@ -10,10 +10,10 @@ export interface InventoryValidationService {
         quantity: number,
         queryRunner?: QueryRunner
     ): Promise<boolean>;
-    
-    validateBatchAvailability(
+      validateBatchAvailability(
         batchNumber: string,
         quantity: number,
+        companyId: string, // CRITICAL FIX: Add company context for multi-tenant validation
         queryRunner?: QueryRunner
     ): Promise<boolean>;
     
@@ -59,22 +59,24 @@ class InventoryValidationServiceImpl implements InventoryValidationService {
         }
 
         return true;
-    }
-
-    async validateBatchAvailability(
+    }    async validateBatchAvailability(
         batchNumber: string,
         quantity: number,
+        companyId: string, // CRITICAL FIX: Add company context for multi-tenant validation
         queryRunner?: QueryRunner
     ): Promise<boolean> {
         const manager = queryRunner?.manager || AppDataSource.manager;
         
         const batch = await manager.findOne(Batch, {
-            where: { batch_number: batchNumber },
+            where: { 
+                batch_number: batchNumber,
+                company_id: companyId // CRITICAL FIX: Filter by company_id for security
+            },
             lock: queryRunner ? { mode: "pessimistic_read" } : undefined
         });
 
         if (!batch) {
-            throw new AppError(404, "Batch not found");
+            throw new AppError(404, "Batch not found or does not belong to your company");
         }
 
         if (batch.quantity < quantity) {

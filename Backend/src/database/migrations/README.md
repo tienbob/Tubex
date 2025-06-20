@@ -56,13 +56,17 @@ To run migrations:
 
 ```bash
 # Run pending migrations
-npm run typeorm -- migration:run -d src/database/ormconfig.ts
+# Run migrations
+npm run migration:run
 
 # Show migration status
-npm run typeorm -- migration:show -d src/database/ormconfig.ts
+npm run migration:show
 
 # Revert the most recent migration
-npm run typeorm -- migration:revert -d src/database/ormconfig.ts
+npm run migration:revert
+
+# Generate a new migration (compares entities vs database)
+npm run migration:generate -- src/database/migrations/NewMigrationName
 ```
 
 ## Table Information

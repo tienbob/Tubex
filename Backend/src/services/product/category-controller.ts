@@ -37,14 +37,10 @@ export const productCategoryController = {
                 // Admin users should filter by company ID if provided in the request
                 if (companyIdParam) {
                     queryBuilder.andWhere('category.company_id = :companyIdParam', { companyIdParam });
-                }
-            } else {
+                }            } else {
                 // All other roles should only see categories related to their company
                 queryBuilder.andWhere('category.company_id = :userCompanyId', { userCompanyId });
             }
-
-            // Only fetch active categories
-            queryBuilder.andWhere('category.status = :status', { status: 'active' });
 
             // Add search functionality
             if (search) {
@@ -180,11 +176,9 @@ export const productCategoryController = {
             }
 
             const category = new ProductCategory();
-            category.name = name;
-            category.description = description;
+            category.name = name;            category.description = description;
             category.company_id = companyId;
             category.parent_id = parent_id || null;
-            category.status = 'active';
 
             const savedCategory = await queryRunner.manager.save(category);
             await queryRunner.commitTransaction();
@@ -316,11 +310,8 @@ export const productCategoryController = {
             
             if (childCount > 0) {
                 throw new AppError(400, 'Cannot delete category with child categories. Please delete child categories first.');
-            }
-
-            // Soft delete by updating status
-            category.status = 'inactive';
-            await queryRunner.manager.save(category);
+            }            // Hard delete the category
+            await queryRunner.manager.remove(category);
             
             await queryRunner.commitTransaction();
             res.status(200).json({ message: 'Product category deleted successfully' });

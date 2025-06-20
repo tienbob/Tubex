@@ -70,10 +70,8 @@ export interface RegisterCompanyRequest {
       street: string;
       city: string;
       province: string;
-      postalCode: string;
     };
     businessCategory: string;
-    employeeCount: number;
     yearEstablished: number;
     contactPhone: string;
   };

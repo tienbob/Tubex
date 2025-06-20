@@ -100,8 +100,8 @@ const PaymentManagement: React.FC = () => {
         }
       });
     }
-  }, [page, rowsPerPage, startDate, endDate, selectedPaymentMethod, selectedStatus, selectedCustomerId]);const fetchPayments = async () => {
-    let filters: any = {
+  }, [page, rowsPerPage, startDate, endDate, selectedPaymentMethod, selectedStatus, selectedCustomerId]);  const fetchPayments = async () => {
+    const filters: any = {
       page: page + 1, // API uses 1-based pagination
       limit: rowsPerPage
     };

@@ -24,13 +24,8 @@ export class ProductCategory {
 
     @ManyToOne(() => ProductCategory, { nullable: true })
     @JoinColumn({ name: 'parent_id' })
-    parent: ProductCategory;
-
-    @OneToMany(() => ProductCategory, category => category.parent)
+    parent: ProductCategory;    @OneToMany(() => ProductCategory, category => category.parent)
     children: ProductCategory[];
-
-    @Column({ default: 'active' })
-    status: string;
 
     @CreateDateColumn({ name: 'created_at' })
     created_at: Date;

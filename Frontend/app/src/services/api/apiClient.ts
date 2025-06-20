@@ -1,6 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-import { enableMockApi, isMockApiEnabled, toggleMockApi } from '../mock/mockService';
-import { API_BASE_URL, USE_MOCK_API } from '../../config/api.config';
+import { API_BASE_URL } from '../../config/api.config';
 
 /**
  * Get token from storage (handles both old string format and new object format)
@@ -34,13 +33,6 @@ const getTokenFromStorage = (key: string): string | null => {
   }
 };
 
-// Initialize mock API based on configuration
-if (USE_MOCK_API) {
-  toggleMockApi(true);
-} else {
-  toggleMockApi(false);
-}
-
 // Debug the API URL
 console.log("API Base URL:", API_BASE_URL);
 
@@ -52,13 +44,6 @@ const apiClient: AxiosInstance = axios.create({
   },
   timeout: 10000, // 10 seconds timeout
 });
-
-// Set up mock API - this will intercept API calls if enabled
-// Comment this line to disable mock API and allow real API calls
-// enableMockApi(apiClient);
-
-// Export the toggle function to allow enabling/disabling mock API
-export { toggleMockApi, isMockApiEnabled };
 
 // Request interceptor for API calls
 apiClient.interceptors.request.use(

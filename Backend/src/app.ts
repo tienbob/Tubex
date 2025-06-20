@@ -23,6 +23,7 @@ import { quoteRoutes } from './services/quote/routes';
 import { priceListRoutes } from './services/price-list/routes';
 import { paymentRoutes } from './services/payment/routes';
 import { invoiceRoutes } from './services/invoice/routes';
+import { batchRoutes } from './services/batch/routes';
 
 // Configure logger
 export const logger = winston.createLogger({
@@ -82,11 +83,13 @@ app.use('/api/v1/companies/:companyId/product-categories', productCategoryRoutes
 app.use('/api/v1/warehouses', warehouseRoutes); // New warehouse management routes
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/inventory', inventoryRoutes);
+app.use('/api/v1/batches', batchRoutes); // New batch management routes
 app.use('/api/v1/quotes', quoteRoutes); // New quote management routes
 app.use('/api/v1/price-lists', priceListRoutes); // New price list management routes
 app.use('/api/v1/payments', paymentRoutes); // New payment management routes
 app.use('/api/v1/invoices', invoiceRoutes); // New invoice management routes
 app.use('/api/v1/company-verification', companyVerificationRoutes);
+app.use('/api/v1/batch', batchRoutes); // New batch processing routes
 
 // API version health check endpoint
 app.get('/api/v1/health', (_req: Request, res: Response) => {

@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany, JoinColumn } from "typeorm";
 import { User } from "./user";
 import { Product } from "./product";
+import { Company } from "./company";
 
 export enum OrderStatus {
     PENDING = 'pending',
@@ -21,13 +22,15 @@ export enum PaymentStatus {
 @Entity("orders")
 export class Order {    
     @PrimaryGeneratedColumn("uuid")
-    id: string;
-
-    @Column()
+    id: string;    @Column()
     customerId: string;
 
     @Column()
     companyId: string;
+
+    @ManyToOne(() => Company)
+    @JoinColumn({ name: "companyId" })
+    company: Company;
 
     @Column({
         type: "enum",

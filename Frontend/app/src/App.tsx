@@ -9,7 +9,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import LoadingSpinner from './components/common/LoadingSpinner';
-import { MockDataProvider } from './contexts/MockDataContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -59,10 +58,8 @@ const App: React.FC = () => {
             <CssBaseline />
             <AuthProvider>
               <ToastProvider>
-                <Router>
-                  <WhiteLabelProvider>
+                <Router>                  <WhiteLabelProvider>
                     <CompanySettingsProvider>
-                      <MockDataProvider>
                         <WhiteLabelLayout>
                           <Suspense fallback={<LoadingSpinner />}>
                             <Routes>
@@ -146,9 +143,8 @@ const App: React.FC = () => {
                               {/* 404 route */}
                               <Route path="*" element={<NotFound />} />
                             </Routes>
-                          </Suspense>
-                        </WhiteLabelLayout>                  
-                      </MockDataProvider>
+                          </Suspense>                        
+                          </WhiteLabelLayout>                  
                     </CompanySettingsProvider>
                   </WhiteLabelProvider>
                 </Router>

@@ -16,6 +16,7 @@ import { PriceList } from "./src/database/models/sql/price-list";
 import { PriceListItem } from "./src/database/models/sql/price-list-item";
 import { ProductPriceHistory } from "./src/database/models/sql/product-price-history";
 import { Payment } from "./src/database/models/sql/payment";
+import { ProductCategory } from "./src/database/models/sql/product-category";
 
 // Load configuration directly from environment variables
 const dbConfig = {
@@ -51,14 +52,15 @@ export default new DataSource({
     Quote,
     QuoteItem,
     Invoice,
-    InvoiceItem,
-    PriceList,
+    InvoiceItem,    PriceList,
     PriceListItem,
     ProductPriceHistory,
-    Payment
+    Payment,
+    ProductCategory
   ],
   migrations: [
     "src/database/migrations/*.ts"
   ],
-  subscribers: ["src/database/subscribers/*.ts"]
+  subscribers: ["src/database/subscribers/*.ts"],
+  migrationsTableName: "typeorm_migrations"
 });

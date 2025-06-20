@@ -26,6 +26,7 @@ import { InventoryItem } from '../services/api/inventoryService';
 import { Warehouse, ContactInfo, ApiError } from '../services/api/warehouseService';
 import { useAuth } from '../contexts/AuthContext';
 
+
 const WarehouseManagement: React.FC = () => {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -110,17 +111,19 @@ const WarehouseManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-  const fetchInventory = async () => {
+  };  const fetchInventory = async () => {
     try {
       setLoading(true);
       const response = await inventoryService.getInventory({
         companyId,
         warehouseId: selectedWarehouse
       });
-      // Handle different response structures
+        // SECURITY FIX: Remove client-side filtering as backend now handles all security
+      // Backend already applies proper role-based filtering based on company type
       const inventoryData = response?.data || response || [];
-      setInventory(Array.isArray(inventoryData) ? inventoryData : []);
+      const inventoryList = Array.isArray(inventoryData) ? inventoryData : [];
+      
+      setInventory(inventoryList);
       setError(null);
     } catch (err) {
       setError('Failed to fetch inventory');
@@ -293,9 +296,23 @@ const WarehouseManagement: React.FC = () => {
 
         {/* Inventory List */}
         <Box sx={{ flex: 2 }}>
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>
+          <Paper sx={{ p: 2 }}>            <Typography variant="h6" gutterBottom>
               Inventory
+              {user && user.role === 'dealer' && (
+                <Typography variant="caption" display="block" color="text.secondary">
+                  Showing inventory for products in your catalog
+                </Typography>
+              )}
+              {user && user.role === 'supplier' && (
+                <Typography variant="caption" display="block" color="text.secondary">
+                  Showing inventory for your products
+                </Typography>
+              )}
+              {user && user.role === 'admin' && (
+                <Typography variant="caption" display="block" color="text.secondary">
+                  Showing all inventory for your company
+                </Typography>
+              )}
             </Typography>
             {selectedWarehouse ? (
               <TableContainer>

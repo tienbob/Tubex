@@ -15,14 +15,11 @@ export class Company {
     tax_id: string;
 
     @Column("varchar", { length: 100 })
-    business_license: string;
-
-    @Column("jsonb")
+    business_license: string;    @Column("jsonb")
     address: {
         street: string;
         city: string;
         province: string;
-        postalCode: string;
     };
 
     @Column("varchar", { length: 100, nullable: true })
