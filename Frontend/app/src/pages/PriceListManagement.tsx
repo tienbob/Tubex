@@ -4,6 +4,8 @@ import { getPriceLists, PriceList, createPriceList, CreatePriceListRequest, Pric
 import { DataTable } from '../components/whitelabel';
 import { useNavigate } from 'react-router-dom';
 import { Button, Modal, Box, TextField, MenuItem } from '@mui/material';
+import { useAccessControl } from '../hooks/useAccessControl';
+import RoleGuard from '../components/common/RoleGuard';
 
 const PriceListManagement: React.FC = () => {
   const [priceLists, setPriceLists] = useState<PriceList[]>([]);
@@ -13,6 +15,7 @@ const PriceListManagement: React.FC = () => {
   const [form, setForm] = useState<CreatePriceListRequest>({ name: '', type: PriceListType.STANDARD, items: [] });
   const [formError, setFormError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { canPerform } = useAccessControl();
   useEffect(() => {
     console.log('PriceListManagement: Loading price lists...');
     setLoading(true);
@@ -62,14 +65,15 @@ const PriceListManagement: React.FC = () => {
       setLoading(false);
     }
   };
-
   return (
     <div>
       <h1>Price List Management</h1>
       <div style={{ marginBottom: 16 }}>
-        <Button variant="contained" color="primary" onClick={handleOpen} style={{ marginRight: 8 }}>
-          Create Price List
-        </Button>
+        <RoleGuard action="pricelist:create" fallback={null}>
+          <Button variant="contained" color="primary" onClick={handleOpen} style={{ marginRight: 8 }}>
+            Create Price List
+          </Button>
+        </RoleGuard>
         <Button variant="outlined" onClick={() => navigate('/quotes')} style={{ marginRight: 8 }}>
           Go to Quotes
         </Button>

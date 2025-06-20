@@ -19,6 +19,8 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { inventoryService } from '../../../services/api/inventoryService';
 import { productService } from '../../../services/api/productService';
 import { companyService } from '../../../services/api/companyService';
+import { useAccessControl } from '../../../hooks/useAccessControl';
+import RoleGuard from '../../common/RoleGuard';
 
 interface InventoryFormProps {
   inventoryId?: string;
@@ -60,6 +62,7 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
   onCancel 
 }) => {
   const { user } = useAuth();
+  const { canPerform } = useAccessControl();
   const [loading, setLoading] = useState(false);
   const [fetchingData, setFetchingData] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -380,22 +383,34 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
               Automatically create reorder when quantity falls below reorder point
             </Typography>
           </Box>
-        </Box>
-
-        <Box sx={{ mt: 4, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+        </Box>        <Box sx={{ mt: 4, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
           {onCancel && (
             <Button variant="outlined" onClick={onCancel} disabled={loading}>
               Cancel
             </Button>
           )}
-          <Button
-            variant="contained"
-            onClick={handleSubmit}
-            disabled={loading}
-            startIcon={loading ? <CircularProgress size={20} /> : null}
+          <RoleGuard
+            action={inventoryId ? 'inventory:edit' : 'inventory:create'}
+            fallback={
+              <Button
+                variant="contained"
+                disabled={true}
+                title={`You don't have permission to ${inventoryId ? 'edit' : 'create'} inventory items`}
+              >
+                {inventoryId ? 'Update' : 'Create'}
+              </Button>
+            }
+            showFallback
           >
-            {loading ? 'Saving...' : (inventoryId ? 'Update' : 'Create')}
-          </Button>
+            <Button
+              variant="contained"
+              onClick={handleSubmit}
+              disabled={loading}
+              startIcon={loading ? <CircularProgress size={20} /> : null}
+            >
+              {loading ? 'Saving...' : (inventoryId ? 'Update' : 'Create')}
+            </Button>
+          </RoleGuard>
         </Box>
       </Box>
     </Paper>

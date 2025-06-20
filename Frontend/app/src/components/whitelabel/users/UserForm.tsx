@@ -21,6 +21,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import WhiteLabelButton from '../WhiteLabelButton';
 import FormContainer from '../FormContainer';
 import { userManagementService, User, UserCreateRequest, UserUpdateRequest } from '../../../services/api';
+import { useAccessControl } from '../../../hooks/useAccessControl';
 
 interface Company {
   id: string;
@@ -34,7 +35,7 @@ interface UserFormData {
   email: string;
   password: string;
   confirmPassword: string;
-  role: 'admin' | 'manager' | 'staff' | 'supplier' | 'dealer' | '';
+  role: 'admin' | 'manager' | 'staff' | '';
   status: 'active' | 'inactive' | 'pending' | 'suspended';
   companyId: string;
   sendInvitation: boolean;
@@ -68,6 +69,7 @@ const UserForm: React.FC<UserFormProps> = ({
   companies = []
 }) => {
   const { theme } = useTheme();
+  const { canPerform } = useAccessControl();
   const isEditMode = !!userId;
   const isNewUser = !isEditMode;
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
@@ -103,14 +105,16 @@ const UserForm: React.FC<UserFormProps> = ({
     setApiError(null);
     
     try {
-      const user = await userManagementService.getUser(userId);
+      const user = await userManagementService.getUser(userId);      // Ensure role is valid - filter out old roles
+      const validRole = ['admin', 'manager', 'staff'].includes(user.role) ? user.role : '';
+      
       setFormData({
         firstName: user.firstName || '',
         lastName: user.lastName || '',
         email: user.email || '',
         password: '',
         confirmPassword: '',
-        role: user.role || '',
+        role: validRole,
         status: user.status || 'active',
         companyId: user.company_id || companyId || '',
         sendInvitation: false
@@ -218,7 +222,7 @@ const UserForm: React.FC<UserFormProps> = ({
 
   const generateInvitationCode = async () => {
     try {
-      if (!formData.role || !['admin', 'manager', 'staff', 'supplier', 'dealer'].includes(formData.role)) {
+      if (!formData.role || !['admin', 'manager', 'staff'].includes(formData.role)) {
         throw new Error('Please select a valid role first');
       }
 
@@ -247,7 +251,7 @@ const UserForm: React.FC<UserFormProps> = ({
       }
 
       // Validate that role is one of the allowed values
-      if (!['admin', 'manager', 'staff', 'supplier', 'dealer'].includes(formData.role)) {
+      if (!['admin', 'manager', 'staff'].includes(formData.role)) {
         throw new Error('Invalid role selected');
       }
 
@@ -255,7 +259,7 @@ const UserForm: React.FC<UserFormProps> = ({
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
-        role: formData.role as 'admin' | 'manager' | 'staff' | 'supplier' | 'dealer', // Cast after validation
+        role: formData.role as 'admin' | 'manager' | 'staff', // Cast after validation
         status: formData.status,
         companyId: isAdminView ? formData.companyId : companyId
       };
@@ -294,14 +298,11 @@ const UserForm: React.FC<UserFormProps> = ({
     }
   };
 
-  const getAvailableRoles = () => {
-    if (isAdminView) {
+  const getAvailableRoles = () => {    if (isAdminView) {
       return [
         { value: 'admin', label: 'Admin' },
         { value: 'manager', label: 'Manager' },
-        { value: 'staff', label: 'Staff' },
-        { value: 'supplier', label: 'Supplier' },
-        { value: 'dealer', label: 'Dealer' }
+        { value: 'staff', label: 'Staff' }
       ];
     }
     
@@ -527,10 +528,14 @@ const UserForm: React.FC<UserFormProps> = ({
             >
               Cancel
             </WhiteLabelButton>
-          )}
-          <WhiteLabelButton
+          )}          <WhiteLabelButton
             onClick={handleSubmit}
-            disabled={loading}
+            disabled={loading || (isEditMode ? !canPerform('user:edit') : !canPerform('user:create'))}
+            title={
+              isEditMode 
+                ? !canPerform('user:edit') ? 'You do not have permission to edit users' : undefined
+                : !canPerform('user:create') ? 'You do not have permission to create users' : undefined
+            }
           >
             {isEditMode ? 'Update User' : 'Create User'}
           </WhiteLabelButton>

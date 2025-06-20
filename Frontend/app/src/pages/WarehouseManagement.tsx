@@ -25,9 +25,11 @@ import { inventoryService, warehouseService } from '../services/api';
 import { InventoryItem } from '../services/api/inventoryService';
 import { Warehouse, ContactInfo, ApiError } from '../services/api/warehouseService';
 import { useAuth } from '../contexts/AuthContext';
+import { useAccessControl } from '../hooks/useAccessControl';
 
 
 const WarehouseManagement: React.FC = () => {
+  const { canPerform } = useAccessControl();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>('');
@@ -41,9 +43,12 @@ const WarehouseManagement: React.FC = () => {
       phone: '',
       email: ''
     }
-  });
-  const [loading, setLoading] = useState(true);
+  });  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Delete confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [warehouseToDelete, setWarehouseToDelete] = useState<{id: string, name: string} | null>(null);
   
   // Get company ID from auth context
   const { user } = useAuth();
@@ -208,15 +213,23 @@ const WarehouseManagement: React.FC = () => {
       }
     }
   };
+  const handleDeleteWarehouse = (warehouseId: string, warehouseName: string) => {
+    setWarehouseToDelete({ id: warehouseId, name: warehouseName });
+    setDeleteDialogOpen(true);
+  };
 
-  const handleDeleteWarehouse = async (warehouseId: string) => {
+  const confirmDeleteWarehouse = async () => {
+    if (!warehouseToDelete) return;
+    
     try {
-      await warehouseService.deleteWarehouse(companyId, warehouseId);
+      await warehouseService.deleteWarehouse(companyId, warehouseToDelete.id);
       await fetchWarehouses();
-      if (selectedWarehouse === warehouseId) {
+      if (selectedWarehouse === warehouseToDelete.id) {
         setSelectedWarehouse('');
       }
       setError(null);
+      setDeleteDialogOpen(false);
+      setWarehouseToDelete(null);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -225,6 +238,11 @@ const WarehouseManagement: React.FC = () => {
         console.error(err);
       }
     }
+  };
+
+  const cancelDeleteWarehouse = () => {
+    setDeleteDialogOpen(false);
+    setWarehouseToDelete(null);
   };
 
   return (
@@ -242,17 +260,18 @@ const WarehouseManagement: React.FC = () => {
       <Box sx={{ display: 'flex', gap: 3 }}>
         {/* Warehouses List */}
         <Box sx={{ flex: 1 }}>
-          <Paper sx={{ p: 2 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Paper sx={{ p: 2 }}>            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6">Warehouses</Typography>
-              <Button
-                startIcon={<AddCircleOutlineIcon />}
-                onClick={handleOpenDialog}
-                variant="contained"
-                color="primary"
-              >
-                Add Warehouse
-              </Button>
+              {canPerform('warehouseCreate') && (
+                <Button
+                  startIcon={<AddCircleOutlineIcon />}
+                  onClick={handleOpenDialog}
+                  variant="contained"
+                  color="primary"
+                >
+                  Add Warehouse
+                </Button>
+              )}
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>              {Array.isArray(warehouses) ? warehouses.map((warehouse) => (
                 <Paper
@@ -266,22 +285,25 @@ const WarehouseManagement: React.FC = () => {
                   onClick={() => handleWarehouseSelect(warehouse.id)}
                 >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography>{warehouse.name}</Typography>
-                    <Box>
-                      <IconButton size="small" onClick={(e) => {
-                        e.stopPropagation();
-                        // Add edit logic
-                      }}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={(e) => {
+                    <Typography>{warehouse.name}</Typography>                    <Box>
+                      {canPerform('warehouseEdit') && (
+                        <IconButton size="small" onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteWarehouse(warehouse.id);
-                        }}
-                      >
-                        <DeleteIcon fontSize="small" />                      </IconButton>
+                          // Add edit logic
+                        }}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      )}
+                      {canPerform('warehouseDelete') && (                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteWarehouse(warehouse.id, warehouse.name);
+                          }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      )}
                     </Box>
                   </Box>
                 </Paper>
@@ -334,13 +356,14 @@ const WarehouseManagement: React.FC = () => {
                           <TableCell>{item.location || 'N/A'}</TableCell>
                           <TableCell>
                             {item.quantity <= (item.min_threshold || 0) ? 'Low Stock' : 'In Stock'}
-                          </TableCell>
-                          <TableCell align="right">
-                            <Tooltip title="Edit">
-                              <IconButton size="small">
-                                <EditIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
+                          </TableCell>                          <TableCell align="right">
+                            {canPerform('inventoryEdit') && (
+                              <Tooltip title="Edit">
+                                <IconButton size="small">
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))
@@ -364,15 +387,16 @@ const WarehouseManagement: React.FC = () => {
           </Paper>
         </Box>
       </Box>      {/* Add Warehouse Dialog */}
-      <Dialog 
-        open={openDialog} 
-        onClose={handleCloseDialog}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{
-          sx: { minHeight: '500px' }
-        }}
-      >
+      {canPerform('warehouseCreate') && (
+        <Dialog 
+          open={openDialog} 
+          onClose={handleCloseDialog}
+          maxWidth="md"
+          fullWidth
+          PaperProps={{
+            sx: { minHeight: '500px' }
+          }}
+        >
         <DialogTitle sx={{ pb: 1 }}>
           <Typography variant="h5" component="div">
             Add New Warehouse
@@ -484,8 +508,33 @@ const WarehouseManagement: React.FC = () => {
             variant="contained" 
             color="primary"
             sx={{ minWidth: '100px', height: '40px' }}
-          >
-            Create Warehouse
+          >            Create Warehouse
+          </Button>        </DialogActions>
+        </Dialog>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={cancelDeleteWarehouse}
+        aria-labelledby="delete-dialog-title"
+        aria-describedby="delete-dialog-description"
+      >
+        <DialogTitle id="delete-dialog-title">
+          Confirm Delete Warehouse
+        </DialogTitle>
+        <DialogContent>
+          <Typography id="delete-dialog-description">
+            Are you sure you want to delete the warehouse "{warehouseToDelete?.name}"? 
+            This action cannot be undone and will permanently remove all warehouse data.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={cancelDeleteWarehouse} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={confirmDeleteWarehouse} color="error" variant="contained">
+            Delete
           </Button>
         </DialogActions>
       </Dialog>

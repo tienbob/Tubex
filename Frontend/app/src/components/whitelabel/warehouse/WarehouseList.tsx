@@ -16,6 +16,8 @@ import {
 } from '@mui/icons-material';
 import { warehouseService } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useAccessControl } from '../../../hooks/useAccessControl';
+import RoleGuard from '../../common/RoleGuard';
 
 interface Warehouse {
   id: string;
@@ -29,6 +31,7 @@ interface Warehouse {
 
 const WarehouseList: React.FC = () => {
   const { user } = useAuth();
+  const { canPerform } = useAccessControl();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(true);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -70,17 +73,18 @@ const WarehouseList: React.FC = () => {
   };
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+    <Box>      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4">Warehouses</Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => {/* Navigate to create warehouse */}}
-        >
-          Add Warehouse
-        </Button>
-      </Box>      <Box 
+        <RoleGuard action="warehouse:create" fallback={null}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => {/* Navigate to create warehouse */}}
+          >
+            Add Warehouse
+          </Button>
+        </RoleGuard>
+      </Box><Box 
         sx={{ 
           display: 'grid', 
           gridTemplateColumns: { 
@@ -94,15 +98,16 @@ const WarehouseList: React.FC = () => {
         {warehouses.map((warehouse) => (
           <Card key={warehouse.id}>
             <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>                <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <Typography variant="h6" sx={{ mr: 1 }}>
                     {getTypeIcon(warehouse.type)} {warehouse.name}
                   </Typography>
                 </Box>
-                <IconButton size="small">
-                  <MoreVertIcon />
-                </IconButton>
+                <RoleGuard action="warehouse:edit" fallback={null}>
+                  <IconButton size="small">
+                    <MoreVertIcon />
+                  </IconButton>
+                </RoleGuard>
               </Box>
 
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -136,13 +141,14 @@ const WarehouseList: React.FC = () => {
           <WarehouseIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
           <Typography variant="h6" color="text.secondary" gutterBottom>
             No warehouses found
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          </Typography>          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
             Create your first warehouse to start managing inventory locations
           </Typography>
-          <Button variant="contained" startIcon={<AddIcon />}>
-            Create Warehouse
-          </Button>
+          <RoleGuard action="warehouse:create" fallback={null}>
+            <Button variant="contained" startIcon={<AddIcon />}>
+              Create Warehouse
+            </Button>
+          </RoleGuard>
         </Box>
       )}
     </Box>

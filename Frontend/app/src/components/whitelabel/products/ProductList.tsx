@@ -18,6 +18,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { productService } from '../../../services/api';
 import WhiteLabelButton from '../WhiteLabelButton';
 import DataTable from '../DataTable';
+import { useAccessControl } from '../../../hooks/useAccessControl';
 
 interface ProductListProps {
   companyId?: string;
@@ -40,6 +41,7 @@ const ProductList: React.FC<ProductListProps> = ({
 }) => {
   const { theme: whitelabelTheme } = useTheme();
   const muiTheme = useMuiTheme();
+  const { canPerform } = useAccessControl();
 
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -205,18 +207,19 @@ const ProductList: React.FC<ProductListProps> = ({
       render: (value: string) =>  getStatusChip(value),
     },
   ];
-
   // Row actions similar to Odoo's action menu
   const rowActions = [
     {
       id: 'edit',
       label: 'Edit',
       onClick: (row: any) => onEditProduct && onEditProduct(row.id),
+      disabled: !canPerform('product:edit'),
     },
     {
       id: 'view',
       label: 'View Details',
       onClick: (row: any) => onEditProduct && onEditProduct(row.id),
+      disabled: !canPerform('product:view'),
     },
     {
       id: 'divider1',
@@ -239,9 +242,9 @@ const ProductList: React.FC<ProductListProps> = ({
             setError('Failed to update product status');
           });
       },
+      disabled: !canPerform('product:edit'),
     },
-  ];
-
+  ].filter(action => !action.disabled || action.divider); // Filter out disabled actions except dividers
   // Bulk actions like in Odoo
   const bulkActions = [
     {
@@ -251,6 +254,7 @@ const ProductList: React.FC<ProductListProps> = ({
         // Handle bulk activate
         console.log('Bulk activate', selectedRows);
       },
+      disabled: !canPerform('product:edit'),
     },
     {
       id: 'deactivate',
@@ -259,8 +263,9 @@ const ProductList: React.FC<ProductListProps> = ({
         // Handle bulk deactivate
         console.log('Bulk deactivate', selectedRows);
       },
+      disabled: !canPerform('product:edit'),
     },
-  ];
+  ].filter(action => !action.disabled); // Filter out disabled actions
 
   // Filter panel in Odoo style
   const filterPanel = (
@@ -318,10 +323,9 @@ const ProductList: React.FC<ProductListProps> = ({
 
   return (
     <Box>
-      {/* Page header with title and actions */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      {/* Page header with title and actions */}      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h5">Products</Typography>
-        {!hideActions && onAddProduct && (
+        {!hideActions && onAddProduct && canPerform('product:create') && (
           <WhiteLabelButton
             variant="contained"
             startIcon={<AddIcon />}

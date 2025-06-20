@@ -1,13 +1,13 @@
 import { Router, RequestHandler } from 'express';
 import { authenticate } from '../../middleware/auth';
-import { asyncHandler } from '../../middleware/asyncHandler';
 import { isCompanyAdmin, canManageUser } from '../../middleware/adminAuth';
 import { validateUserManagement } from './validators';
 import {
     listCompanyUsers,
     updateUserRole,
     removeUser,
-    getUserAuditLogs
+    getUserAuditLogs,
+    getAvailableRoles
 } from './controller';
 import { RequestHandlerWithAuth } from '../../types/express';
 
@@ -193,5 +193,33 @@ router.delete(
  *                     type: string
  *                   status:
  *                     type: string
+ */
+/**
+ * @swagger
+ * /company/manage/roles:
+ *   get:
+ *     summary: Get available roles that the current user can assign
+ *     tags: [User Management]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Available roles based on user hierarchy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       name:
+ *                         type: string
  */
 export const userManagementRoutes = router;

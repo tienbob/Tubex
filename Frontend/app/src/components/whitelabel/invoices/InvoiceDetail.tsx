@@ -40,6 +40,8 @@ import {
   InvoiceStatus, 
   type Invoice
 } from '../../../services/api/invoiceService';
+import { useAccessControl } from '../../../hooks/useAccessControl';
+import RoleGuard from '../../common/RoleGuard';
 
 interface InvoiceDetailProps {
   invoiceId: string;
@@ -48,6 +50,7 @@ interface InvoiceDetailProps {
 
 const InvoiceDetail: React.FC<InvoiceDetailProps> = ({ invoiceId, onEdit }) => {
   const navigate = useNavigate();
+  const { canPerform } = useAccessControl();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -302,23 +305,26 @@ const InvoiceDetail: React.FC<InvoiceDetailProps> = ({ invoiceId, onEdit }) => {
               size="small" 
               color={getStatusChipColor(invoice.status as InvoiceStatus)}
               sx={{ ml: 2, verticalAlign: 'middle' }}
-            />
-          </Box>
+            />          </Box>
           <Box display="flex" alignItems="center" gap={1}>
-            <Button 
-              variant="outlined" 
-              startIcon={<DownloadIcon />}
-              onClick={handleDownloadPdf}
-            >
-              Download
-            </Button>
-            <Button 
-              variant="outlined" 
-              startIcon={<PrintIcon />}
-              onClick={handlePrint}
-            >
-              Print
-            </Button>
+            <RoleGuard action="invoice:read" fallback={null}>
+              <Button 
+                variant="outlined" 
+                startIcon={<DownloadIcon />}
+                onClick={handleDownloadPdf}
+              >
+                Download
+              </Button>
+            </RoleGuard>
+            <RoleGuard action="invoice:read" fallback={null}>
+              <Button 
+                variant="outlined" 
+                startIcon={<PrintIcon />}
+                onClick={handlePrint}
+              >
+                Print
+              </Button>
+            </RoleGuard>
             <IconButton onClick={handleActionMenuOpen} sx={{ ml: 1 }}>
               <MoreVertIcon />
             </IconButton>
@@ -327,16 +333,22 @@ const InvoiceDetail: React.FC<InvoiceDetailProps> = ({ invoiceId, onEdit }) => {
               open={Boolean(actionMenuAnchor)}
               onClose={handleActionMenuClose}
             >
-              <MenuItem onClick={handleEdit}>Edit Invoice</MenuItem>
-              <MenuItem onClick={handleEmailDialogOpen}>
-                <EmailIcon fontSize="small" sx={{ mr: 1 }} />
-                Send by Email
-              </MenuItem>
-              {invoice.status !== InvoiceStatus.PAID && (
-                <MenuItem onClick={handlePaymentDialogOpen}>
-                  <CheckCircleIcon fontSize="small" sx={{ mr: 1 }} />
-                  Record Payment
+              <RoleGuard action="invoice:edit" fallback={null}>
+                <MenuItem onClick={handleEdit}>Edit Invoice</MenuItem>
+              </RoleGuard>
+              <RoleGuard action="invoice:email" fallback={null}>
+                <MenuItem onClick={handleEmailDialogOpen}>
+                  <EmailIcon fontSize="small" sx={{ mr: 1 }} />
+                  Send by Email
                 </MenuItem>
+              </RoleGuard>
+              {invoice.status !== InvoiceStatus.PAID && (
+                <RoleGuard action="invoice:update" fallback={null}>
+                  <MenuItem onClick={handlePaymentDialogOpen}>
+                    <CheckCircleIcon fontSize="small" sx={{ mr: 1 }} />
+                    Record Payment
+                  </MenuItem>
+                </RoleGuard>
               )}
             </Menu>
           </Box>

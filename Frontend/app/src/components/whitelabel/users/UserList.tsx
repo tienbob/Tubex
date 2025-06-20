@@ -24,6 +24,7 @@ import LockResetIcon from '@mui/icons-material/LockReset';
 import DataTable, { Column } from '../DataTable';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { userManagementService, User } from '../../../services/api';
+import { useAccessControl } from '../../../hooks/useAccessControl';
 
 interface UserListProps {
   companyId?: string;
@@ -52,6 +53,7 @@ const UserList: React.FC<UserListProps> = ({
 }) => {
   const { theme: whitelabelTheme } = useTheme();
   const muiTheme = useMuiTheme();
+  const { canPerform } = useAccessControl();
 
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
@@ -96,12 +98,10 @@ const UserList: React.FC<UserListProps> = ({
 
       if (isSearchRequest) {
         setIsSearching(true);
-      }
-
-      const response = await userManagementService.getUsers(params);
+      }      const response = await userManagementService.getUsers(params);
       
-      setUsers(response.data || []);
-      setTotalCount(response.pagination?.total || 0);
+      setUsers(response.data?.users || []);
+      setTotalCount(response.data?.pagination?.total || 0);
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Failed to load users');
@@ -287,10 +287,9 @@ const UserList: React.FC<UserListProps> = ({
       id: 'actions',
       label: 'Actions',
       minWidth: 100,
-      align: 'right',
-      format: (_, row) => (
+      align: 'right',      format: (_, row) => (
         <Box>
-          {onEditUser && (
+          {onEditUser && canPerform('user:edit') && (
             <Tooltip title="Edit User">
               <IconButton size="small" onClick={(e) => {
                 e.stopPropagation();
@@ -300,7 +299,7 @@ const UserList: React.FC<UserListProps> = ({
               </IconButton>
             </Tooltip>
           )}
-          {onResetPassword && (
+          {onResetPassword && canPerform('user:edit') && (
             <Tooltip title="Reset Password">
               <IconButton size="small" onClick={(e) => {
                 e.stopPropagation();
@@ -309,19 +308,20 @@ const UserList: React.FC<UserListProps> = ({
                 <LockResetIcon fontSize="small" />
               </IconButton>
             </Tooltip>
+          )}          {canPerform('user:edit') && (
+            <Tooltip title={row.status === 'suspended' ? 'Activate User' : 'Suspend User'}>
+              <IconButton 
+                size="small" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSuspendUser(row.id, row.status);
+                }}
+                color={row.status === 'suspended' ? 'success' : 'default'}
+              >
+                <BlockIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           )}
-          <Tooltip title={row.status === 'suspended' ? 'Activate User' : 'Suspend User'}>
-            <IconButton 
-              size="small" 
-              onClick={(e) => {
-                e.stopPropagation();
-                handleSuspendUser(row.id, row.status);
-              }}
-              color={row.status === 'suspended' ? 'success' : 'default'}
-            >
-              <BlockIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
         </Box>
       )
     });
@@ -392,8 +392,7 @@ const UserList: React.FC<UserListProps> = ({
           </Box>
           
           {!hideActions && (
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              {onInviteUser && (
+            <Box sx={{ display: 'flex', gap: 2 }}>              {onInviteUser && canPerform('user:create') && (
                 <Button
                   variant="outlined"
                   startIcon={<PersonAddIcon />}
@@ -403,7 +402,7 @@ const UserList: React.FC<UserListProps> = ({
                 </Button>
               )}
               
-              {onAddUser && (
+              {onAddUser && canPerform('user:create') && (
                 <Button
                   variant="contained"
                   startIcon={<AddIcon />}

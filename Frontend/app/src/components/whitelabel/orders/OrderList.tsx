@@ -34,6 +34,8 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { orderService } from '../../../services/api';
 import { formatCurrency, formatDate } from '../../../utils/formatters';
+import { useAccessControl } from '../../../hooks/useAccessControl';
+import RoleGuard from '../../common/RoleGuard';
 
 // Order status colors
 const STATUS_COLORS = {
@@ -213,6 +215,8 @@ const OrderList: React.FC<OrderListProps> = ({
   allowEdit = true,
   allowDelete = true,
 }) => {
+  const { canPerform } = useAccessControl();
+  
   // Use the reducer for state management
   const [state, dispatch] = useReducer(orderListReducer, initialState);
     // Memoize fetchOrders to prevent unnecessary recreations
@@ -434,15 +438,25 @@ const OrderList: React.FC<OrderListProps> = ({
   );
 
   return (
-    <Box>
-      <Paper elevation={0} sx={{ p: 3, mb: 3 }}>
+    <Box>      <Paper elevation={0} sx={{ p: 3, mb: 3 }}>
         <Box sx={{ display: 'flex', flexDirection: 'row', gap: 2 }}>
-          <Box sx={{ flex: 1 }}>
+          <Box sx={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="h6" component="h2">
               Orders
             </Typography>
+            
+            <RoleGuard action="order:create">
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<EditIcon />}
+                onClick={() => window.location.href = `/orders/new?company=${companyId}`}
+              >
+                Create Order
+              </Button>
+            </RoleGuard>
           </Box>
-          <Box sx={{ flex: 2 }}>            <TextField
+          <Box sx={{ flex: 2 }}><TextField
               placeholder="Search orders..."
               size="small"
               fullWidth
@@ -556,8 +570,7 @@ const OrderList: React.FC<OrderListProps> = ({
                       <TableCell align="right">{order.items_count}</TableCell>
                       <TableCell align="right">{formatCurrency(order.total)}</TableCell>
                       <TableCell align="right">
-                        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                          {onViewOrder && (
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>                          {onViewOrder && (
                             <IconButton 
                               size="small"
                               onClick={() => onViewOrder(order.id)}
@@ -567,7 +580,7 @@ const OrderList: React.FC<OrderListProps> = ({
                             </IconButton>
                           )}
                           
-                          {allowEdit && onEditOrder && (
+                          {allowEdit && onEditOrder && canPerform('order:edit') && (
                             <IconButton 
                               size="small"
                               onClick={() => onEditOrder(order.id)}
@@ -577,7 +590,7 @@ const OrderList: React.FC<OrderListProps> = ({
                             </IconButton>
                           )}
                           
-                          {allowDelete && onDeleteOrder && (
+                          {allowDelete && onDeleteOrder && canPerform('order:delete') && (
                             <IconButton 
                               size="small"
                               onClick={() => handleDeleteClick(order.id)}

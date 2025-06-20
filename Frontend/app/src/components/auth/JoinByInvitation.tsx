@@ -21,24 +21,26 @@ interface JoinByInvitationProps {
   onRegisterSuccess?: (userData: any) => void;
 }
 
-const JoinByInvitation: React.FC<JoinByInvitationProps> = ({ onRegisterSuccess }) => {
-  const navigate = useNavigate();
+const JoinByInvitation: React.FC<JoinByInvitationProps> = ({ onRegisterSuccess }) => {  const navigate = useNavigate();
   const location = useLocation();
   
-  // Get code from URL query parameter if available
+  // Get code from URL query parameter or route parameter
   const urlParams = new URLSearchParams(location.search);
-  const codeFromUrl = urlParams.get('code');
+  const codeFromQuery = urlParams.get('code');
   
+  // Get code from URL path parameter if available (for /join/:invitationCode)
+  const pathSegments = location.pathname.split('/');
+  const codeFromPath = pathSegments[pathSegments.length - 1] !== 'join' ? pathSegments[pathSegments.length - 1] : null;
+  
+  // Use either code source
+  const codeFromUrl = codeFromQuery || codeFromPath;
   // Form state
-  const [invitationCode, setInvitationCode] = useState(codeFromUrl || '');
+  const [invitationCode, setInvitationCode] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [jobTitle, setJobTitle] = useState('');
-  const [department, setDepartment] = useState('');
-  const [employeeId, setEmployeeId] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   
   // UI state
@@ -49,52 +51,51 @@ const JoinByInvitation: React.FC<JoinByInvitationProps> = ({ onRegisterSuccess }
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [codeValid, setCodeValid] = useState(false);
   const [companyId, setCompanyId] = useState<string | null>(null);
-  
-  // Validate the invitation code on component mount if code is provided
+    // Validate the invitation code on component mount if code is provided
   useEffect(() => {
-    if (invitationCode) {
+    // Check if we have a code from the URL
+    if (codeFromUrl) {
+      console.log("Invitation code found in URL:", codeFromUrl);
+      setInvitationCode(codeFromUrl);
       validateCode();
     }
   }, []);
   
-  const validateCode = async () => {
-    if (!invitationCode.trim()) {
+  const validateCode = async () => {    if (!invitationCode.trim()) {
       setError('Please enter an invitation code');
       return;
     }
     
     setVerifying(true);
     setError(null);
-    
-    try {
+      try {
+      console.log('Validating invitation code:', invitationCode);
       const response = await authService.validateInvitationCode(invitationCode);
+      console.log('Validation response:', response);
       
       if (response.valid) {
         setCompanyName(response.companyName || null);
+        setCompanyId(response.companyId || null);
         setCodeValid(true);
         setActiveStep(1);
+        console.log('Code validated successfully. Company ID:', response.companyId);
       } else {
         setError('Invalid or expired invitation code. Please contact your administrator.');
-      }
+        console.error('Invalid invitation code response:', response);      }
     } catch (err: any) {
-      setError('Failed to verify invitation code. Please try again.');
       console.error('Error validating invitation code:', err);
+      setError(`Failed to verify invitation code: ${err.message || 'Unknown error'}`);
     } finally {
       setVerifying(false);
     }
   };
-  
-  const handleNext = () => {
+    const handleNext = () => {
     setError(null);
     
     if (activeStep === 0) {
       validateCode();
     } else if (activeStep === 1) {
       if (validatePersonalInfo()) {
-        setActiveStep(2);
-      }
-    } else if (activeStep === 2) {
-      if (validateEmploymentInfo()) {
         handleRegistration();
       }
     }
@@ -130,52 +131,44 @@ const JoinByInvitation: React.FC<JoinByInvitationProps> = ({ onRegisterSuccess }
       setError('First and last name are required');
       return false;
     }
-    
-    return true;
-  };
-  
-  const validateEmploymentInfo = () => {
-    if (!jobTitle.trim()) {
-      setError('Job title is required');
-      return false;
-    }
-    
-    if (!department.trim()) {
-      setError('Department is required');
-      return false;
-    }
-    
-    return true;
+      return true;
   };
   
   const handleRegistration = async () => {
     setLoading(true);
     setError(null);
     
-    try {
+    try {      console.log('Submitting registration with data:', {
+        email,
+        firstName,
+        lastName,
+        invitationCode
+      });
+      
       const response = await authService.registerEmployee({
         email,
         password,
         firstName,
         lastName,
-        jobTitle,
-        department,
-        employeeId,
-        companyId: '', // The API will extract this from the invitation code
         invitationCode
       });
       
+      console.log('Registration response:', response);
+      
       if (response.data.requiresVerification) {
         // Redirect to a pending approval page
+        console.log('Account requires verification, redirecting to pending approval');
         navigate('/auth/pending-approval', { state: { email } });
       } else {
         // Direct login successful
+        console.log('Registration successful, redirecting to dashboard');
         if (onRegisterSuccess) {
           onRegisterSuccess(response.data);
         }
         navigate('/dashboard');
       }
     } catch (err: any) {
+      console.error('Registration error:', err);
       setError(err.message || 'Failed to complete registration. Please try again.');
       console.error('Error during employee registration:', err);
     } finally {
@@ -298,59 +291,7 @@ const JoinByInvitation: React.FC<JoinByInvitationProps> = ({ onRegisterSuccess }
           required
         />
       </Box>
-      
-      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
-        <Button onClick={handleBack} disabled={loading}>
-          Back
-        </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleNext}
-          disabled={loading}
-        >
-          Next
-        </Button>
-      </Box>
-    </Box>
-  );
-  
-  const renderEmploymentInfo = () => (
-    <Box>
-      <Typography variant="h6" gutterBottom>
-        Employment Information
-      </Typography>
-      
-      <TextField
-        margin="normal"
-        fullWidth
-        label="Job Title"
-        value={jobTitle}
-        onChange={(e) => setJobTitle(e.target.value)}
-        disabled={loading}
-        required
-      />
-      
-      <TextField
-        margin="normal"
-        fullWidth
-        label="Department"
-        value={department}
-        onChange={(e) => setDepartment(e.target.value)}
-        disabled={loading}
-        required
-      />
-      
-      <TextField
-        margin="normal"
-        fullWidth
-        label="Employee ID (Optional)"
-        value={employeeId}
-        onChange={(e) => setEmployeeId(e.target.value)}
-        disabled={loading}
-      />
-      
-      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
+        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
         <Button onClick={handleBack} disabled={loading}>
           Back
         </Button>
@@ -385,9 +326,6 @@ const JoinByInvitation: React.FC<JoinByInvitationProps> = ({ onRegisterSuccess }
           <Step>
             <StepLabel>Personal Info</StepLabel>
           </Step>
-          <Step>
-            <StepLabel>Employment Info</StepLabel>
-          </Step>
         </Stepper>
         
         {error && (
@@ -398,7 +336,6 @@ const JoinByInvitation: React.FC<JoinByInvitationProps> = ({ onRegisterSuccess }
         
         {activeStep === 0 && renderCodeVerification()}
         {activeStep === 1 && renderPersonalInfo()}
-        {activeStep === 2 && renderEmploymentInfo()}
       </Paper>
     </Box>
   );

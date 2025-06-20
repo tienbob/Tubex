@@ -25,7 +25,7 @@ import FormButtons from '../FormButtons';
 import ProductPriceHistory from './ProductPriceHistory';
 import DealerProductForm from './DealerProductForm';
 import { productService, companyService, warehouseService, inventoryService } from '../../../services/api';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAccessControl } from '../../../hooks/useAccessControl';
 
 // Types
 interface TabPanelProps {
@@ -135,49 +135,17 @@ const ProductForm: React.FC<ProductFormProps> = ({
   onSave,
   onCancel,
 }) => {
-  const { user } = useAuth();
-  const [userCompanyType, setUserCompanyType] = useState<string | null>(null);
-  const [isLoadingCompanyType, setIsLoadingCompanyType] = useState(true);
+  const { user, permissions, loading: accessLoading } = useAccessControl();
 
-  // Fetch user's company type
-  useEffect(() => {
-    const fetchUserCompanyType = async () => {
-      if (user?.companyId) {
-        try {
-          const company = await companyService.getCompanyById(user.companyId);
-          setUserCompanyType(company.type);
-          console.log('User company type:', company.type);
-        } catch (error) {
-          console.error('Error fetching company type:', error);
-          setUserCompanyType(null);
-        }
-      }
-      setIsLoadingCompanyType(false);
-    };
-
-    fetchUserCompanyType();
-  }, [user?.companyId]);
-
-  // Debug logging
-  console.log('=== PRODUCTFORM DEBUG ===');
-  console.log('ProductForm - User object:', user);
-  console.log('ProductForm - User role:', user?.role);
-  console.log('ProductForm - User role type:', typeof user?.role);  console.log('ProductForm - User companyId:', user?.companyId);
-  console.log('ProductForm - User company type:', userCompanyType);
-  console.log('ProductForm - Is loading company type:', isLoadingCompanyType);
-  console.log('ProductForm - Is dealer?', user?.role === 'dealer');
-  console.log('ProductForm - Is dealer company?', userCompanyType === 'dealer');
-  console.log('ProductForm - Comparison result:', user?.role, '===', 'dealer', user?.role === 'dealer');
-  console.log('=== END PRODUCTFORM DEBUG ===');
-
-  // Show loading while fetching company type
-  if (isLoadingCompanyType) {
+  // Show loading while checking access control
+  if (accessLoading) {
     return <div>Loading...</div>;
   }
 
-  // Render different forms based on user role OR company type
-  if (user?.role === 'dealer' || userCompanyType === 'dealer') {
-    console.log('Rendering DealerProductForm - role:', user?.role, 'companyType:', userCompanyType);    return (
+  // Render different forms based on user company type
+  if (user?.companyType === 'dealer' || user?.role === 'dealer') {
+    console.log('Rendering DealerProductForm - companyType:', user?.companyType, 'role:', user?.role);
+    return (
       <DealerProductForm
         companyId={companyId}
         onSave={onSave}
@@ -186,8 +154,8 @@ const ProductForm: React.FC<ProductFormProps> = ({
     );
   }
   
-  console.log('Rendering SupplierProductForm - role:', user?.role, 'companyType:', userCompanyType);
-  // For non-dealer users, render the SupplierProductForm
+  console.log('Rendering SupplierProductForm - companyType:', user?.companyType, 'role:', user?.role);
+  // For supplier users, render the SupplierProductForm
   return (
     <SupplierProductForm
       productId={productId}
@@ -205,6 +173,7 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
   onSave,
   onCancel,
 }) => {
+  const { permissions, canPerform } = useAccessControl();
   const isEditMode = !!productId;
   const [tabValue, setTabValue] = useState(0);  const [categories, setCategories] = useState<Category[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -921,13 +890,18 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
           </TabPanel>
         )}
       </Box>
-      
-      <Box sx={{ mt: 4 }}>
+        <Box sx={{ mt: 4 }}>
         <FormButtons
           onCancel={onCancel}
           onSubmit={handleSubmit}
           loading={loading}
           submitText={isEditMode ? 'Update Product' : 'Create Product'}
+          canSubmit={isEditMode ? canPerform('product:edit') : canPerform('product:create')}
+          submitDisabledReason={
+            isEditMode 
+              ? !canPerform('product:edit') ? 'You do not have permission to edit products' : undefined
+              : !canPerform('product:create') ? 'You do not have permission to create products' : undefined
+          }
         />
       </Box>
     </FormContainer>

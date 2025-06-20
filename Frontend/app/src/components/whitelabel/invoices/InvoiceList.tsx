@@ -27,6 +27,8 @@ import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import DataTable from '../DataTable';
 import { getInvoices, InvoiceStatus, PaymentTerm, type Invoice, type InvoiceFilters } from '../../../services/api/invoiceService';
+import { useAccessControl } from '../../../hooks/useAccessControl';
+import RoleGuard from '../../common/RoleGuard';
 
 interface InvoiceListProps {
   companyId?: string;
@@ -151,6 +153,7 @@ const invoiceListReducer = (state: InvoiceListState, action: InvoiceListAction):
 
 const InvoiceList: React.FC<InvoiceListProps> = ({ companyId }) => {
   const navigate = useNavigate();
+  const { canPerform } = useAccessControl();
   const [state, dispatch] = useReducer(invoiceListReducer, initialState);
   const fetchInvoices = useCallback(async () => {
     dispatch({ type: 'SET_LOADING', payload: true });
@@ -355,22 +358,22 @@ const InvoiceList: React.FC<InvoiceListProps> = ({ companyId }) => {
         />
       )
     },
-    {
-      id: 'actions',
+    {      id: 'actions',
       label: 'Actions',
       accessor: 'id',
       cell: (row: Invoice) => (
-        <Button
-          variant="outlined"
-          size="small"
-          onClick={() => handleViewInvoice(row.id!)}
-        >
-          View
-        </Button>
+        <RoleGuard action="invoice:read" fallback={null}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => handleViewInvoice(row.id!)}
+          >
+            View
+          </Button>
+        </RoleGuard>
       )
     }
-  ];
-  // Filter panel JSX
+  ];  // Filter panel JSX
   const filterPanel = (
     <Box sx={{ p: 2, mb: 3, borderRadius: 1, border: '1px solid #e0e0e0' }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
@@ -396,6 +399,17 @@ const InvoiceList: React.FC<InvoiceListProps> = ({ companyId }) => {
           }}
         />
         <Box>
+          <RoleGuard action="invoice:create" fallback={null}>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              onClick={handleCreateInvoice}
+              sx={{ mr: 1 }}
+            >
+              Create Invoice
+            </Button>
+          </RoleGuard>
           <Button
             startIcon={<RefreshIcon />}
             onClick={fetchInvoices}
@@ -509,8 +523,7 @@ const InvoiceList: React.FC<InvoiceListProps> = ({ companyId }) => {
             });
           }
         }}
-        onRowClick={(row: Invoice) => handleViewInvoice(row.id!)}
-      />
+        onRowClick={(row: Invoice) => handleViewInvoice(row.id!)}      />
     </Box>
   );
 };

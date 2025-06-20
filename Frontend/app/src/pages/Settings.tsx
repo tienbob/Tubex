@@ -46,6 +46,8 @@ import TenantConfigPanel from '../components/whitelabel/TenantConfigPanel';
 import { useAuth } from '../contexts/AuthContext';
 import { useCompanySettings } from '../contexts/CompanySettingsContext';
 import SettingsOverrideDisplay from '../components/settings/SettingsOverrideDisplay';
+import { useAccessControl } from '../hooks/useAccessControl';
+import RoleGuard from '../components/common/RoleGuard';
 
 // Define interface for integration objects
 interface Integration {
@@ -78,6 +80,7 @@ function TabPanel(props: TabPanelProps) {
 
 const Settings: React.FC = () => {
   const { user } = useAuth();
+  const { canPerform } = useAccessControl();
   const { theme, updateTheme } = useTheme();
   const { 
     settings, 

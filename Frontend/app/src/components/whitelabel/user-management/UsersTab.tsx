@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Button, Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, CircularProgress, Chip, IconButton } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { getUserName } from '../../../services/api/userManagementService';
 
 const UsersTab: React.FC<{ users: any[], loading: boolean, fetchUsers: () => void, openUserDialog: (user?: any) => void, handleDeleteUser: (userId: string) => void }> = ({ users, loading, fetchUsers, openUserDialog, handleDeleteUser }) => {
   return (
@@ -35,16 +36,20 @@ const UsersTab: React.FC<{ users: any[], loading: boolean, fetchUsers: () => voi
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>{user.name}</TableCell>
+            <TableBody>              {users.map((user) => (                <TableRow key={user.id}>
+                  <TableCell>
+                    {getUserName(user).fullName}
+                  </TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
-                    <Chip label={user.role?.name || 'No Role'} size="small" color={user.role ? "primary" : "default"} />
+                    <Chip label={user.role || 'No Role'} size="small" color={user.role ? "primary" : "default"} />
                   </TableCell>
                   <TableCell>
-                    <Chip label={user.isActive ? 'Active' : 'Inactive'} color={user.isActive ? "success" : "default"} size="small" />
+                    <Chip 
+                      label={user.status === 'active' ? 'Active' : user.status || 'Inactive'} 
+                      color={user.status === 'active' ? "success" : "default"} 
+                      size="small" 
+                    />
                   </TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', gap: 1 }}>

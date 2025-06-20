@@ -43,6 +43,8 @@ import UpdatePaymentModal from './UpdatePaymentModal';
 import ReconcilePaymentModal from './ReconcilePaymentModal';
 import { format } from 'date-fns';
 import { useSnackbar } from 'notistack';
+import { useAccessControl } from '../../hooks/useAccessControl';
+import RoleGuard from '../../components/common/RoleGuard';
 
 const PaymentManagement: React.FC = () => {
   const { theme: whitelabelTheme } = useTheme();
@@ -57,6 +59,7 @@ const PaymentManagement: React.FC = () => {
     searchCustomers
   } = useCustomer();
   const { enqueueSnackbar } = useSnackbar();
+  const { canPerform } = useAccessControl();
 
   // State variables
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -280,15 +283,16 @@ const PaymentManagement: React.FC = () => {
           >
             Refresh
           </Button>
-          
-          <Button
-            startIcon={<AddIcon />}
-            variant="contained"
-            onClick={() => setIsCreateModalOpen(true)}
-            sx={{ backgroundColor: whitelabelTheme.primaryColor }}
-          >
-            New Payment
-          </Button>
+            <RoleGuard action="payment:create" fallback={null}>
+            <Button
+              startIcon={<AddIcon />}
+              variant="contained"
+              onClick={() => setIsCreateModalOpen(true)}
+              sx={{ backgroundColor: whitelabelTheme.primaryColor }}
+            >
+              New Payment
+            </Button>
+          </RoleGuard>
         </Box>
       </Box>
 
@@ -481,41 +485,46 @@ const PaymentManagement: React.FC = () => {
                         color={getStatusChipColor(payment.reconciliationStatus) as any}
                       />
                     </TableCell>
-                    <TableCell align="right">
-                      <Tooltip title="Edit payment">
-                        <IconButton
-                          size="small"
-                          onClick={() => {
-                            setSelectedPayment(payment);
-                            setIsUpdateModalOpen(true);
-                          }}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
+                    <TableCell align="right">                      <Tooltip title="Edit payment">
+                        <RoleGuard action="payment:edit" fallback={null}>
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              setSelectedPayment(payment);
+                              setIsUpdateModalOpen(true);
+                            }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </RoleGuard>
                       </Tooltip>
                       <Tooltip title="Reconcile payment">
-                        <IconButton
-                          size="small"
-                          onClick={() => {
-                            setSelectedPayment(payment);
-                            setIsReconcileModalOpen(true);
-                          }}
-                          disabled={payment.reconciliationStatus === 'reconciled'}
-                        >
-                          <CheckIcon fontSize="small" />
-                        </IconButton>
+                        <RoleGuard action="payment:edit" fallback={null}>
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              setSelectedPayment(payment);
+                              setIsReconcileModalOpen(true);
+                            }}
+                            disabled={payment.reconciliationStatus === 'reconciled'}
+                          >
+                            <CheckIcon fontSize="small" />
+                          </IconButton>
+                        </RoleGuard>
                       </Tooltip>
                       <Tooltip title="Delete payment">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => {
-                            setSelectedPayment(payment);
-                            setIsDeleteConfirmOpen(true);
-                          }}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
+                        <RoleGuard action="payment:delete" fallback={null}>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => {
+                              setSelectedPayment(payment);
+                              setIsDeleteConfirmOpen(true);
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </RoleGuard>
                       </Tooltip>
                     </TableCell>
                   </TableRow>

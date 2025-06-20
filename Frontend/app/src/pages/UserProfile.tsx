@@ -53,14 +53,10 @@ const UserProfile: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  
-  // Form state
+    // Form state
   const [firstName, setFirstName] = useState(user?.firstName || '');
   const [lastName, setLastName] = useState(user?.lastName || '');
   const [email, setEmail] = useState(user?.email || '');
-  const [jobTitle, setJobTitle] = useState('');
-  const [department, setDepartment] = useState('');
-  const [phone, setPhone] = useState('');
   
   // Password change state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -101,14 +97,10 @@ const UserProfile: React.FC = () => {
       // This would be replaced with your actual API call
       // For now we'll simulate an API delay
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock success response - replace with actual API call
+        // Mock success response - replace with actual API call
       // await userService.updateProfile({
       //   firstName,
-      //   lastName,
-      //   jobTitle,
-      //   department,
-      //   phone
+      //   lastName
       // });
       
       setSuccess('Profile updated successfully');
@@ -262,40 +254,12 @@ const UserProfile: React.FC = () => {
                     onChange={(e) => setLastName(e.target.value)}
                     disabled={!isEditing || loading}
                   />
-                </Box>
-                <Box sx={{ flex: '1 1 100%' }}>
+                </Box>                <Box sx={{ flex: '1 1 100%' }}>
                   <TextField
                     fullWidth
                     label="Email"
                     value={email}
                     disabled={true} // Email cannot be changed
-                  />
-                </Box>
-                <Box sx={{ flex: { xs: '1 1 100%', sm: '0 0 calc(50% - 8px)' } }}>
-                  <TextField
-                    fullWidth
-                    label="Job Title"
-                    value={jobTitle}
-                    onChange={(e) => setJobTitle(e.target.value)}
-                    disabled={!isEditing || loading}
-                  />
-                </Box>
-                <Box sx={{ flex: { xs: '1 1 100%', sm: '0 0 calc(50% - 8px)' } }}>
-                  <TextField
-                    fullWidth
-                    label="Department"
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                    disabled={!isEditing || loading}
-                  />
-                </Box>
-                <Box sx={{ flex: '1 1 100%' }}>
-                  <TextField
-                    fullWidth
-                    label="Phone Number"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    disabled={!isEditing || loading}
                   />
                 </Box>
               </Box>

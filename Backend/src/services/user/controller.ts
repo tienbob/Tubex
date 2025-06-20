@@ -3,6 +3,22 @@ import { AppError } from '../../middleware/errorHandler';
 import { AppDataSource } from '../../database/ormconfig';
 import { User } from '../../database/models/sql';
 
+// Helper function to extract name fields from user metadata
+const extractNameFields = (user: any) => {
+    const result = { ...user };
+
+    // Extract firstName and lastName from metadata if they exist
+    if (user.metadata) {
+        result.firstName = user.metadata.firstName || '';
+        result.lastName = user.metadata.lastName || '';
+    } else {
+        result.firstName = '';
+        result.lastName = '';
+    }
+
+    return result;
+};
+
 /**
  * @swagger
  * /users:
@@ -36,20 +52,21 @@ export const getAllUsers = async (req: Request, res: Response, next: NextFunctio
     try {
         const page = parseInt(req.query.page as string) || 1;
         const limit = parseInt(req.query.limit as string) || 10;
-        const skip = (page - 1) * limit;
-
-        const [users, total] = await userRepository.findAndCount({
-            select: ['id', 'email', 'role', 'status', 'created_at', 'updated_at'],
+        const skip = (page - 1) * limit;        const [users, total] = await userRepository.findAndCount({
+            select: ['id', 'email', 'role', 'status', 'created_at', 'updated_at', 'metadata'],
             relations: ['company'],
             skip,
             take: limit,
             order: { created_at: 'DESC' }
         });
 
+        // Process users to extract name fields from metadata
+        const processedUsers = users.map(extractNameFields);
+
         res.status(200).json({
             status: 'success',
             data: {
-                users,
+                users: processedUsers,
                 pagination: {
                     total,
                     page,
@@ -92,11 +109,9 @@ export const getUserById = async (req: Request, res: Response, next: NextFunctio
     const userRepository = AppDataSource.getRepository(User);
 
     try {
-        const { id } = req.params;
-
-        const user = await userRepository.findOne({
+        const { id } = req.params;        const user = await userRepository.findOne({
             where: { id },
-            select: ['id', 'email', 'role', 'status', 'created_at', 'updated_at'],
+            select: ['id', 'email', 'role', 'status', 'created_at', 'updated_at', 'metadata'],
             relations: ['company']
         });
 
@@ -104,9 +119,12 @@ export const getUserById = async (req: Request, res: Response, next: NextFunctio
             throw new AppError(404, 'User not found');
         }
 
+        // Process user to extract name fields from metadata
+        const processedUser = extractNameFields(user);
+
         res.status(200).json({
             status: 'success',
-            data: { user }
+            data: { user: processedUser }
         });
     } catch (error) {
         next(error);
@@ -154,13 +172,14 @@ export const getUserById = async (req: Request, res: Response, next: NextFunctio
  *         description: Server Error
  */
 export const updateUser = async (req: Request, res: Response, next: NextFunction) => {
-    const userRepository = AppDataSource.getRepository(User);
-
-    try {
+    const userRepository = AppDataSource.getRepository(User);    try {
         const { id } = req.params;
         const { email, role, status } = req.body;
 
-        const user = await userRepository.findOne({ where: { id } });
+        const user = await userRepository.findOne({ 
+            where: { id },
+            select: ['id', 'email', 'role', 'status', 'created_at', 'updated_at', 'metadata']
+        });
         if (!user) {
             throw new AppError(404, 'User not found');
         }
@@ -168,19 +187,22 @@ export const updateUser = async (req: Request, res: Response, next: NextFunction
         // Only update provided fields
         if (email) user.email = email;
         if (role) user.role = role;
-        if (status) user.status = status;
-
-        user.updated_at = new Date();
+        if (status) user.status = status;        user.updated_at = new Date();
         await userRepository.save(user);
+
+        // Process the updated user to include name fields
+        const processedUser = extractNameFields(user);
 
         res.status(200).json({
             status: 'success',
             message: 'User updated successfully',
             data: {
-                id: user.id,
-                email: user.email,
-                role: user.role,
-                status: user.status
+                id: processedUser.id,
+                email: processedUser.email,
+                role: processedUser.role,
+                status: processedUser.status,
+                firstName: processedUser.firstName,
+                lastName: processedUser.lastName
             }
         });
     } catch (error) {

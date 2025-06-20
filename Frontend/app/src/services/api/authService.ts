@@ -82,11 +82,8 @@ export interface EmployeeRegistrationRequest {
   password: string;
   firstName: string;
   lastName: string;
-  jobTitle: string;
-  department: string;
-  employeeId: string;
-  companyId: string;
   invitationCode: string;
+  role?: string; // Optional, defaults to 'staff' on backend
 }
 
 export interface ForgotPasswordRequest {
@@ -958,20 +955,41 @@ export const authService = {
       throw error;
     }
   },
-  
-  /**
+    /**
    * Validate invitation code
-   */
-  validateInvitationCode: async (code: string): Promise<{valid: boolean; companyName?: string; expiresAt?: string}> => {
+   */  validateInvitationCode: async (code: string): Promise<{valid: boolean; companyName?: string; companyId?: string; expiresAt?: string}> => {
     try {
       if (!code) {
         throw new Error('Invitation code is required');
       }
       
-      const response = await get<{valid: boolean; companyName?: string; expiresAt?: string}>(`/auth/validate-invitation/${code}`);
-      return response.data;
+      console.log('Frontend: Validating invitation code with backend:', code);
+      const response = await get<{status: string; data: {id: string; name: string; type: string; business_category: string}}>(`/auth/invitation-code/${code}`);
+      console.log('Frontend: Backend response:', response);
+      
+      // Transform the backend response to match expected format
+      if (response.data && response.data.status === 'success') {
+        const result = {
+          valid: true,
+          companyName: response.data.data.name,
+          companyId: response.data.data.id,
+          expiresAt: undefined // Backend doesn't provide expiry info in this endpoint
+        };
+        console.log('Frontend: Transformed response:', result);
+        return result;
+      } else {
+        console.log('Frontend: Invalid response format:', response.data);
+        return { valid: false };
+      }
     } catch (error) {
+      console.error('Frontend: Error validating invitation code:', error);
       if (error instanceof AxiosError) {
+        console.error('Frontend: Axios error details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          url: error.config?.url
+        });
         // Return invalid status instead of throwing error for this specific case
         return { valid: false };
       }

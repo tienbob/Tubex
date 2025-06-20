@@ -6,7 +6,6 @@ import {
   Paper,
   Button,
   TextField,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -23,10 +22,9 @@ import {
   Switch,
   FormControlLabel,
 } from '@mui/material';
-import { userManagementService, UserListParams, UserListResponse, UserUpdateRequest, UserCreateRequest } from '../services/api';
+import { userManagementService, UserListParams, UserListResponse, UserUpdateRequest, UserCreateRequest, Role, getUserName } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import UsersTab from '../components/whitelabel/user-management/UsersTab';
-import RolesTab from '../components/whitelabel/user-management/RolesTab';
 import InvitationsTab from '../components/whitelabel/user-management/InvitationsTab';
 
 interface TabPanelProps {
@@ -61,13 +59,11 @@ function a11yProps(index: number) {
 const UserManagement: React.FC = () => {
   const { user } = useAuth(); // Retrieve user object from AuthContext
   const companyId = user?.companyId; // Extract companyId dynamically
-
   // Tab state
   const [tabValue, setTabValue] = useState(0);
   
   // Users state
   const [users, setUsers] = useState<any[]>([]);
-  const [roles, setRoles] = useState<any[]>([]);
   const [invitations, setInvitations] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -84,16 +80,6 @@ const UserManagement: React.FC = () => {
   });
   const [userFormErrors, setUserFormErrors] = useState<Record<string, string>>({});
   
-  // Role dialog state
-  const [roleDialogOpen, setRoleDialogOpen] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<any | null>(null);
-  const [roleFormData, setRoleFormData] = useState({
-    name: '',
-    description: '',
-    permissions: [] as string[]
-  });
-  const [roleFormErrors, setRoleFormErrors] = useState<Record<string, string>>({});
-  
   // Invitation dialog state
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [inviteFormData, setInviteFormData] = useState({
@@ -102,27 +88,20 @@ const UserManagement: React.FC = () => {
     message: ''
   });
   const [inviteFormErrors, setInviteFormErrors] = useState<Record<string, string>>({});
-
   // Confirmation dialog state
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<(() => Promise<void>) | null>(null);
   const [confirmTitle, setConfirmTitle] = useState('');
   const [confirmMessage, setConfirmMessage] = useState('');
 
-  // Available permissions
-  const [availablePermissions, setAvailablePermissions] = useState<string[]>([
-    'users:read', 'users:write', 'users:delete',
-    'inventory:read', 'inventory:write', 'inventory:delete',
-    'products:read', 'products:write', 'products:delete',
-    'orders:read', 'orders:write', 'orders:delete',
-    'reports:read'
-  ]);
+  // Available roles based on current user's hierarchy
+  const [availableRoles, setAvailableRoles] = useState<Role[]>([]);
 
   // Fetch all data when component mounts
   useEffect(() => {
     fetchUsers();
-    fetchRoles();
     fetchInvitations();
+    fetchAvailableRoles();
   }, []);
 
   // Fetch users based on search query
@@ -134,10 +113,9 @@ const UserManagement: React.FC = () => {
       const params: UserListParams = {
         company_id: companyId,
         search: searchQuery || undefined, // Ensure compatibility with `UserListParams`
-      };
-
-      const response: UserListResponse = await userManagementService.getUsers(params);
-      setUsers(response.data || []); // Adjusted to use `data` instead of `users`
+      };      const response: UserListResponse = await userManagementService.getUsers(params);
+      console.log('Users API response:', response); // Debug log
+      setUsers(response.data?.users || []); // Fixed: access users from data.users
     } catch (err: any) {
       console.error('Error fetching users:', err);
       setError(err.message || 'Failed to load users');
@@ -145,29 +123,39 @@ const UserManagement: React.FC = () => {
       setLoading(false);
     }
   };
-
-  const fetchRoles = async () => {
-    console.warn('`getRoles` method is not implemented in `userManagementService`.');
-  };
-
   const fetchInvitations = async () => {
     console.warn('`getInvitations` method is not implemented in `userManagementService`.');
+  };
+
+  // Fetch available roles based on current user's hierarchy
+  const fetchAvailableRoles = async () => {
+    try {
+      const response = await userManagementService.getAvailableRoles();
+      setAvailableRoles(response.data);
+    } catch (err: any) {
+      console.error('Error fetching available roles:', err);
+      // Fallback to default roles if API fails
+      setAvailableRoles([
+        { id: 'admin', name: 'Admin' },
+        { id: 'manager', name: 'Manager' },
+        { id: 'staff', name: 'Staff' }
+      ]);
+    }
   };
 
   // Tab change handler
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
-  };
-
-  // User form handlers
+  };  // User form handlers
   const openUserDialog = (user: any = null) => {
     if (user) {
       setSelectedUser(user);
+      const { firstName, lastName } = getUserName(user);
       setUserFormData({
-        name: user.name || '',
+        name: `${firstName} ${lastName}`.trim() || '',
         email: user.email || '',
-        role: user.role?.id || '',
-        isActive: user.isActive !== false
+        role: user.role || '',
+        isActive: user.status === 'active'
       });
     } else {
       setSelectedUser(null);
@@ -188,7 +176,7 @@ const UserManagement: React.FC = () => {
   };
 
   const handleUserFormChange = (field: string, value: any) => {
-    if (field === 'role' && !['admin', 'manager', 'staff', 'supplier', 'dealer'].includes(value)) {
+    if (field === 'role' && !availableRoles.some(role => role.id === value)) {
       setUserFormErrors((prev) => ({ ...prev, role: 'Invalid role selected' }));
       return;
     }
@@ -256,9 +244,7 @@ const UserManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleDeleteUser = (userId: string) => {
+  };  const handleDeleteUser = (userId: string) => {
     setConfirmTitle('Delete User');
     setConfirmMessage('Are you sure you want to delete this user? This action cannot be undone.');
     setConfirmAction(async () => {
@@ -272,108 +258,6 @@ const UserManagement: React.FC = () => {
     });
     setConfirmDialogOpen(true);
   };
-
-  // Role form handlers
-  const openRoleDialog = (role: any = null) => {
-    if (role) {
-      setSelectedRole(role);
-      setRoleFormData({
-        name: role.name || '',
-        description: role.description || '',
-        permissions: role.permissions || []
-      });
-    } else {
-      setSelectedRole(null);
-      setRoleFormData({
-        name: '',
-        description: '',
-        permissions: []
-      });
-    }
-    setRoleFormErrors({});
-    setRoleDialogOpen(true);
-  };
-
-  const closeRoleDialog = () => {
-    setRoleDialogOpen(false);
-    setSelectedRole(null);
-  };
-
-  const handleRoleFormChange = (field: string, value: any) => {
-    setRoleFormData(prev => ({ ...prev, [field]: value }));
-    if (roleFormErrors[field]) {
-      setRoleFormErrors(prev => ({ ...prev, [field]: '' }));
-    }
-  };
-
-  const handlePermissionToggle = (permission: string) => {
-    setRoleFormData(prev => {
-      const isSelected = prev.permissions.includes(permission);
-      const updatedPermissions = isSelected
-        ? prev.permissions.filter(p => p !== permission)
-        : [...prev.permissions, permission];
-        
-      return { ...prev, permissions: updatedPermissions };
-    });
-  };
-
-  const validateRoleForm = () => {
-    const errors: Record<string, string> = {};
-    
-    if (!roleFormData.name.trim()) {
-      errors['name'] = 'Role name is required';
-    }
-    
-    if (roleFormData.permissions.length === 0) {
-      errors['permissions'] = 'At least one permission must be selected';
-    }
-    
-    setRoleFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleRoleSave = async () => {
-    if (!validateRoleForm()) return;
-    
-    setLoading(true);
-    try {
-      if (selectedRole) {
-        await userManagementService.updateRole(selectedRole.id, {
-          ...roleFormData,
-          companyId
-        });
-      } else {
-        await userManagementService.createRole({
-          ...roleFormData,
-          companyId
-        });
-      }
-      
-      fetchRoles();
-      closeRoleDialog();
-    } catch (err: any) {
-      console.error('Error saving role:', err);
-      setError(err.message || 'Failed to save role');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteRole = (roleId: string) => {
-    setConfirmTitle('Delete Role');
-    setConfirmMessage('Are you sure you want to delete this role? Users with this role will need to be reassigned.');
-    setConfirmAction(async () => {
-      try {
-        await userManagementService.deleteRole(roleId);
-        fetchRoles();
-      } catch (err: any) {
-        console.error('Error deleting role:', err);
-        setError(err.message || 'Failed to delete role');
-      }
-    });
-    setConfirmDialogOpen(true);
-  };
-
   // Invitation form handlers
   const openInviteDialog = () => {
     setInviteFormData({
@@ -460,42 +344,9 @@ const UserManagement: React.FC = () => {
       } catch (err: any) {
         console.error('Error cancelling invitation:', err);
         setError(err.message || 'Failed to cancel invitation');
-      }
-    });
+      }    });
     setConfirmDialogOpen(true);
   };
-
-  // Permission group rendering
-  const renderPermissionGroup = (group: string) => {
-    const groupPermissions = availablePermissions.filter(p => p.startsWith(`${group}:`));
-    
-    return (
-      <Paper key={group} sx={{ p: 2, mb: 2 }}>
-        <Typography variant="subtitle1" sx={{ mb: 1 }}>
-          {group.charAt(0).toUpperCase() + group.slice(1)}
-        </Typography>
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-          {groupPermissions.map(permission => {
-            const action = permission.split(':')[1];
-            const isSelected = roleFormData.permissions.includes(permission);
-            
-            return (
-              <Chip
-                key={permission}
-                label={action}
-                color={isSelected ? 'primary' : 'default'}
-                onClick={() => handlePermissionToggle(permission)}
-                sx={{ textTransform: 'capitalize' }}
-              />
-            );
-          })}
-        </Box>
-      </Paper>
-    );
-  };
-
-  // Get unique permission groups
-  const permissionGroups = Array.from(new Set(availablePermissions.map((p) => p.split(':')[0])));
 
   if (!companyId) {
     return <Typography variant="h6">Company ID is not available. Please log in again.</Typography>;
@@ -515,12 +366,10 @@ const UserManagement: React.FC = () => {
         </Alert>
       )}
 
-      <Paper sx={{ mb: 3 }}>
-        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+      <Paper sx={{ mb: 3 }}>        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tabs value={tabValue} onChange={handleTabChange} aria-label="user management tabs">
             <Tab label="Users" {...a11yProps(0)} />
-            <Tab label="Roles" {...a11yProps(1)} />
-            <Tab label="Invitations" {...a11yProps(2)} />
+            <Tab label="Invitations" {...a11yProps(1)} />
           </Tabs>
         </Box>
 
@@ -531,19 +380,9 @@ const UserManagement: React.FC = () => {
             fetchUsers={fetchUsers}
             openUserDialog={openUserDialog}
             handleDeleteUser={handleDeleteUser}
-          />
-        </TabPanel>
+          />        </TabPanel>
 
         <TabPanel value={tabValue} index={1}>
-          <RolesTab
-            roles={roles}
-            loading={loading}
-            openRoleDialog={openRoleDialog}
-            handleDeleteRole={handleDeleteRole}
-          />
-        </TabPanel>
-
-        <TabPanel value={tabValue} index={2}>
           <InvitationsTab
             invitations={invitations}
             loading={loading}
@@ -585,15 +424,14 @@ const UserManagement: React.FC = () => {
               helperText={userFormErrors.email}
               disabled={!!selectedUser} // Email can't be changed for existing users
             />
-            
-            <FormControl fullWidth error={!!userFormErrors.role}>
+              <FormControl fullWidth error={!!userFormErrors.role}>
               <InputLabel>Role</InputLabel>
               <Select
                 value={userFormData.role}
                 label="Role"
                 onChange={(e) => handleUserFormChange('role', e.target.value)}
               >
-                {roles.map(role => (
+                {availableRoles.map(role => (
                   <MenuItem key={role.id} value={role.id}>
                     {role.name}
                   </MenuItem>
@@ -625,60 +463,7 @@ const UserManagement: React.FC = () => {
           >
             {loading ? <CircularProgress size={24} /> : 'Save'}
           </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Role Dialog */}
-      <Dialog 
-        open={roleDialogOpen} 
-        onClose={closeRoleDialog}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          {selectedRole ? 'Edit Role' : 'Add New Role'}
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              label="Role Name"
-              fullWidth
-              value={roleFormData.name}
-              onChange={(e) => handleRoleFormChange('name', e.target.value)}
-              error={!!roleFormErrors.name}
-              helperText={roleFormErrors.name}
-            />
-            
-            <TextField
-              label="Description"
-              fullWidth
-              value={roleFormData.description}
-              onChange={(e) => handleRoleFormChange('description', e.target.value)}
-            />
-            
-            <Typography variant="subtitle1" gutterBottom>
-              Permissions
-            </Typography>
-            
-            {roleFormErrors.permissions && (
-              <FormHelperText error>{roleFormErrors.permissions}</FormHelperText>
-            )}
-            
-            {permissionGroups.map(group => renderPermissionGroup(group))}
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeRoleDialog}>Cancel</Button>
-          <Button 
-            onClick={handleRoleSave} 
-            variant="contained" 
-            color="primary"
-            disabled={loading}
-          >
-            {loading ? <CircularProgress size={24} /> : 'Save'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        </DialogActions>      </Dialog>
 
       {/* Invite Dialog */}
       <Dialog 
@@ -699,15 +484,14 @@ const UserManagement: React.FC = () => {
               error={!!inviteFormErrors.email}
               helperText={inviteFormErrors.email}
             />
-            
-            <FormControl fullWidth error={!!inviteFormErrors.role}>
+              <FormControl fullWidth error={!!inviteFormErrors.role}>
               <InputLabel>Role</InputLabel>
               <Select
                 value={inviteFormData.role}
                 label="Role"
                 onChange={(e) => handleInviteFormChange('role', e.target.value)}
               >
-                {roles.map(role => (
+                {availableRoles.map(role => (
                   <MenuItem key={role.id} value={role.id}>
                     {role.name}
                   </MenuItem>

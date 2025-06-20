@@ -27,6 +27,8 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { inventoryService } from '../../../services/api';
 import { InventoryItem } from '../../../services/api/inventoryService';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useAccessControl } from '../../../hooks/useAccessControl';
+import RoleGuard from '../../common/RoleGuard';
 
 interface InventoryListProps {
   companyId: string; // Required parameter
@@ -185,6 +187,7 @@ const InventoryList: React.FC<InventoryListProps> = ({
   const { theme: whitelabelTheme } = useTheme();
   const muiTheme = useMuiTheme();
   const { user } = useAuth();
+  const { canPerform } = useAccessControl();
 
   // Use reducer for state management
   const [state, dispatch] = useReducer(inventoryListReducer, {
@@ -393,14 +396,13 @@ const InventoryList: React.FC<InventoryListProps> = ({
   
   // Add actions column if required
   if (!hideActions) {
-    columns.push({
-      id: 'actions',
+    columns.push({      id: 'actions',
       label: 'Actions',
       minWidth: 120,
       align: 'right',
       format: (_, row) => (
         <Box>
-          {onAdjustInventory && (
+          {onAdjustInventory && canPerform('inventory:edit') && (
             <Tooltip title="Adjust Inventory">
               <IconButton 
                 size="small" 
@@ -413,8 +415,7 @@ const InventoryList: React.FC<InventoryListProps> = ({
               </IconButton>
             </Tooltip>
           )}
-          
-          {onTransferInventory && (
+            {onTransferInventory && canPerform('inventory:edit') && (
             <Tooltip title="Transfer Inventory">
               <IconButton 
                 size="small" 
@@ -508,24 +509,25 @@ const InventoryList: React.FC<InventoryListProps> = ({
                 </Select>
               </FormControl>
             )}
-            
-            <Tooltip title="Advanced Filters">
+              <Tooltip title="Advanced Filters">
               <IconButton>
                 <TuneIcon />
               </IconButton>
             </Tooltip>
           </Box>
           
-          {onAddInventory && (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={onAddInventory}
-              sx={buttonStyle}
-            >
-              Add Inventory
-            </Button>
-          )}
+          <RoleGuard action="inventory:create">
+            {onAddInventory && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={onAddInventory}
+                sx={buttonStyle}
+              >
+                Add Inventory
+              </Button>
+            )}
+          </RoleGuard>
         </Box>
       </Box>
       

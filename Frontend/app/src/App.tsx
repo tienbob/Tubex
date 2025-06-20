@@ -6,7 +6,7 @@ import {
 } from './components/whitelabel';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import ProtectedRoute from './components/auth/ProtectedRoute';
+import ProtectedRoute from './components/common/ProtectedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import LoadingSpinner from './components/common/LoadingSpinner';
 import { AuthProvider } from './contexts/AuthContext';
@@ -24,6 +24,7 @@ import InventoryManagement from './pages/InventoryManagement';
 import OrderManagement from './pages/OrderManagement';
 import PaymentManagement from './pages/PaymentManagement';
 import WarehouseManagement from './pages/WarehouseManagement';
+import UserManagement from './pages/UserManagement';
 import UserProfile from './pages/UserProfile';
 import Settings from './pages/Settings';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
@@ -58,93 +59,102 @@ const App: React.FC = () => {
             <CssBaseline />
             <AuthProvider>
               <ToastProvider>
-                <Router>                  <WhiteLabelProvider>
+                <Router>                  
+                  <WhiteLabelProvider>
                     <CompanySettingsProvider>
-                        <WhiteLabelLayout>
-                          <Suspense fallback={<LoadingSpinner />}>
-                            <Routes>
-                              {/* Public routes */}
-                              <Route path="/login" element={<Login />} />
-                              <Route path="/register" element={<Register />} />
-                              <Route path="/forgot-password" element={<ForgotPassword />} />
-                              <Route path="/reset-password/:token" element={<ResetPassword />} />
-                              <Route path="/join/:invitationCode" element={<Join />} />
-                              <Route path="/auth/pending-approval" element={<PendingApproval />} />
-                              
-                              {/* Protected routes */}
-                              <Route path="/" element={
-                                <ProtectedRoute>
-                                  <Navigate to="/dashboard" replace />
-                                </ProtectedRoute>
-                              } />
-                              <Route path="/dashboard" element={
-                                <ProtectedRoute>
-                                  <Dashboard />
-                                </ProtectedRoute>
-                              } />
-                              <Route path="/analytics" element={
-                                <ProtectedRoute>
-                                  <AnalyticsDashboard />
-                                </ProtectedRoute>
-                              } />
-                              <Route path="/products" element={
-                                <ProtectedRoute>
-                                  <ProductManagement />
-                                </ProtectedRoute>
-                              } />
-                              <Route path="/inventory" element={
-                                <ProtectedRoute>
-                                  <InventoryManagement />
-                                </ProtectedRoute>
-                              } />
-                              <Route path="/warehouses" element={
-                                <ProtectedRoute>
-                                  <WarehouseManagement />
-                                </ProtectedRoute>
-                              } />
-                              <Route path="/orders" element={
-                                <ProtectedRoute>
-                                  <OrderManagement />
-                                </ProtectedRoute>
-                              } />
-                              <Route path="/payments" element={
-                                <ProtectedRoute>
-                                  <PaymentManagement />
-                                </ProtectedRoute>
-                              } />
-                              <Route path="/invoices/*" element={
-                                <ProtectedRoute>
-                                  <InvoiceManagement />
-                                </ProtectedRoute>
-                              } />
-                              <Route path="/quotes" element={
-                                <ProtectedRoute>
-                                  <QuoteManagement />
-                                </ProtectedRoute>
-                              } />
-                              <Route path="/pricelists" element={
-                                <ProtectedRoute>
-                                  <PriceListManagement />
-                                </ProtectedRoute>
-                              } />
-                              
-                              <Route path="/profile" element={
-                                <ProtectedRoute>
-                                  <UserProfile />
-                                </ProtectedRoute>
-                              } />
-                              
-                              <Route path="/settings" element={
-                                <ProtectedRoute>
-                                  <Settings />
-                                </ProtectedRoute>
-                              } />
-                              
-                              {/* 404 route */}
-                              <Route path="*" element={<NotFound />} />
-                            </Routes>
-                          </Suspense>                        
-                          </WhiteLabelLayout>                  
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <Routes>
+                          {/* Public routes - NO sidebar */}
+                          <Route path="/login" element={<Login />} />
+                          <Route path="/register" element={<Register />} />
+                          <Route path="/forgot-password" element={<ForgotPassword />} />
+                          <Route path="/reset-password/:token" element={<ResetPassword />} />
+                          <Route path="/join" element={<Join />} />
+                          <Route path="/join/:invitationCode" element={<Join />} />
+                          <Route path="/auth/pending-approval" element={<PendingApproval />} />
+                          
+                          {/* Protected routes - WITH sidebar/layout */}
+                          <Route path="/*" element={
+                            <WhiteLabelLayout>
+                              <Routes>
+                                <Route path="/" element={
+                                  <ProtectedRoute requiredPage="/dashboard">
+                                    <Navigate to="/dashboard" replace />
+                                  </ProtectedRoute>
+                                } />
+                                <Route path="/dashboard" element={
+                                  <ProtectedRoute requiredPage="/dashboard">
+                                    <Dashboard />
+                                  </ProtectedRoute>
+                                } />
+                                <Route path="/analytics" element={
+                                  <ProtectedRoute requiredPage="/analytics">
+                                    <AnalyticsDashboard />
+                                  </ProtectedRoute>
+                                } />
+                                <Route path="/users" element={
+                                  <ProtectedRoute requiredPage="/users">
+                                    <UserManagement />
+                                  </ProtectedRoute>
+                                } />
+                                <Route path="/products" element={
+                                  <ProtectedRoute requiredPage="/products">
+                                    <ProductManagement />
+                                  </ProtectedRoute>
+                                } />
+                                <Route path="/inventory" element={
+                                  <ProtectedRoute requiredPage="/inventory">
+                                    <InventoryManagement />
+                                  </ProtectedRoute>
+                                } />
+                                <Route path="/warehouses" element={
+                                  <ProtectedRoute requiredPage="/warehouses">
+                                    <WarehouseManagement />
+                                  </ProtectedRoute>
+                                } />
+                                <Route path="/orders" element={
+                                  <ProtectedRoute requiredPage="/orders">
+                                    <OrderManagement />
+                                  </ProtectedRoute>
+                                } />
+                                <Route path="/payments" element={
+                                  <ProtectedRoute requiredPage="/payments">
+                                    <PaymentManagement />
+                                  </ProtectedRoute>
+                                } />
+                                <Route path="/invoices/*" element={
+                                  <ProtectedRoute requiredPage="/invoices">
+                                    <InvoiceManagement />
+                                  </ProtectedRoute>
+                                } />
+                                <Route path="/quotes" element={
+                                  <ProtectedRoute requiredPage="/quotes">
+                                    <QuoteManagement />
+                                  </ProtectedRoute>
+                                } />
+                                <Route path="/pricelists" element={
+                                  <ProtectedRoute requiredPage="/price-lists">
+                                    <PriceListManagement />
+                                  </ProtectedRoute>
+                                } />
+                                <Route path="/profile" element={
+                                  <ProtectedRoute>
+                                    <UserProfile />
+                                  </ProtectedRoute>
+                                } />
+                                <Route path="/settings" element={
+                                  <ProtectedRoute requiredPage="/settings">
+                                    <Settings />
+                                  </ProtectedRoute>
+                                } />
+                                
+                                {/* 404 route */}
+                                <Route path="*" element={<NotFound />} />
+                              </Routes>
+                            </WhiteLabelLayout>
+                          } />
+                        </Routes>
+                      </Suspense>                        
                     </CompanySettingsProvider>
                   </WhiteLabelProvider>
                 </Router>

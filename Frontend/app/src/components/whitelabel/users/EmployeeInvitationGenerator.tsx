@@ -115,13 +115,12 @@ const EmployeeInvitationGenerator: React.FC<EmployeeInvitationGeneratorProps> = 
   };
 
   return (
-    <Paper sx={{ p: 3, mb: 3 }}>
-      <Typography variant="h6" gutterBottom>
+    <Paper sx={{ p: 3, mb: 3 }}>      <Typography variant="h6" gutterBottom>
         Employee Invitation
       </Typography>
       <Typography variant="body2" color="text.secondary" paragraph>
         Generate an invitation code to allow new employees to register to your company. 
-        The invitation code is valid for 48 hours.
+        Share the invitation code or URL with employees. The invitation code is valid for 48 hours.
       </Typography>
 
       {error && (
@@ -184,6 +183,12 @@ const EmployeeInvitationGenerator: React.FC<EmployeeInvitationGeneratorProps> = 
                   : `This code will expire on ${formatExpiryDate(expiresAt)}`}
             </Typography>
           )}
+          
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              <strong>How to use:</strong> Provide this invitation URL to your employee. When they visit the link, they'll be able to create their account with your company.
+            </Typography>
+          </Alert>
 
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
             <Button

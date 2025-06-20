@@ -16,6 +16,7 @@ import { dashboardService } from '../services/api/dashboardService';
 import { productService, orderService, inventoryService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAccessControl } from '../hooks/useAccessControl';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -52,6 +53,7 @@ function a11yProps(index: number) {
 
 const Dashboard: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
+  const { permissions, canPerform } = useAccessControl();
   const navigate = useNavigate();
   const location = useLocation();
   const [value, setValue] = useState(0);
@@ -279,6 +281,37 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const getAvailableTabs = () => {
+    const allTabs = [
+      { id: 0, label: 'Overview', permission: 'dashboard' },
+      { id: 1, label: 'User Management', permission: 'userView' },
+      { id: 2, label: 'Products', permission: 'productView' },
+      { id: 3, label: 'Orders', permission: 'orderView' },
+      { id: 4, label: 'Inventory', permission: 'inventoryView' }
+    ];
+
+    return allTabs.filter(tab => {
+      if (tab.permission === 'dashboard') return permissions.dashboard;
+      if (tab.permission === 'userView') return permissions.userView;
+      if (tab.permission === 'productView') return permissions.productView;
+      if (tab.permission === 'orderView') return permissions.orderView;
+      if (tab.permission === 'inventoryView') return permissions.inventoryView;
+      return false;
+    });
+  };
+
+  const availableTabs = getAvailableTabs();
+
+  // Helper function to get the display index for a tab based on available tabs
+  const getTabDisplayIndex = (tabId: number) => {
+    return availableTabs.findIndex(tab => tab.id === tabId);
+  };
+
+  // Helper function to check if a tab is available
+  const isTabAvailable = (tabId: number) => {
+    return availableTabs.some(tab => tab.id === tabId);
+  };
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       {/* Sticky Dashboard Header */}
@@ -302,28 +335,25 @@ const Dashboard: React.FC = () => {
               variant="scrollable"
               scrollButtons="auto"
             >
-              <Tab label="Overview" {...a11yProps(0)} />
-              <Tab label="User Management" {...a11yProps(1)} />
-              <Tab label="Products" {...a11yProps(2)} />
-              <Tab label="Orders" {...a11yProps(3)} />
-              <Tab label="Inventory" {...a11yProps(4)} />
+              {availableTabs.map((tab) => (
+                <Tab key={tab.id} label={tab.label} {...a11yProps(tab.id)} />
+              ))}
             </Tabs>
-          </Box>
-
-          {/* Overview Tab */}
-          <TabPanel value={value} index={0}>
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-                <Button 
-                  size="small" 
-                  sx={{ ml: 2 }} 
-                  onClick={() => fetchDashboardData()}
-                >
-                  Retry
-                </Button>
-              </Alert>
-            )}
+          </Box>          {/* Overview Tab */}
+          {isTabAvailable(0) && (
+            <TabPanel value={value} index={getTabDisplayIndex(0)}>
+              {error && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {error}
+                  <Button 
+                    size="small" 
+                    sx={{ ml: 2 }} 
+                    onClick={() => fetchDashboardData()}
+                  >
+                    Retry
+                  </Button>
+                </Alert>
+              )}
             {loading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
                 <CircularProgress />
@@ -406,29 +436,30 @@ const Dashboard: React.FC = () => {
                           <strong>Warehouse Utilization:</strong> {inventorySummary.warehouseUtilization || 0}%
                         </Typography>
                       </Box>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">No inventory data available</Typography>
+                    ) : (                      <Typography variant="body2" color="text.secondary">No inventory data available</Typography>
                     )}
                   </Paper>
                 </Box>
               </Box>
             )}
-          </TabPanel>
+            </TabPanel>
+          )}
           
           {/* User Management Tab */}
-          <TabPanel value={value} index={1}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <Box>
-                <EmployeeInvitationGenerator companyId={companyId} />
+          {isTabAvailable(1) && (
+            <TabPanel value={value} index={getTabDisplayIndex(1)}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <Box>
+                  <EmployeeInvitationGenerator companyId={companyId} />
+                </Box>
+                <Box>
+                  <PendingEmployeesList onEmployeeStatusChange={() => {}} />
+                </Box>
               </Box>
-              <Box>
-                <PendingEmployeesList onEmployeeStatusChange={() => {}} />
-              </Box>
-            </Box>
-          </TabPanel>
-
-          {/* Products Tab */}
-          <TabPanel value={value} index={2}>
+            </TabPanel>
+          )}          {/* Products Tab */}
+          {isTabAvailable(2) && (
+            <TabPanel value={value} index={getTabDisplayIndex(2)}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                 <Typography variant="h6" fontWeight={700} color="primary.main">Product Management</Typography>
@@ -515,13 +546,14 @@ const Dashboard: React.FC = () => {
                       </Button>
                     </Paper>
                   )}
-                </>
-              )}
+                </>              )}
             </Box>
-          </TabPanel>
+            </TabPanel>
+          )}
 
           {/* Orders Tab */}
-          <TabPanel value={value} index={3}>
+          {isTabAvailable(3) && (
+            <TabPanel value={value} index={getTabDisplayIndex(3)}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                 <Typography variant="h6" fontWeight={700} color="primary.main">Order Management</Typography>
@@ -624,13 +656,14 @@ const Dashboard: React.FC = () => {
                       </Button>
                     </Paper>
                   )}
-                </>
-              )}
+                </>              )}
             </Box>
-          </TabPanel>
+            </TabPanel>
+          )}
 
           {/* Inventory Tab */}
-          <TabPanel value={value} index={4}>
+          {isTabAvailable(4) && (
+            <TabPanel value={value} index={getTabDisplayIndex(4)}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                 <Typography variant="h6" fontWeight={700} color="primary.main">Inventory Management</Typography>
@@ -748,13 +781,13 @@ const Dashboard: React.FC = () => {
                         onClick={() => handleNavigation('/inventory/create')}
                       >
                         Add Your First Inventory Item
-                      </Button>
-                    </Paper>
+                      </Button>                    </Paper>
                   )}
                 </>
               )}
             </Box>
-          </TabPanel>
+            </TabPanel>
+          )}
         </Paper>
       </Box>
     </Container>

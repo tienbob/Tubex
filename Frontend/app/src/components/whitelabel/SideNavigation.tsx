@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAccessControl } from '../../hooks/useAccessControl';
 
 // Icons
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -22,6 +23,7 @@ import InventoryIcon from '@mui/icons-material/Inventory';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import DescriptionIcon from '@mui/icons-material/Description';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import PeopleIcon from '@mui/icons-material/People';
 import SettingsIcon from '@mui/icons-material/Settings';
 import WarehouseIcon from '@mui/icons-material/Warehouse';
 import PaymentIcon from '@mui/icons-material/Payment';
@@ -46,6 +48,13 @@ const navigationItems = [
     label: 'Analytics',
     path: '/analytics',
     icon: <BarChartIcon />,
+  },  {
+    id: 'users',
+    label: 'Users',
+    icon: <PeopleIcon />,
+    children: [
+      { id: 'users-list', label: 'User Management', path: '/users' },
+    ],
   },
   {
     id: 'inventory',
@@ -87,6 +96,35 @@ const drawerWidth = 240;
 const DRAWER_STATE_KEY = 'tubex_side_nav_open';
 
 const SideNavigation: React.FC = () => {
+  const { canAccess, loading: accessLoading } = useAccessControl();
+  
+  // Filter navigation items based on user permissions
+  const getFilteredNavigationItems = () => {
+    return navigationItems.filter(item => {
+      // For items with direct paths, check access
+      if (item.path) {
+        return canAccess(item.path);
+      }
+      
+      // For items with children, check if user has access to any child
+      if (item.children) {
+        const accessibleChildren = item.children.filter(child => canAccess(child.path));
+        return accessibleChildren.length > 0;
+      }
+      
+      return true; // Show items without specific path/children restrictions
+    }).map(item => {
+      // Filter children based on permissions
+      if (item.children) {
+        return {
+          ...item,
+          children: item.children.filter(child => canAccess(child.path))
+        };
+      }
+      return item;
+    });
+  };
+  
   // Load drawer open state from localStorage
   const [open, setOpen] = useState(() => {
     try {
@@ -197,9 +235,14 @@ const SideNavigation: React.FC = () => {
       </Box>
       
       <Divider />
-      
-      <List sx={{ pt: 0 }}>
-        {navigationItems.map((item) => (
+        <List sx={{ pt: 0 }}>
+        {accessLoading ? (
+          // Show loading placeholder while checking permissions
+          <ListItem>
+            <ListItemText primary="Loading..." />
+          </ListItem>
+        ) : (
+          getFilteredNavigationItems().map((item) => (
           item.children ? (
             <React.Fragment key={item.id}>
               <ListItem 
@@ -321,14 +364,14 @@ const SideNavigation: React.FC = () => {
                       fontWeight: isActiveRoute(item.path) ? 600 : 400,
                       color: isActiveRoute(item.path) ? 
                         customTheme?.primaryColor || muiTheme.palette.primary.main : 
-                        'inherit',
-                    }}
+                        'inherit',                    }}
                   />
                 )}
               </ListItemButton>
             </ListItem>
           )
-        ))}
+          ))
+        )}
       </List>
     </Drawer>
   );

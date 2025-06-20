@@ -26,6 +26,7 @@ import OrderDetails from '../components/whitelabel/orders/OrderDetails';
 import CreateOrderForm from '../components/whitelabel/orders/CreateOrderForm';
 import { format } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
+import { useAccessControl } from '../hooks/useAccessControl';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -67,6 +68,7 @@ const statusColors: Record<string, "default" | "primary" | "secondary" | "error"
 };
 
 const OrderManagement: React.FC = () => {
+  const { canPerform, permissions } = useAccessControl();
   const [tabValue, setTabValue] = useState(0);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -238,18 +240,19 @@ const OrderManagement: React.FC = () => {
   };
 
   const renderOrderList = () => (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+    <Box>      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
           Orders
         </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleCreateOrder}
-        >
-          Create New Order
-        </Button>
+        {canPerform('orderCreate') && (
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleCreateOrder}
+          >
+            Create New Order
+          </Button>
+        )}
       </Box>
 
       {/* Search and Filter */}
@@ -377,19 +380,23 @@ const OrderManagement: React.FC = () => {
                 </Box>
               </Paper>
             ))
-          ) : (
-            <Paper sx={{ p: 3, textAlign: 'center' }}>
+          ) : (            <Paper sx={{ p: 3, textAlign: 'center' }}>
               <Typography variant="body1" color="text.secondary">
-                No orders found. Try a different filter or create a new order.
+                {canPerform('orderCreate') ? 
+                  "No orders found. Try a different filter or create a new order." :
+                  "No orders found. Try a different filter."
+                }
               </Typography>
-              <Button
-                variant="outlined"
-                color="primary"
-                sx={{ mt: 2 }}
-                onClick={handleCreateOrder}
-              >
-                Create New Order
-              </Button>
+              {canPerform('orderCreate') && (
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  sx={{ mt: 2 }}
+                  onClick={handleCreateOrder}
+                >
+                  Create New Order
+                </Button>
+              )}
             </Paper>
           )}
         </Box>
@@ -433,10 +440,8 @@ const OrderManagement: React.FC = () => {
             }}
           />
         </Box>
-      )}
-
-      {/* Create Order Form */}
-      {showCreateForm && (
+      )}      {/* Create Order Form */}
+      {showCreateForm && canPerform('orderCreate') && (
         <Box>
           <Button
             variant="text"

@@ -4,6 +4,8 @@ import { getQuotes, Quote, createQuote, CreateQuoteRequest } from '../services/a
 import { DataTable } from '../components/whitelabel';
 import { useNavigate } from 'react-router-dom';
 import { Button, Modal, Box, TextField } from '@mui/material';
+import { useAccessControl } from '../hooks/useAccessControl';
+import RoleGuard from '../components/common/RoleGuard';
 
 const QuoteManagement: React.FC = () => {
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -13,6 +15,7 @@ const QuoteManagement: React.FC = () => {
   const [form, setForm] = useState<CreateQuoteRequest>({ customerId: '', items: [], validUntil: '' });
   const [formError, setFormError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { canPerform } = useAccessControl();
 
   useEffect(() => {
     setLoading(true);
@@ -47,14 +50,15 @@ const QuoteManagement: React.FC = () => {
       setFormError(err.message);
     }
   };
-
   return (
     <div>
       <h1>Quote Management</h1>
       <div style={{ marginBottom: 16 }}>
-        <Button variant="contained" color="primary" onClick={handleOpen} style={{ marginRight: 8 }}>
-          Create Quote
-        </Button>
+        <RoleGuard action="quote:create" fallback={null}>
+          <Button variant="contained" color="primary" onClick={handleOpen} style={{ marginRight: 8 }}>
+            Create Quote
+          </Button>
+        </RoleGuard>
         <Button variant="outlined" onClick={() => navigate('/invoices')} style={{ marginRight: 8 }}>
           Go to Invoices
         </Button>

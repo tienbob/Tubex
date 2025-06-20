@@ -25,6 +25,8 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import { orderService, productService, warehouseService } from '../../../services/api';
+import { useAccessControl } from '../../../hooks/useAccessControl';
+import RoleGuard from '../../common/RoleGuard';
 
 interface CreateOrderFormProps {
   companyId: string;
@@ -37,6 +39,7 @@ const CreateOrderForm: React.FC<CreateOrderFormProps> = ({
   onSave,
   onCancel
 }) => {
+  const { canPerform } = useAccessControl();
   // Form data
   const [formData, setFormData] = useState({
     customer_name: '',
@@ -539,8 +542,7 @@ const CreateOrderForm: React.FC<CreateOrderFormProps> = ({
           sx={{ mt: 2 }}
         />
       </Paper>
-      
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
         <Button 
           variant="outlined" 
           onClick={onCancel}
@@ -548,14 +550,29 @@ const CreateOrderForm: React.FC<CreateOrderFormProps> = ({
         >
           Cancel
         </Button>
-        <Button 
-          variant="contained" 
-          color="primary" 
-          onClick={handleSubmit}
-          disabled={loading}
+        <RoleGuard 
+          action="order:create"
+          fallback={
+            <Button
+              variant="contained"
+              color="primary"
+              disabled={true}
+              title="You don't have permission to create orders"
+            >
+              Create Order
+            </Button>
+          }
+          showFallback
         >
-          {loading ? <CircularProgress size={24} /> : 'Create Order'}
-        </Button>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            onClick={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={24} /> : 'Create Order'}
+          </Button>
+        </RoleGuard>
       </Box>
     </Box>
   );

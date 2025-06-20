@@ -16,16 +16,21 @@ export class ApiError extends Error {
 
 export interface User {
   id: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
-  role: 'admin' | 'manager' | 'staff' | 'supplier' | 'dealer';
+  role: 'admin' | 'manager' | 'staff';
   status: 'active' | 'inactive' | 'pending' | 'suspended';
   company_id?: string;
   company?: {
     id: string;
     name: string;
     type: string;
+  };
+  metadata?: {
+    firstName?: string;
+    lastName?: string;
+    [key: string]: any;
   };
 }
 
@@ -34,7 +39,7 @@ export interface UserCreateRequest {
   lastName: string;
   email: string;
   password: string;
-  role: 'admin' | 'manager' | 'staff' | 'supplier' | 'dealer';
+  role: 'admin' | 'manager' | 'staff';
   status?: 'active' | 'inactive' | 'pending' | 'suspended';
   companyId: string;
   sendInvitation?: boolean;
@@ -44,7 +49,7 @@ export interface UserUpdateRequest {
   firstName?: string;
   lastName?: string;
   email?: string;
-  role?: 'admin' | 'manager' | 'staff' | 'supplier' | 'dealer';
+  role?: 'admin' | 'manager' | 'staff';
   status?: 'active' | 'inactive' | 'pending' | 'suspended';
   companyId?: string;
 }
@@ -59,11 +64,15 @@ export interface UserListParams {
 }
 
 export interface UserListResponse {
-  data: User[];
-  pagination: {
-    total: number;
-    page: number;
-    limit: number;
+  status: string;
+  data: {
+    users: User[];
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      pages: number;
+    };
   };
 }
 
@@ -81,6 +90,16 @@ export interface InvitationCodeRequest {
 export interface InvitationCodeResponse {
   code: string;
   expiresAt: string;
+}
+
+export interface Role {
+  id: string;
+  name: string;
+}
+
+export interface RolesResponse {
+  success: boolean;
+  data: Role[];
 }
 
 /**
@@ -394,7 +413,6 @@ const userManagementService = {
       throw error;
     }
   },
-
   /**
    * Cancel an invitation
    */
@@ -412,6 +430,38 @@ const userManagementService = {
       throw error;
     }
   },
+
+  /**
+   * Get available roles that the current user can assign
+   */
+  getAvailableRoles: async (): Promise<RolesResponse> => {
+    try {
+      const response = await apiClient.get<RolesResponse>('/company/manage/roles');
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || 'Failed to fetch available roles',
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
+  },
 };
 
 export default userManagementService;
+
+// Helper function to get user's first and last name from either direct properties or metadata
+export const getUserName = (user: any): { firstName: string; lastName: string; fullName: string } => {
+  const firstName = user?.firstName || user?.metadata?.firstName || '';
+  const lastName = user?.lastName || user?.metadata?.lastName || '';
+  const fullName = `${firstName} ${lastName}`.trim();
+  
+  return {
+    firstName,
+    lastName,
+    fullName: fullName || user?.email?.split('@')[0] || 'N/A'
+  };
+};

@@ -46,6 +46,8 @@ import {
   type CreateInvoiceRequest
 } from '../../../services/api/invoiceService';
 import { productService } from '../../../services/api';
+import { useAccessControl } from '../../../hooks/useAccessControl';
+import RoleGuard from '../../common/RoleGuard';
 
 interface InvoiceFormProps {
   invoiceId?: string;
@@ -73,6 +75,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
   onCancel,
 }) => {
   const isEditMode = !!invoiceId;
+  const { canPerform } = useAccessControl();
 
   const [invoice, setInvoice] = useState<Partial<Invoice>>({
     items: [],
@@ -553,17 +556,34 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
 
           {/* Invoice Items */}
           <Box>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-              <Typography variant="subtitle1">
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>              <Typography variant="subtitle1">
                 Invoice Items
               </Typography>
-              <Button
-                variant="outlined"
-                startIcon={<AddIcon />}
-                onClick={handleAddItem}
+              <RoleGuard 
+                action={isEditMode ? 'invoice:edit' : 'invoice:create'}
+                fallback={
+                  <Button
+                    variant="outlined"
+                    startIcon={<AddIcon />}
+                    disabled={true}
+                    title={isEditMode 
+                      ? "You don't have permission to edit invoices"
+                      : "You don't have permission to create invoices"
+                    }
+                  >
+                    Add Item
+                  </Button>
+                }
+                showFallback
               >
-                Add Item
-              </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<AddIcon />}
+                  onClick={handleAddItem}
+                >
+                  Add Item
+                </Button>
+              </RoleGuard>
             </Box>
 
             {errors.items && (
@@ -649,14 +669,15 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
                             error={hasPriceError}
                             helperText={hasPriceError ? errors[`items[${index}].unitPrice`] : ''}
                           />
-                        </TableCell>
-                        <TableCell align="right">
+                        </TableCell>                        <TableCell align="right">
                           {formatCurrency(lineTotal)}
                         </TableCell>
                         <TableCell align="center">
-                          <IconButton color="error" onClick={() => handleRemoveItem(index)}>
-                            <DeleteIcon />
-                          </IconButton>
+                          <RoleGuard action={isEditMode ? 'invoice:edit' : 'invoice:create'}>
+                            <IconButton color="error" onClick={() => handleRemoveItem(index)}>
+                              <DeleteIcon />
+                            </IconButton>
+                          </RoleGuard>
                         </TableCell>
                       </TableRow>
                     );
@@ -732,12 +753,17 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
               placeholder="Add any notes or payment instructions here"
             />
           </Box>
-        </Box>
-      </Paper>      <FormButtons
+        </Box>      </Paper>      <FormButtons
         onCancel={handleCancel}
         onSubmit={handleSubmit}
         loading={loading}
         submitText={isEditMode ? 'Update Invoice' : 'Create Invoice'}
+        canSubmit={isEditMode ? canPerform('invoice:edit') : canPerform('invoice:create')}
+        submitDisabledReason={
+          isEditMode 
+            ? !canPerform('invoice:edit') ? 'You do not have permission to edit invoices' : undefined
+            : !canPerform('invoice:create') ? 'You do not have permission to create invoices' : undefined
+        }
       />
 
       <Dialog open={showConfirmDialog} onClose={handleCloseConfirmDialog}>

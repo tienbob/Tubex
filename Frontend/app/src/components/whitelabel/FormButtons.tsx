@@ -18,6 +18,11 @@ interface FormButtonsProps {
   cancelVariant?: 'contained' | 'outlined' | 'text';
   align?: 'left' | 'center' | 'right';
   direction?: 'row' | 'row-reverse';
+  // New props for permission-based control
+  canSubmit?: boolean;
+  submitDisabledReason?: string;
+  hideSubmit?: boolean;
+  hideCancel?: boolean;
 }
 
 const FormButtons: React.FC<FormButtonsProps> = ({
@@ -31,6 +36,11 @@ const FormButtons: React.FC<FormButtonsProps> = ({
   cancelVariant = 'outlined',
   align = 'right',
   direction = 'row',
+  // Permission-based props
+  canSubmit = true,
+  submitDisabledReason,
+  hideSubmit = false,
+  hideCancel = false,
 }) => {
   const { theme: whitelabelTheme } = useTheme();
   const muiTheme = useMuiTheme();
@@ -97,6 +107,14 @@ const FormButtons: React.FC<FormButtonsProps> = ({
       : undefined,
   };
 
+  // Check if we should show any buttons at all
+  const showCancelButton = !hideCancel && onCancel;
+  const showSubmitButton = !hideSubmit;
+  
+  if (!showCancelButton && !showSubmitButton) {
+    return null;
+  }
+
   return (
     <Box
       sx={{
@@ -108,7 +126,7 @@ const FormButtons: React.FC<FormButtonsProps> = ({
         width: '100%',
       }}
     >
-      {onCancel && (
+      {showCancelButton && (
         <Button
           variant={cancelVariant}
           onClick={onCancel}
@@ -119,24 +137,27 @@ const FormButtons: React.FC<FormButtonsProps> = ({
           {cancelText}
         </Button>
       )}
-      <Button
-        variant={submitVariant}
-        onClick={onSubmit}
-        disabled={disabled || loading}
-        sx={primaryButtonStyle}
-        fullWidth={true}
-      >
-        {loading && (
-          <CircularProgress
-            size={24}
-            sx={{ 
-              color: submitVariant === 'contained' ? 'white' : primaryButtonStyle.color,
-              mr: 1 
-            }}
-          />
-        )}
-        {submitText}
-      </Button>
+      {showSubmitButton && (
+        <Button
+          variant={submitVariant}
+          onClick={onSubmit}
+          disabled={disabled || loading || !canSubmit}
+          sx={primaryButtonStyle}
+          fullWidth={true}
+          title={!canSubmit && submitDisabledReason ? submitDisabledReason : undefined}
+        >
+          {loading && (
+            <CircularProgress
+              size={24}
+              sx={{ 
+                color: submitVariant === 'contained' ? 'white' : primaryButtonStyle.color,
+                mr: 1 
+              }}
+            />
+          )}
+          {submitText}
+        </Button>
+      )}
     </Box>
   );
 };

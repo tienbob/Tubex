@@ -7,18 +7,66 @@ import { sendUserStatusChangeEmail } from '../email/service';
 import { AuthenticatedRequest } from '../../types/express';
 import { In } from 'typeorm';
 
+// Helper function to extract name fields from user metadata
+const extractNameFields = (user: any) => {
+    const result = { ...user };
+    
+    // Extract firstName and lastName from metadata if they exist
+    if (user.metadata) {
+        result.firstName = user.metadata.firstName || '';
+        result.lastName = user.metadata.lastName || '';
+    } else {
+        result.firstName = '';
+        result.lastName = '';
+    }
+    
+    return result;
+};
+
+// Role hierarchy: admin > manager > staff
+type UserRole = 'admin' | 'manager' | 'staff';
+
+const roleHierarchy: Record<UserRole, number> = {
+    admin: 3,
+    manager: 2,
+    staff: 1
+};
+
+const canManageUser = (managerRole: UserRole, targetRole: UserRole): boolean => {
+    return roleHierarchy[managerRole] > roleHierarchy[targetRole];
+};
+
+const canAssignRole = (managerRole: UserRole, targetRole: UserRole): boolean => {
+    // Managers can only assign roles equal or lower than their own
+    return roleHierarchy[managerRole] >= roleHierarchy[targetRole];
+};
+
 export const listCompanyUsers = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
         const userRepository = AppDataSource.getRepository(User);
         
-        const users = await userRepository.find({
+        // Get all users in the company
+        const allUsers = await userRepository.find({
             where: { company: { id: req.user.companyId } },
-            select: ['id', 'email', 'role', 'status', 'created_at', 'updated_at']
+            select: ['id', 'email', 'role', 'status', 'created_at', 'updated_at', 'metadata']
         });
+
+        // Filter users based on role hierarchy
+        // Users can see themselves and users with lower roles
+        const visibleUsers = allUsers.filter(user => {
+            // Always show yourself
+            if (user.id === req.user.id) return true;
+            
+            // Show users you can manage (lower roles)
+            return canManageUser(req.user.role as UserRole, user.role as UserRole);
+        });
+
+        // Process users to extract name fields from metadata
+        const processedUsers = visibleUsers.map(extractNameFields);
 
         res.json({
             success: true,
-            data: users
+            data: { users: processedUsers }
         });
     } catch (error) {
         next(error);
@@ -32,7 +80,7 @@ export const updateUserRole = async (req: AuthenticatedRequest, res: Response, n
     await queryRunner.startTransaction();
 
     try {
-        const { role, status, reason } = req.body;
+        const { role, status, reason, firstName, lastName } = req.body;
         const targetUserId = req.params.userId;
 
         // Find target user within transaction
@@ -45,11 +93,17 @@ export const updateUserRole = async (req: AuthenticatedRequest, res: Response, n
 
         if (!targetUser) {
             throw new AppError(404, 'User not found');
-        }
-
-        // Prevent self-modification
+        }        // Prevent self-modification
         if (targetUser.id === req.user.id) {
             throw new AppError(400, 'You cannot modify your own role or status');
+        }        // Validate role hierarchy - can only manage users with lower roles
+        if (!canManageUser(req.user.role as UserRole, targetUser.role as UserRole)) {
+            throw new AppError(403, 'You do not have permission to manage this user');
+        }
+
+        // Validate role assignment - can only assign roles equal or lower than your own
+        if (!canAssignRole(req.user.role as UserRole, role as UserRole)) {
+            throw new AppError(403, 'You cannot assign a role higher than your own');
         }
 
         // Create audit log within the same transaction
@@ -61,8 +115,7 @@ export const updateUserRole = async (req: AuthenticatedRequest, res: Response, n
             previous: {
                 role: targetUser.role,
                 status: targetUser.status
-            },
-            new: {
+            },            new: {
                 role,
                 status
             }
@@ -77,6 +130,15 @@ export const updateUserRole = async (req: AuthenticatedRequest, res: Response, n
         // Update user
         targetUser.role = role;
         targetUser.status = status;
+
+        // Handle firstName and lastName in metadata
+        if (firstName !== undefined || lastName !== undefined) {
+            if (!targetUser.metadata) {
+                targetUser.metadata = {};
+            }
+            if (firstName !== undefined) targetUser.metadata.firstName = firstName;
+            if (lastName !== undefined) targetUser.metadata.lastName = lastName;
+        }
 
         // Save both the user and audit log within the transaction
         await queryRunner.manager.save(targetUser);
@@ -95,13 +157,18 @@ export const updateUserRole = async (req: AuthenticatedRequest, res: Response, n
             }
         }
 
+        // Process the updated user to include name fields
+        const processedUser = extractNameFields(targetUser);
+
         res.json({
             success: true,
             message: 'User updated successfully',
             data: {
-                id: targetUser.id,
-                role: targetUser.role,
-                status: targetUser.status
+                id: processedUser.id,
+                role: processedUser.role,
+                status: processedUser.status,
+                firstName: processedUser.firstName,
+                lastName: processedUser.lastName
             }
         });
     } catch (error) {
@@ -133,11 +200,14 @@ export const removeUser = async (req: AuthenticatedRequest, res: Response, next:
 
         if (!targetUser) {
             throw new AppError(404, 'User not found');
-        }
-
-        // Prevent self-removal
+        }        // Prevent self-removal
         if (targetUser.id === req.user.id) {
             throw new AppError(400, 'You cannot remove yourself from the company');
+        }
+
+        // Validate role hierarchy - can only remove users with lower roles
+        if (!canManageUser(req.user.role as UserRole, targetUser.role as UserRole)) {
+            throw new AppError(403, 'You do not have permission to remove this user');
         }
 
         // Create audit log
@@ -200,6 +270,28 @@ export const getUserAuditLogs = async (req: AuthenticatedRequest, res: Response,
         res.json({
             success: true,
             data: logs
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getAvailableRoles = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+        const currentUserRole = req.user.role as UserRole;
+        const currentRoleLevel = roleHierarchy[currentUserRole];
+        
+        // Get all roles that are equal or lower than the current user's role
+        const availableRoles = Object.entries(roleHierarchy)
+            .filter(([_, level]) => level <= currentRoleLevel)
+            .map(([role, _]) => ({
+                id: role,
+                name: role.charAt(0).toUpperCase() + role.slice(1)
+            }));
+
+        res.json({
+            success: true,
+            data: availableRoles
         });
     } catch (error) {
         next(error);
