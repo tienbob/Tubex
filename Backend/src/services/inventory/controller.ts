@@ -44,6 +44,7 @@ const checkResourceAccess = (req: Request, companyId: string, resourceOwnerId?: 
 
 export const getInventory = async (req: Request, res: Response) => {
     const { companyId, warehouseId } = req.params;
+    const { batchFilter } = req.query;
     
     // SECURITY FIX: Strict company access validation
     if (!checkCompanyAccess(req, companyId)) {
@@ -62,9 +63,7 @@ export const getInventory = async (req: Request, res: Response) => {
         throw new AppError(403, "Invalid company association");
     }
     
-    const userCompanyType = userCompany.type;
-    
-    // Build query using QueryBuilder to handle product relationships
+    const userCompanyType = userCompany.type;    // Build query using QueryBuilder to handle all relationships
     const queryBuilder = inventoryRepository
         .createQueryBuilder('inventory')
         .leftJoinAndSelect('inventory.product', 'product')
@@ -91,14 +90,60 @@ export const getInventory = async (req: Request, res: Response) => {
         });
         
         if (!warehouse) {
-            throw new AppError(403, "Warehouse does not belong to your company");
-        }
+            throw new AppError(403, "Warehouse does not belong to your company");        }
         
         queryBuilder.andWhere('inventory.warehouse_id = :warehouseId', { warehouseId });
+    }    const inventory = await queryBuilder.getMany();    // Get batch information for all inventory items
+    const inventoryIds = inventory.map(item => item.id);
+    let batches: Batch[] = [];
+    
+    if (inventoryIds.length > 0) {
+        const batchQuery = batchRepository
+            .createQueryBuilder('batch')
+            .where('batch.company_id = :companyId', { companyId })
+            .andWhere('batch.status = :status', { status: 'active' });
+        
+        // Apply batch filter if provided
+        if (batchFilter) {
+            batchQuery.andWhere('batch.batch_number ILIKE :batchFilter', { 
+                batchFilter: `%${batchFilter}%` 
+            });
+        }
+        
+        batches = await batchQuery.getMany();
     }
 
-    const inventory = await queryBuilder.getMany();
-    res.json(inventory);
+    // Create a map of batches by product_id and warehouse_id for faster lookup
+    const batchMap = new Map();
+    batches.forEach(batch => {
+        const key = `${batch.product_id}-${batch.warehouse_id}`;
+        if (!batchMap.has(key)) {
+            batchMap.set(key, []);
+        }
+        batchMap.get(key).push(batch);
+    });
+
+    // Transform inventory data to include flat properties that frontend expects
+    const transformedInventory = inventory.map(item => {
+        const batchKey = `${item.product_id}-${item.warehouse_id}`;
+        const itemBatches = batchMap.get(batchKey) || [];
+        const primaryBatch = itemBatches.length > 0 ? itemBatches[0] : null;
+        
+        return {
+            ...item,
+            product_name: item.product?.name || '',
+            warehouse_name: item.warehouse?.name || '',
+            supplier_name: item.product?.supplier?.name || '',
+            // Add flat properties for compatibility
+            threshold: item.min_threshold,
+            warehouse_capacity: item.warehouse?.capacity || 1000,
+            last_updated: item.updated_at,
+            batch_number: primaryBatch?.batch_number || null,
+            batches: itemBatches, // Include all batches for this inventory item
+        };
+    });
+    
+    res.json(transformedInventory);
 };
 
 export const getInventoryItem = async (req: Request, res: Response) => {
@@ -141,12 +186,23 @@ export const getInventoryItem = async (req: Request, res: Response) => {
     } else {
         throw new AppError(403, "Invalid company type for inventory access");
     }
-    
-    const item = await queryBuilder.getOne();
+      const item = await queryBuilder.getOne();
     if (!item) {
         throw new AppError(404, "Inventory item not found or access denied");
-    }
-    res.json(item);
+    }    // Transform inventory item to include flat properties that frontend expects
+    const transformedItem = {
+        ...item,
+        product_name: item.product?.name || '',
+        warehouse_name: item.warehouse?.name || '',
+        supplier_name: item.product?.supplier?.name || '',
+        // Add flat properties for compatibility
+        threshold: item.min_threshold,
+        warehouse_capacity: item.warehouse?.capacity || 1000,
+        last_updated: item.updated_at,
+        batch_number: null, // Placeholder for batch functionality
+    };
+    
+    res.json(transformedItem);
 };
 
 export const createInventoryItem = async (req: Request, res: Response) => {
@@ -211,25 +267,7 @@ export const createInventoryItem = async (req: Request, res: Response) => {
             reorder_point,
             reorder_quantity,
             auto_reorder,
-        });
-
-        await queryRunner.manager.save(newItem);        // Check if initial quantity requires batch tracking
-        if (quantity > 0) {
-            const initialBatch = new Batch();
-            initialBatch.batch_number = `INIT-${product_id}-${Date.now()}`;
-            initialBatch.product_id = product_id;
-            initialBatch.warehouse_id = warehouse_id;
-            initialBatch.company_id = companyId; // CRITICAL FIX: Add company_id for multi-tenant isolation
-            initialBatch.quantity = quantity;
-            initialBatch.unit = unit;
-            initialBatch.metadata = { 
-                type: 'initial_stock',
-                created_by: (req as any).user?.id 
-            };
-            
-            await queryRunner.manager.save(initialBatch);
-        }
-
+        });        await queryRunner.manager.save(newItem);        
         await queryRunner.commitTransaction();
         res.status(201).json(newItem);
     } catch (error) {
@@ -343,9 +381,10 @@ export const adjustInventoryQuantity = async (req: Request, res: Response) => {
         // Update inventory quantity
         item.quantity = newQuantity;
         await queryRunner.manager.save(item);        // Create batch record for incoming stock
-        if (batch_number && adjustment > 0) {
+        if (adjustment > 0) {
             const batch = new Batch();
-            batch.batch_number = batch_number;
+            // Generate a clean batch number if not provided
+            batch.batch_number = batch_number || `BATCH-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
             batch.product_id = item.product_id;
             batch.warehouse_id = item.warehouse_id;
             batch.company_id = companyId; // CRITICAL FIX: Add company_id for multi-tenant isolation
@@ -501,73 +540,136 @@ export const deleteInventoryItem = async (req: Request, res: Response) => {
 export const checkLowStock = async (req: Request, res: Response) => {
     const { companyId } = req.params;
     
-    // Check if user has access to this company's data
     if (!checkCompanyAccess(req, companyId)) {
         throw new AppError(403, "Unauthorized access to company data");
     }
     
+    const inventoryRepository = AppDataSource.getRepository(Inventory);
+    
     const user = (req as any).user;
-    const userRole = user?.role;
-    const userCompanyType = user?.companyType;
+    const userCompany = await AppDataSource.getRepository(Company).findOne({
+        where: { id: user.companyId }
+    });
     
-    const queryBuilder = inventoryRepository
-        .createQueryBuilder("inventory")
-        .leftJoinAndSelect("inventory.product", "product")
-        .leftJoinAndSelect("inventory.warehouse", "warehouse")
-        .leftJoinAndSelect("product.supplier", "supplier")
-        .where("inventory.company_id = :companyId", { companyId })
-        .andWhere("inventory.quantity <= inventory.min_threshold")
-        .andWhere("inventory.status = :status", { status: "active" });
-    
-    // Apply dealer/supplier filtering based on user role and company type
-    if (userRole === 'dealer' || (userRole === 'admin' && userCompanyType === 'dealer')) {
-        // Dealers and admins in dealer companies should only see low stock for products they have added
-        queryBuilder.andWhere('product.dealer_id = :companyId', { companyId });
-    } else if (userRole === 'supplier' || (userRole === 'admin' && userCompanyType === 'supplier')) {
-        // Suppliers and admins in supplier companies should see low stock for their products
-        queryBuilder.andWhere('product.supplier_id = :companyId', { companyId });
+    if (!userCompany) {
+        throw new AppError(403, "Invalid company association");
     }
-
+    
+    const userCompanyType = userCompany.type;
+    
+    // Build query for low stock items
+    const queryBuilder = inventoryRepository
+        .createQueryBuilder('inventory')
+        .leftJoinAndSelect('inventory.product', 'product')
+        .leftJoinAndSelect('inventory.warehouse', 'warehouse')
+        .leftJoinAndSelect('product.supplier', 'supplier')
+        .where('inventory.company_id = :companyId', { companyId })
+        .andWhere('inventory.min_threshold IS NOT NULL')
+        .andWhere('CAST(inventory.quantity AS DECIMAL) <= CAST(inventory.min_threshold AS DECIMAL)');
+    
+    // Apply role-based filtering
+    if (userCompanyType === 'dealer') {
+        queryBuilder.andWhere('product.dealer_id = :companyId', { companyId });
+    } else if (userCompanyType === 'supplier') {
+        queryBuilder.andWhere('product.supplier_id = :companyId', { companyId });
+    } else {
+        throw new AppError(403, "Invalid company type for inventory access");
+    }
+    
     const lowStockItems = await queryBuilder.getMany();
-    res.json(lowStockItems);
+    
+    // Transform data to include flat properties
+    const transformedItems = lowStockItems.map(item => ({
+        ...item,
+        product_name: item.product?.name || '',
+        warehouse_name: item.warehouse?.name || '',
+        supplier_name: item.product?.supplier?.name || '',
+        threshold: item.min_threshold,
+        warehouse_capacity: item.warehouse?.capacity || 1000,
+        last_updated: item.updated_at,
+    }));
+    
+    res.json(transformedItems);
 };
 
 export const getExpiringBatches = async (req: Request, res: Response) => {
     const { companyId } = req.params;
-    const { days = 30 } = req.query;
+    const { daysThreshold = 30, warehouseId } = req.query;
     
-    // Check if user has access to this company's data
     if (!checkCompanyAccess(req, companyId)) {
         throw new AppError(403, "Unauthorized access to company data");
     }
-
-    const user = (req as any).user;
-    const userRole = user?.role;
-    const userCompanyType = user?.companyType;
-
-    const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + Number(days));    const queryBuilder = batchRepository
-        .createQueryBuilder("batch")
-        .leftJoinAndSelect("batch.product", "product")
-        .leftJoinAndSelect("batch.warehouse", "warehouse")
-        .leftJoinAndSelect("product.supplier", "supplier")
-        .where("batch.company_id = :companyId", { companyId }) // CRITICAL FIX: Use batch.company_id for direct filtering
-        .andWhere("batch.expiry_date <= :expiryDate", { expiryDate })
-        .andWhere("batch.expiry_date >= :now", { now: new Date() })
-        .andWhere("batch.quantity > 0")
-        .andWhere("batch.status = :status", { status: "active" });
     
-    // Apply dealer/supplier filtering based on user role and company type
-    if (userRole === 'dealer' || (userRole === 'admin' && userCompanyType === 'dealer')) {
-        // Dealers and admins in dealer companies should only see expiring batches for products they have added
-        queryBuilder.andWhere('product.dealer_id = :companyId', { companyId });
-    } else if (userRole === 'supplier' || (userRole === 'admin' && userCompanyType === 'supplier')) {
-        // Suppliers and admins in supplier companies should see expiring batches for their products
-        queryBuilder.andWhere('product.supplier_id = :companyId', { companyId });
+    const user = (req as any).user;
+    const userCompany = await AppDataSource.getRepository(Company).findOne({
+        where: { id: user.companyId }
+    });
+    
+    if (!userCompany) {
+        throw new AppError(403, "Invalid company association");
     }
-
+    
+    const userCompanyType = userCompany.type;
+    const batchRepository = AppDataSource.getRepository(Batch);
+    
+    // Calculate the expiry date threshold
+    const expiryThreshold = new Date();
+    expiryThreshold.setDate(expiryThreshold.getDate() + Number(daysThreshold));
+    
+    // Build query for expiring batches
+    const queryBuilder = batchRepository
+        .createQueryBuilder('batch')
+        .leftJoinAndSelect('batch.product', 'product')
+        .leftJoinAndSelect('batch.warehouse', 'warehouse')
+        .leftJoinAndSelect('product.supplier', 'supplier')
+        .where('batch.company_id = :companyId', { companyId })
+        .andWhere('batch.expiry_date IS NOT NULL')
+        .andWhere('batch.expiry_date <= :expiryThreshold', { expiryThreshold })
+        .andWhere('batch.status = :status', { status: 'active' });
+    
+    // Apply role-based filtering
+    if (userCompanyType === 'dealer') {
+        queryBuilder.andWhere('product.dealer_id = :companyId', { companyId });
+    } else if (userCompanyType === 'supplier') {
+        queryBuilder.andWhere('product.supplier_id = :companyId', { companyId });
+    } else {
+        throw new AppError(403, "Invalid company type for inventory access");
+    }
+    
+    if (warehouseId) {
+        // Validate warehouse ownership
+        const warehouse = await AppDataSource.getRepository(Warehouse).findOne({
+            where: { id: warehouseId as string, company_id: companyId }
+        });
+        
+        if (!warehouse) {
+            throw new AppError(403, "Warehouse does not belong to your company");
+        }
+        
+        queryBuilder.andWhere('batch.warehouse_id = :warehouseId', { warehouseId });
+    }
+    
     const expiringBatches = await queryBuilder.getMany();
-    res.json(expiringBatches);
+      // Calculate days to expiry and transform data
+    const transformedBatches = expiringBatches.map(batch => {
+        const now = new Date();
+        const expiryDate = batch.expiry_date ? new Date(batch.expiry_date) : null;
+        const daysToExpiry = expiryDate ? Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null;
+        
+        return {
+            ...batch,
+            product_name: batch.product?.name || '',
+            warehouse_name: batch.warehouse?.name || '',
+            supplier_name: batch.product?.supplier?.name || '',
+            daysToExpiry,
+            isExpired: daysToExpiry !== null && daysToExpiry < 0,
+            expiryStatus: daysToExpiry === null ? 'no_expiry' : 
+                         daysToExpiry < 0 ? 'expired' : 
+                         daysToExpiry <= 7 ? 'critical' : 'warning'
+        };
+    });
+    
+    res.json(transformedBatches);
 };
 
 export const transferStock = async (req: Request, res: Response) => {
@@ -647,9 +749,7 @@ export const transferStock = async (req: Request, res: Response) => {
                 quantity: 0,
                 unit: sourceInventory.unit
             });
-        }
-
-        targetInventory.quantity += quantity;
+        }        targetInventory.quantity += quantity;
         await transactionalEntityManager.save(targetInventory);
 
         // Update batch locations if specified
@@ -662,7 +762,5 @@ export const transferStock = async (req: Request, res: Response) => {
                 .andWhere("warehouse_id = :source_warehouse_id", { source_warehouse_id })
                 .execute();
         }
-    });
-
-    res.json({ message: "Stock transferred successfully" });
+    });    res.json({ message: "Stock transferred successfully" });
 };

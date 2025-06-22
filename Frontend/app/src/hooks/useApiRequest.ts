@@ -35,9 +35,9 @@ interface CacheItem<T> {
 const apiCache = new Map<string, CacheItem<any>>();
 
 // Function to create a default cache key from a function and arguments
-function createCacheKey(
-  fn: (...args: any[]) => Promise<any>,
-  args: any[]
+function createCacheKey<T extends any[]>(
+  fn: (...args: T) => Promise<any>,
+  args: T
 ): string {
   return `${fn.name || 'anonymous'}_${JSON.stringify(args)}`;
 }
@@ -91,9 +91,7 @@ export function useApiRequest<T, Args extends any[] = any[]>(
       }
 
       requestInProgress.current = true;
-      retryCount.current = 0;
-      
-      // If cache is enabled, generate cache key or use provided one
+      retryCount.current = 0;      // If cache is enabled, generate cache key or use provided one
       const cacheKey = cache
         ? userCacheKey || createCacheKey(fn, args)
         : null;

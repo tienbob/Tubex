@@ -131,9 +131,7 @@ export const productCategoryController = {
             }
             throw new AppError(500, 'Failed to fetch product category');
         }
-    },
-
-    async createCategory(req: AuthRequest, res: Response) {
+    },    async createCategory(req: AuthRequest, res: Response) {
         const queryRunner = AppDataSource.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();
@@ -141,8 +139,21 @@ export const productCategoryController = {
         try {
             const { name, description, parent_id } = req.body;
             
+            // DEBUG: Log request details
+            logger.info('createCategory request details:', {
+                params: req.params,
+                body: req.body,
+                user: {
+                    id: req.user?.id,
+                    companyId: req.user?.companyId,
+                    role: req.user?.role
+                }
+            });
+            
             // Get the company ID from the path params (for company-specific route)
-            const companyId = req.params.companyId || req.body.company_id;
+            const companyId = req.params.companyId || req.body.company_id || req.user?.companyId;
+            
+            logger.info('Resolved companyId:', { companyId });
             
             // Verify company exists
             const company = await queryRunner.manager.findOne(Company, { 
@@ -173,12 +184,23 @@ export const productCategoryController = {
                 if (parentCategory.company_id !== companyId) {
                     throw new AppError(400, 'Parent category must belong to the same company');
                 }
-            }
-
-            const category = new ProductCategory();
-            category.name = name;            category.description = description;
+            }            const category = new ProductCategory();
+            category.name = name;
+            category.description = description;
             category.company_id = companyId;
             category.parent_id = parent_id || null;
+
+            // Final validation - ensure company_id is set
+            if (!category.company_id) {
+                logger.error('Category creation failed: company_id is null or undefined', {
+                    category,
+                    companyId,
+                    paramsCompanyId: req.params.companyId,
+                    bodyCompanyId: req.body.company_id,
+                    userCompanyId: req.user?.companyId
+                });
+                throw new AppError(400, 'Company ID is required for category creation');
+            }
 
             const savedCategory = await queryRunner.manager.save(category);
             await queryRunner.commitTransaction();

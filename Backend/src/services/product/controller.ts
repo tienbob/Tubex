@@ -1,23 +1,18 @@
 import { Request, Response } from 'express';
 import { AppDataSource } from '../../database/ormconfig';
-import { Product } from '../../database/models/sql/product';
+import { Product, ProductPriceHistory } from '../../database/models/sql';
 import { Company } from '../../database/models/sql/company';
 import { AppError } from '../../middleware/errorHandler';
 import { logger } from '../../app';
 import { In } from 'typeorm';
-
-interface AuthRequest extends Request {
-    user: Express.User;
-}
+import { AuthenticatedRequest } from '../../types/express';
 
 export const productController = {
-    async createProduct(req: AuthRequest, res: Response) {
+    async createProduct(req: AuthenticatedRequest, res: Response) {
         const queryRunner = AppDataSource.createQueryRunner();
         await queryRunner.connect();
-        await queryRunner.startTransaction();
-
-        try {
-            const { name, description, base_price, unit, supplier_id, status } = req.body;
+        await queryRunner.startTransaction();        try {
+            const { name, description, base_price, unit, supplier_id, category_id, status } = req.body;
             
             // Get the company ID from the path params (for company-specific route)
             const companyId = req.params.companyId;
@@ -51,6 +46,7 @@ export const productController = {
             product.base_price = base_price;
             product.unit = unit;
             product.supplier_id = effectiveSupplierID;
+            product.category_id = category_id || null; // Set the category_id
             product.dealer_id = req.user.companyId; // Add the dealer who created this product
             product.status = status || 'active';
 
@@ -70,7 +66,7 @@ export const productController = {
         }
     },
 
-    async updateProduct(req: AuthRequest, res: Response) {
+    async updateProduct(req: AuthenticatedRequest, res: Response) {
         const queryRunner = AppDataSource.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();
@@ -81,11 +77,9 @@ export const productController = {
             
             // Get the company ID from the path params (for company-specific route)
             const companyId = req.params.companyId;
-            
-            // Find product with lock for update
+              // Find product with lock for update (without relations to avoid lock conflicts)
             const product = await queryRunner.manager.findOne(Product, { 
                 where: { id },
-                relations: ['supplier'],
                 lock: { mode: "pessimistic_write" }
             });
 
@@ -122,10 +116,24 @@ export const productController = {
                 if (companyId && updates.supplier_id !== companyId) {
                     throw new AppError(403, 'Cannot change product to a different company when using company-specific route');
                 }
-            }
-
-            // Update product with version check
+            }            // Update product with version check
+            const oldPrice = product.base_price;
             Object.assign(product, updates);
+              // If price has changed, create a price history record
+            if (updates.base_price && updates.base_price !== oldPrice) {
+                const priceHistory = new ProductPriceHistory();
+                priceHistory.product_id = product.id;
+                priceHistory.old_price = oldPrice;
+                priceHistory.new_price = updates.base_price;
+                priceHistory.changed_by_id = req.user.id;
+                priceHistory.reason = updates.priceChangeReason || 'Price update';
+                priceHistory.metadata = {
+                    updated_via: 'api'
+                };
+                
+                await queryRunner.manager.save(ProductPriceHistory, priceHistory);
+            }
+            
             const updatedProduct = await queryRunner.manager.save(Product, product);
             
             await queryRunner.commitTransaction();
@@ -140,15 +148,14 @@ export const productController = {
         } finally {
             await queryRunner.release();
         }
-    },    async getProduct(req: AuthRequest, res: Response) {
+    },    async getProduct(req: AuthenticatedRequest, res: Response) {
         try {
             const { id } = req.params;
             // Get the company ID if it exists in the path params (for company-specific route)
             const companyId = req.params.companyId;
-            
-            const product = await AppDataSource.getRepository(Product).findOne({ 
+              const product = await AppDataSource.getRepository(Product).findOne({ 
                 where: { id },
-                relations: ['supplier']
+                relations: ['supplier', 'category']
             });
 
             if (!product) {
@@ -194,13 +201,12 @@ export const productController = {
                 throw error;
             }
             throw new AppError(500, 'Failed to fetch product');
-        }    },async listProducts(req: AuthRequest, res: Response) {
+        }    },async listProducts(req: AuthenticatedRequest, res: Response) {
         try {
-            const { supplier_id, status, page = 1, limit = 10, search } = req.query;
-            
-            const queryBuilder = AppDataSource.getRepository(Product)
+            const { supplier_id, status, page = 1, limit = 10, search } = req.query;            const queryBuilder = AppDataSource.getRepository(Product)
                 .createQueryBuilder('product')
-                .leftJoinAndSelect('product.supplier', 'supplier');
+                .leftJoinAndSelect('product.supplier', 'supplier')
+                .leftJoinAndSelect('product.category', 'category');
 
             // Get user's company info
             const userCompanyId = req.user.companyId;
@@ -265,25 +271,60 @@ export const productController = {
                     '(product.name ILIKE :search OR product.description ILIKE :search)',
                     { search: `%${search}%` }
                 );
-            }
-
-            // Add sorting
+            }            // Add sorting
             queryBuilder.orderBy('product.created_at', 'DESC');
 
+            // First get products with count for pagination
             const [products, total] = await queryBuilder
                 .skip((+page - 1) * +limit)
                 .take(+limit)
                 .getManyAndCount();
 
-            res.json({
-                products,
-                pagination: {
-                    total,
-                    page: +page,
-                    limit: +limit,
-                    totalPages: Math.ceil(total / +limit)
-                }
-            });
+            // Then get inventory data for these specific products
+            const productIds = products.map(p => p.id);
+            
+            if (productIds.length > 0) {
+                const inventoryData = await AppDataSource.query(`
+                    SELECT product_id, COALESCE(SUM(quantity), 0) as total_stock
+                    FROM inventory
+                    WHERE product_id = ANY($1)
+                    GROUP BY product_id
+                `, [productIds]);
+
+                // Create a map for quick lookup
+                const inventoryMap = new Map();
+                inventoryData.forEach((item: any) => {
+                    inventoryMap.set(item.product_id, parseInt(item.total_stock));
+                });
+
+                // Add inventory data to products
+                const productsWithInventory = products.map(product => ({
+                    ...product,
+                    inventory: {
+                        quantity: inventoryMap.get(product.id) || 0
+                    }
+                }));
+
+                res.json({
+                    products: productsWithInventory,
+                    pagination: {
+                        total,
+                        page: +page,
+                        limit: +limit,
+                        totalPages: Math.ceil(total / +limit)
+                    }
+                });
+            } else {
+                res.json({
+                    products: [],
+                    pagination: {
+                        total: 0,
+                        page: +page,
+                        limit: +limit,
+                        totalPages: 0
+                    }
+                });
+            }
         } catch (error) {
             logger.error('Error listing products:', error);
             if (error instanceof AppError) {
@@ -293,7 +334,7 @@ export const productController = {
         }
     },
 
-    async deleteProduct(req: AuthRequest, res: Response) {
+    async deleteProduct(req: AuthenticatedRequest, res: Response) {
         const queryRunner = AppDataSource.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();
@@ -342,7 +383,7 @@ export const productController = {
         }
     },
 
-    async bulkUpdateStatus(req: AuthRequest, res: Response) {
+    async bulkUpdateStatus(req: AuthenticatedRequest, res: Response) {
         const queryRunner = AppDataSource.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();
@@ -394,9 +435,114 @@ export const productController = {
             if (error instanceof AppError) {
                 throw error;
             }
-            throw new AppError(500, 'Failed to bulk update products');
-        } finally {
+            throw new AppError(500, 'Failed to bulk update products');        } finally {
             await queryRunner.release();
+        }
+    },
+
+    async getPriceHistory(req: AuthenticatedRequest, res: Response) {
+        try {
+            const { companyId, productId } = req.params;
+            const { page = 1, limit = 10 } = req.query;
+            
+            // Security check: ensure user has access to this company's data
+            if (!req.user) {
+                throw new AppError(401, 'Authentication required');
+            }
+            
+            // For now, let's allow access if user belongs to the company or is an admin
+            if (req.user.role !== 'admin' && req.user.companyId !== companyId) {
+                throw new AppError(403, 'Unauthorized access to company data');
+            }
+            
+            // Verify the product exists and belongs to the company
+            const product = await AppDataSource.getRepository(Product).findOne({
+                where: { 
+                    id: productId,
+                    supplier_id: companyId 
+                }
+            });
+            
+            if (!product) {
+                throw new AppError(404, 'Product not found');
+            }
+            
+            const priceHistoryRepository = AppDataSource.getRepository(ProductPriceHistory);
+            
+            // Calculate pagination
+            const pageNum = parseInt(page as string, 10) || 1;
+            const limitNum = parseInt(limit as string, 10) || 10;
+            const skip = (pageNum - 1) * limitNum;
+              // Get price history with pagination
+            const [priceHistory, total] = await priceHistoryRepository.findAndCount({
+                where: { product_id: productId },
+                relations: ['user'],
+                order: { created_at: 'DESC' },
+                skip,
+                take: limitNum
+            });
+            
+            res.json({
+                data: priceHistory,
+                pagination: {
+                    page: pageNum,
+                    limit: limitNum,
+                    total,
+                    pages: Math.ceil(total / limitNum)
+                }
+            });
+        } catch (error) {
+            logger.error('Error fetching price history:', error);
+            if (error instanceof AppError) {
+                throw error;
+            }            throw new AppError(500, 'Failed to fetch price history');
+        }
+    },
+
+    async createPriceHistoryEntry(req: AuthenticatedRequest, res: Response) {
+        try {
+            const { companyId, productId } = req.params;
+            const { old_price, new_price, reason } = req.body;
+            
+            // Security check
+            if (!req.user) {
+                throw new AppError(401, 'Authentication required');
+            }
+            
+            if (req.user.role !== 'admin' && req.user.companyId !== companyId) {
+                throw new AppError(403, 'Unauthorized access to company data');
+            }
+            
+            // Verify the product exists
+            const product = await AppDataSource.getRepository(Product).findOne({
+                where: { 
+                    id: productId,
+                    supplier_id: companyId 
+                }
+            });
+            
+            if (!product) {
+                throw new AppError(404, 'Product not found');
+            }
+              const priceHistory = new ProductPriceHistory();
+            priceHistory.product_id = productId;
+            priceHistory.old_price = old_price;
+            priceHistory.new_price = new_price;
+            priceHistory.changed_by_id = req.user.id;
+            priceHistory.reason = reason || 'Manual price history entry';
+            priceHistory.metadata = {
+                created_via: 'api'
+            };
+            
+            const savedHistory = await AppDataSource.getRepository(ProductPriceHistory).save(priceHistory);
+            
+            res.status(201).json(savedHistory);
+        } catch (error) {
+            logger.error('Error creating price history entry:', error);
+            if (error instanceof AppError) {
+                throw error;
+            }
+            throw new AppError(500, 'Failed to create price history entry');
         }
     }
 };

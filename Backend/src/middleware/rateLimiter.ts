@@ -40,7 +40,7 @@ const getRateLimitStore = () => {
 export const rateLimiter = rateLimit({
   store: getRateLimitStore(),
   windowMs: 60 * 1000, // 1 minute
-  max: 100, // limit each IP to 100 requests per minute
+  max: config.nodeEnv === 'development' ? 1000 : 100, // 1000 requests per minute in development, 100 in production
   message: 'Too many requests, please try again later',
   standardHeaders: true,
   legacyHeaders: false,

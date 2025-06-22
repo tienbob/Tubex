@@ -45,9 +45,8 @@ const WarehouseList: React.FC = () => {
   const fetchWarehouses = async () => {
     try {
       const response = await warehouseService.getWarehouses();
-      setWarehouses(response.data || []);
-    } catch (error) {
-      console.error('Error fetching warehouses:', error);
+      setWarehouses(response.data || []);    } catch (error) {
+      // Handle error silently - parent component should handle user feedback
     } finally {
       setLoading(false);
     }
@@ -73,7 +72,8 @@ const WarehouseList: React.FC = () => {
   };
 
   return (
-    <Box>      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+    <Box>      
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4">Warehouses</Typography>
         <RoleGuard action="warehouse:create" fallback={null}>
           <Button
@@ -98,7 +98,8 @@ const WarehouseList: React.FC = () => {
         {warehouses.map((warehouse) => (
           <Card key={warehouse.id}>
             <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>                
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <Typography variant="h6" sx={{ mr: 1 }}>
                     {getTypeIcon(warehouse.type)} {warehouse.name}
                   </Typography>

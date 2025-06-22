@@ -334,10 +334,10 @@ export const priceListController = {
             // Record price history
             const priceHistory = new ProductPriceHistory();
             priceHistory.product_id = product_id;
-            priceHistory.price_list_id = priceListId;
+            priceHistory.reason = `Added to price list: ${priceList.name}`;
             priceHistory.old_price = product.base_price;
             priceHistory.new_price = price;
-            priceHistory.created_by = req.user.id;
+            priceHistory.changed_by_id = req.user.id;
             priceHistory.metadata = {
                 action: 'added_to_price_list',
                 price_list_name: priceList.name
@@ -416,10 +416,10 @@ export const priceListController = {
             if (price !== undefined && price !== oldPrice) {
                 const priceHistory = new ProductPriceHistory();
                 priceHistory.product_id = priceListItem.product_id;
-                priceHistory.price_list_id = priceListId;
+                priceHistory.reason = `Updated in price list: ${priceList.name}`;
                 priceHistory.old_price = oldPrice;
                 priceHistory.new_price = price;
-                priceHistory.created_by = req.user.id;
+                priceHistory.changed_by_id = req.user.id;
                 priceHistory.metadata = {
                     action: 'updated_in_price_list',
                     price_list_name: priceList.name
@@ -533,16 +533,15 @@ export const priceListController = {
             });
 
             const savedItems = await queryRunner.manager.save(PriceListItem, priceListItems);
-
             // Record price history for each item
             const priceHistories = items.map((item: any) => {
                 const product = products.find(p => p.id === item.product_id);
                 const priceHistory = new ProductPriceHistory();
                 priceHistory.product_id = item.product_id;
-                priceHistory.price_list_id = priceListId;
+                priceHistory.reason = `Bulk added to price list: ${priceList.name}`;
                 priceHistory.old_price = product?.base_price || 0;
                 priceHistory.new_price = item.price;
-                priceHistory.created_by = req.user?.id || '';
+                priceHistory.changed_by_id = req.user?.id || '';
                 priceHistory.metadata = {
                     action: 'bulk_added_to_price_list',
                     price_list_name: priceList.name
@@ -623,15 +622,14 @@ export const priceListController = {
                 }
 
                 await queryRunner.manager.save(existingItem);
-
                 // If price changed, record price history
                 if (item.price !== undefined && item.price !== oldPrice) {
                     const priceHistory = new ProductPriceHistory();
                     priceHistory.product_id = existingItem.product_id;
-                    priceHistory.price_list_id = priceListId;
+                    priceHistory.reason = `Bulk updated in price list: ${priceList.name}`;
                     priceHistory.old_price = oldPrice;
                     priceHistory.new_price = item.price;
-                    priceHistory.created_by = req.user.id;
+                    priceHistory.changed_by_id = req.user.id;
                     priceHistory.metadata = {
                         action: 'bulk_updated_in_price_list',
                         price_list_name: priceList.name
@@ -777,14 +775,13 @@ export const priceListController = {
                 if (effective_from) priceListItem.effective_from = new Date(effective_from);
                 if (effective_to) priceListItem.effective_to = new Date(effective_to);
                 priceListItems.push(priceListItem);
-
                 // Create price history record
                 const priceHistory = new ProductPriceHistory();
                 priceHistory.product_id = product.id;
-                priceHistory.price_list_id = priceList.id;
+                priceHistory.reason = `Imported to price list: ${priceList.name}`;
                 priceHistory.old_price = product.base_price;
                 priceHistory.new_price = item.price;
-                priceHistory.created_by = req.user.id;
+                priceHistory.changed_by_id = req.user.id;
                 priceHistory.metadata = {
                     action: 'imported_to_price_list',
                     price_list_name: priceList.name
@@ -866,19 +863,15 @@ export const priceListController = {
         // Check if product exists
         const product = await AppDataSource.getRepository(Product).findOne({
             where: { id: productId }
-        });
-
-        if (!product) {
+        });        if (!product) {
             throw new AppError(404, 'Product not found');
         }
 
         // Get price history for product
         const queryBuilder = AppDataSource.getRepository(ProductPriceHistory)
             .createQueryBuilder('history')
-            .leftJoinAndSelect('history.price_list', 'priceList')
-            .leftJoinAndSelect('history.user', 'user')
             .where('history.product_id = :productId', { productId })
-            .orderBy('history.effective_date', 'DESC')
+            .orderBy('history.created_at', 'DESC')
             .skip(skip)
             .take(limit);
 

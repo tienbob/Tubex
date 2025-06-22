@@ -24,10 +24,11 @@ export const useAccessControl = (): UseAccessControlResult => {
         setLoading(false);
         return;
       }
-      
-      try {
+        try {
         // Fetch company information to get company type
+        console.log('Fetching company info for ID:', authUser.companyId);
         const company = await companyService.getCompanyById(authUser.companyId);
+        console.log('Company fetched:', company);
         
         const fullUser: User = {
           userId: authUser.userId,
@@ -36,6 +37,7 @@ export const useAccessControl = (): UseAccessControlResult => {
           companyType: company.type as any // Cast to CompanyType
         };
         
+        console.log('Full user created:', fullUser);
         setUser(fullUser);
       } catch (error) {
         console.error('Error fetching company type:', error);
@@ -46,6 +48,7 @@ export const useAccessControl = (): UseAccessControlResult => {
           companyId: authUser.companyId,
           companyType: 'supplier' // Default fallback
         };
+        console.log('Using fallback user:', fallbackUser);
         setUser(fallbackUser);
       } finally {
         setLoading(false);
@@ -95,39 +98,53 @@ export const useAccessControl = (): UseAccessControlResult => {
         return false;
     }
   };
-  
-  const canPerform = (action: string, context?: any): boolean => {
-    if (!user) return false;
+    const canPerform = (action: string, context?: any): boolean => {
+    if (!user) {
+      console.log('canPerform: No user found');
+      return false;
+    }
     
-    switch (action) {
-      // Product actions
+    console.log('canPerform called with:', { action, user, permissions });
+    
+    switch (action) {// Product actions
       case 'product:create':
+      case 'productCreate':
         return permissions.productCreate;
       case 'product:edit':
+      case 'productEdit':
         return permissions.productEdit;
       case 'product:delete':
+      case 'productDelete':
         return permissions.productDelete;
       case 'product:view':
+      case 'productView':
         return permissions.productView;
       
       // Inventory actions
       case 'inventory:create':
+      case 'inventoryCreate':
         return permissions.inventoryCreate;
       case 'inventory:edit':
+      case 'inventoryEdit':
         return permissions.inventoryEdit;
       case 'inventory:delete':
+      case 'inventoryDelete':
         return permissions.inventoryDelete;
       case 'inventory:view':
+      case 'inventoryView':
         return permissions.inventoryView;
-      
-      // Order actions
+        // Order actions
       case 'order:create':
+      case 'orderCreate':
         return permissions.orderCreate;
       case 'order:edit':
+      case 'orderEdit':
         return permissions.orderEdit;
       case 'order:delete':
+      case 'orderDelete':
         return permissions.orderDelete;
       case 'order:view':
+      case 'orderView':
         return permissions.orderView;
       
       // User actions
@@ -139,15 +156,18 @@ export const useAccessControl = (): UseAccessControlResult => {
         return permissions.userDelete;
       case 'user:view':
         return permissions.userView;
-      
-      // Warehouse actions
+        // Warehouse actions
       case 'warehouse:create':
+      case 'warehouseCreate':
         return permissions.warehouseCreate;
       case 'warehouse:edit':
+      case 'warehouseEdit':
         return permissions.warehouseEdit;
       case 'warehouse:delete':
+      case 'warehouseDelete':
         return permissions.warehouseDelete;
       case 'warehouse:view':
+      case 'warehouseView':
         return permissions.warehouseView;
       
       // Invoice actions

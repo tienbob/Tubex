@@ -24,7 +24,7 @@ import TransferWithinAStationIcon from '@mui/icons-material/TransferWithinAStati
 import WarningIcon from '@mui/icons-material/Warning';
 import DataTable, { Column } from '../DataTable';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { inventoryService } from '../../../services/api';
+import { inventoryService, warehouseService } from '../../../services/api';
 import { InventoryItem } from '../../../services/api/inventoryService';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useAccessControl } from '../../../hooks/useAccessControl';
@@ -109,11 +109,13 @@ const initialState: InventoryListState = {
 const inventoryListReducer = (state: InventoryListState, action: InventoryListAction): InventoryListState => {
   switch (action.type) {
     case 'SET_INVENTORY':
-      return {
+      const newState = {
         ...state,
         inventory: action.payload.data,
         totalCount: action.payload.totalCount
       };
+      
+      return newState;
     case 'SET_LOADING':
       return {
         ...state,
@@ -144,8 +146,7 @@ const inventoryListReducer = (state: InventoryListState, action: InventoryListAc
       return {
         ...state,
         page: action.payload
-      };
-    case 'SET_ROWS_PER_PAGE':
+      };    case 'SET_ROWS_PER_PAGE':
       return {
         ...state,
         rowsPerPage: action.payload,
@@ -204,9 +205,8 @@ const InventoryList: React.FC<InventoryListProps> = ({
       backgroundColor: whitelabelTheme?.primaryColor ? 
         `${whitelabelTheme.primaryColor}dd` : muiTheme.palette.primary.dark,
     },
-  };
-  const fetchInventory = useCallback(async () => {
-    if (!companyId) {
+  };  const fetchInventory = useCallback(async () => {    if (!companyId) {
+      console.error('Company ID is required');
       dispatch({ type: 'SET_ERROR', payload: 'Company ID is required' });
       return;
     }
@@ -214,8 +214,7 @@ const InventoryList: React.FC<InventoryListProps> = ({
     dispatch({ type: 'SET_LOADING', payload: true });
     dispatch({ type: 'SET_ERROR', payload: null });
     
-    try {
-      const params: any = {
+    try {      const params: any = {
         page: state.page + 1, // API uses 1-based page indexing
         limit: state.rowsPerPage,
         search: state.searchTerm || undefined,
@@ -224,29 +223,30 @@ const InventoryList: React.FC<InventoryListProps> = ({
         sortBy: state.sortBy,
         sortDirection: state.sortDirection,
       };
-      
-      if (state.batchFilter) {
-        params.batchId = state.batchFilter;
+        if (state.batchFilter) {
+        params.batchFilter = state.batchFilter;
       }
-        const response = await inventoryService.getInventory(params);      // SECURITY FIX: Remove client-side filtering as backend now handles all security
+      
+      const response = await inventoryService.getInventory(params);
+      
+      // SECURITY FIX: Remove client-side filtering as backend now handles all security
       // Backend already applies proper role-based filtering based on company type
       const inventoryData = response.data || [];
       
-      dispatch({ 
-        type: 'SET_INVENTORY', 
+      dispatch({        type: 'SET_INVENTORY', 
         payload: {
           data: inventoryData,
           totalCount: response.pagination?.total || inventoryData.length
         }
       });
+      
     } catch (err: any) {
+      console.error('Error fetching inventory:', err.message);      
       dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to load inventory' });
-      console.error('Error fetching inventory:', err);
     } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }  }, [companyId, state.page, state.rowsPerPage, state.searchTerm, state.selectedWarehouse, 
-      state.batchFilter, state.sortBy, state.sortDirection, user]);
-  
+      dispatch({ type: 'SET_LOADING', payload: false });    }}, [companyId, state.page, state.rowsPerPage, state.searchTerm, state.selectedWarehouse, 
+      state.batchFilter, state.sortBy, state.sortDirection]);
+
   const fetchWarehouses = useCallback(async () => {
     if (warehouseId) return; // Don't fetch warehouses if one is specified
     if (!companyId) {
@@ -255,7 +255,7 @@ const InventoryList: React.FC<InventoryListProps> = ({
     }
     
     try {
-      const response = await inventoryService.getWarehouses(companyId);
+      const response = await warehouseService.getWarehouses({ companyId });
       
       // Handle different potential response structures
       let warehousesList: Array<any> = [];
@@ -276,13 +276,13 @@ const InventoryList: React.FC<InventoryListProps> = ({
       }
       // Default to empty array if no matching structure is found
       else {
-        console.error('Unexpected API response format:', response);
+        console.error('Unexpected warehouse API response format:', response);
         warehousesList = [];
       }
-      
+        
       dispatch({ type: 'SET_WAREHOUSES', payload: warehousesList });
     } catch (err: any) {
-      console.error('Error fetching warehouses:', err);
+      console.error('INVENTORY LIST: Error fetching warehouses:', err);
       // Always set warehouses to an empty array on error
       dispatch({ type: 'SET_WAREHOUSES', payload: [] });
     }
@@ -293,12 +293,11 @@ const InventoryList: React.FC<InventoryListProps> = ({
       fetchWarehouses();
     }
   }, [companyId, warehouseId, fetchWarehouses]);
-  
-  useEffect(() => {
+    useEffect(() => {
     if (companyId) {
       fetchInventory();
-    }
-  }, [fetchInventory]);
+    }  }, [companyId, state.page, state.rowsPerPage, state.searchTerm, state.selectedWarehouse, 
+      state.batchFilter, state.sortBy, state.sortDirection]);
   
   const handleSearch = useCallback(() => {
     dispatch({ type: 'SET_PAGE', payload: 0 }); // Reset to first page when searching
@@ -316,18 +315,23 @@ const InventoryList: React.FC<InventoryListProps> = ({
     dispatch({ type: 'SET_SELECTED_WAREHOUSE', payload: value });
     // Page reset is handled in the reducer
   }, []);
-  
-  const formatQuantityWithUnit = (quantity: number, unit: string) => {
-    return `${quantity.toLocaleString()} ${unit || ''}`;
+    const formatQuantityWithUnit = (quantity: number, unit: string) => {
+    const qty = Number(quantity) || 0;
+    const unitStr = unit || '';
+    return `${qty.toLocaleString()} ${unitStr}`.trim();
   };
-
   const getStockLevelIndicator = (current: number, threshold: number, capacity: number) => {
     let color: 'default' | 'success' | 'warning' | 'error' = 'default';
     let label = 'Normal';
     
-    const ratio = current / capacity;
+    // Ensure we have valid numbers
+    const currentQty = Number(current) || 0;
+    const thresholdQty = Number(threshold) || 0;
+    const capacityQty = Number(capacity) || 1000;
     
-    if (current <= threshold) {
+    const ratio = currentQty / capacityQty;
+    
+    if (currentQty <= thresholdQty && thresholdQty > 0) {
       color = 'error';
       label = 'Low';
     } else if (ratio >= 0.9) {
@@ -338,7 +342,7 @@ const InventoryList: React.FC<InventoryListProps> = ({
       label = 'Good';
     }
     
-    return <Chip size="small" color={color} label={label} />;
+    return <Chip size="small" color={color} label={label} sx={{ minWidth: 60 }} />;
   };
   
   // Validate the required companyId after all hooks are called
@@ -365,16 +369,29 @@ const InventoryList: React.FC<InventoryListProps> = ({
       minWidth: 120,
       align: 'right',
       format: (value, row) => formatQuantityWithUnit(value, row?.unit)
-    },
-    {
+    },    {
       id: 'warehouse_name',
       label: 'Warehouse',
       minWidth: 150,
-    },
-    {
+      format: (value) => value || 'No Warehouse'
+    },{
       id: 'batch_number',
       label: 'Batch',
       minWidth: 120,
+      format: (value) => {
+        if (!value) return 'N/A';
+        // If it's a long UUID-based batch number, show a shortened version with tooltip
+        if (value.length > 20) {
+          const parts = value.split('-');
+          const shortValue = parts[0] || value.substring(0, 10) + '...';
+          return (
+            <Tooltip title={value} arrow>
+              <span style={{ cursor: 'help' }}>{shortValue}</span>
+            </Tooltip>
+          );
+        }
+        return value;
+      }
     },
     {
       id: 'stock_level',
@@ -430,8 +447,7 @@ const InventoryList: React.FC<InventoryListProps> = ({
           )}
         </Box>
       )
-    });
-  }
+    });  }
   
   return (
     <Box sx={{ maxHeight }}>
@@ -490,8 +506,7 @@ const InventoryList: React.FC<InventoryListProps> = ({
                 ),
               }}
             />
-            
-            {!warehouseId && state.warehouses.length > 0 && (
+              {!warehouseId && state.warehouses.length > 0 && (
               <FormControl sx={{ minWidth: 150 }} size="small">
                 <InputLabel id="warehouse-filter-label">Warehouse</InputLabel>
                 <Select
@@ -509,6 +524,14 @@ const InventoryList: React.FC<InventoryListProps> = ({
                 </Select>
               </FormControl>
             )}
+
+            <TextField
+              placeholder="Filter by batch..."
+              size="small"
+              value={state.batchFilter}
+              onChange={(e) => dispatch({ type: 'SET_BATCH_FILTER', payload: e.target.value })}
+              sx={{ minWidth: 150 }}
+            />
               <Tooltip title="Advanced Filters">
               <IconButton>
                 <TuneIcon />

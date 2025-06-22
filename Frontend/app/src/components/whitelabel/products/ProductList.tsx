@@ -80,17 +80,24 @@ const ProductList: React.FC<ProductListProps> = ({
 
   const fetchProducts = async () => {
     setLoading(true);
-    setError(null);
-
-    try {
+    setError(null);    try {
       const response = await productService.getProducts({
         page: page + 1, // API uses 1-based pagination
         limit: rowsPerPage,
         search: searchTerm,
       });
 
-      setProducts(response.products || []); // Updated to use `response.products`
-      setTotalCount(response.pagination?.total || 0);
+      console.log('ProductList - productService response:', response);
+      
+      // Handle the response format from productService
+      const productsData = response.data || response.products || [];
+      const paginationData = response.pagination || {};
+      
+      console.log('ProductList - products data:', productsData);
+      console.log('ProductList - pagination data:', paginationData);
+      
+      setProducts(productsData);
+      setTotalCount(paginationData.total || 0);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch products');
       console.error('Error fetching products:', err);
@@ -159,7 +166,6 @@ const ProductList: React.FC<ProductListProps> = ({
       currency: 'USD',
     }).format(amount);
   };
-
   // Define the columns for the data table
   const tableColumns = [
     {
@@ -168,12 +174,6 @@ const ProductList: React.FC<ProductListProps> = ({
       type: 'text' as const,
       sortable: true,
       filterable: true,
-    },
-    {
-      id: 'sku',
-      label: 'SKU',
-      type: 'text' as const,
-      sortable: true,
     },
     {
       id: 'category',

@@ -233,12 +233,18 @@ export const authService = {
       
       if (!credentials.password || credentials.password.trim() === '') {
         throw new Error('Password is required');
-      }
-
-      const response = await post<AuthResponse>('/auth/login', credentials);
+      }      const response = await post<AuthResponse>('/auth/login', credentials);
       
       // Extract data from response
       const responseData = response.data?.data || response.data;
+      
+      console.log('Login response debug:', {
+        fullResponse: response.data,
+        responseData,
+        userId: responseData?.userId,
+        companyId: responseData?.companyId,
+        accessToken: responseData?.accessToken ? 'present' : 'missing'
+      });
       
       if (responseData?.accessToken) {
         // Calculate token expiration based on remember me option

@@ -18,6 +18,7 @@ import {
 import { useAuth } from '../../../contexts/AuthContext';
 import { inventoryService } from '../../../services/api/inventoryService';
 import { productService } from '../../../services/api/productService';
+import { warehouseService } from '../../../services/api/warehouseService';
 import { companyService } from '../../../services/api/companyService';
 import { useAccessControl } from '../../../hooks/useAccessControl';
 import RoleGuard from '../../common/RoleGuard';
@@ -98,12 +99,25 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
     try {      // Fetch products and warehouses in parallel
       const [productsResponse, warehousesResponse] = await Promise.all([
         productService.getProducts({ companyId }),
-        inventoryService.getWarehouses(companyId)
+        warehouseService.getWarehouses({ companyId })
       ]);
-        setProducts(productsResponse.data || []);
+
+      // Handle products response
+      console.log('Products response:', productsResponse);
+      const productData = productsResponse.data || productsResponse.products || productsResponse || [];
+      console.log('Product data:', productData);      const productList = Array.isArray(productData) ? productData : [];
+      console.log('Final product list:', productList);
+      console.log('Product count:', productList.length);
+      setProducts(productList);
       
-      // Handle warehouse response
-      setWarehouses(warehousesResponse.data || []);
+      // Handle warehouse response - ensure it's an array
+      console.log('Warehouse response:', warehousesResponse);
+      const warehouseData = warehousesResponse.data || warehousesResponse || [];
+      console.log('Warehouse data:', warehouseData);
+      const warehouseList = Array.isArray(warehouseData) ? warehouseData : 
+                           (warehouseData.warehouses && Array.isArray(warehouseData.warehouses)) ? warehouseData.warehouses : [];
+      console.log('Final warehouse list:', warehouseList);
+      setWarehouses(warehouseList);
       
     } catch (err: any) {
       console.error('Error fetching data:', err);
@@ -229,27 +243,37 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
       <Typography variant="h5" gutterBottom>
         {inventoryId ? 'Edit Inventory' : 'Add Inventory'}
       </Typography>
-      
-      {error && (
+        {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
-      )}      <Box component="form" noValidate>
+      )}
+
+      {!fetchingData && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Loaded {products.length} products and {warehouses.length} warehouses
+        </Alert>
+      )}<Box component="form" noValidate>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <Box sx={{ flex: 1, minWidth: 250 }}>
-              <FormControl fullWidth error={!!errors.product_id}>
+            <Box sx={{ flex: 1, minWidth: 250 }}>              <FormControl fullWidth error={!!errors.product_id}>
                 <InputLabel>Product</InputLabel>
                 <Select
                   value={formData.product_id}
                   onChange={handleProductChange}
                 disabled={!!inventoryId} // Can't change product for existing inventory
               >
-                {products.map((product) => (
-                  <MenuItem key={product.id} value={product.id}>
-                    {product.name} {product.supplier && `(${product.supplier.name})`}
+                {products.length > 0 ? (
+                  products.map((product) => (
+                    <MenuItem key={product.id} value={product.id}>
+                      {product.name} {product.supplier && `(${product.supplier.name})`}
+                    </MenuItem>
+                  ))
+                ) : (
+                  <MenuItem disabled value="">
+                    No products available
                   </MenuItem>
-                ))}
+                )}
               </Select>
               {errors.product_id && (
                 <Typography variant="caption" color="error">                  
@@ -269,10 +293,9 @@ const InventoryForm: React.FC<InventoryFormProps> = ({
                     if (errors.warehouse_id) {
                       setErrors(prev => ({ ...prev, warehouse_id: '' }));
                     }
-                  }}
-                  disabled={!!inventoryId} // Can't change warehouse for existing inventory
+                  }}                  disabled={!!inventoryId} // Can't change warehouse for existing inventory
                 >
-                  {warehouses.map((warehouse) => (
+                  {Array.isArray(warehouses) && warehouses.map((warehouse) => (
                     <MenuItem key={warehouse.id} value={warehouse.id}>
                       {warehouse.name}
                     </MenuItem>

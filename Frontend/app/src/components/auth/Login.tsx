@@ -31,14 +31,13 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Add missing state variables
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   
   // Use the 'from' state if available, or default to '/dashboard'
-  const from = location.state?.from || '/dashboard';
+  const from = (location.state as any)?.from || '/dashboard';
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

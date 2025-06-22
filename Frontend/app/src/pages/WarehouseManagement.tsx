@@ -76,12 +76,8 @@ const WarehouseManagement: React.FC = () => {
         setWarehouses([]);
         return;
       }
-      
-      setLoading(true);
+        setLoading(true);
       const response = await warehouseService.getWarehouses(companyId);
-      
-      // Debug the response structure
-      console.log('Warehouse API response:', response);
       
       // Check the structure of the response and extract the warehouses array
       if (Array.isArray(response.data)) {
@@ -95,21 +91,17 @@ const WarehouseManagement: React.FC = () => {
       // If response.data.data contains the warehouses array
       else if (response.data && typeof response.data === 'object' && 'data' in response.data && 
                Array.isArray((response.data as any).data)) {
-        setWarehouses((response.data as any).data);
-      }
+        setWarehouses((response.data as any).data);      }
       // Default to empty array if no matching structure is found
       else {
-        console.error('Unexpected API response format:', response);
         setWarehouses([]);
       }
       
-      setError(null);
-    } catch (err) {
+      setError(null);    } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
         setError('Failed to fetch warehouses');
-        console.error(err);
       }
       // Always set warehouses to an empty array on error
       setWarehouses([]);
@@ -129,11 +121,9 @@ const WarehouseManagement: React.FC = () => {
       const inventoryList = Array.isArray(inventoryData) ? inventoryData : [];
       
       setInventory(inventoryList);
-      setError(null);
-    } catch (err) {
+      setError(null);    } catch (err) {
       setError('Failed to fetch inventory');
       setInventory([]); // Set empty array on error
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -203,13 +193,11 @@ const WarehouseManagement: React.FC = () => {
       
       await handleCloseDialog();
       await fetchWarehouses();
-      setError(null);
-    } catch (err) {
+      setError(null);    } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
         setError('Failed to create warehouse');
-        console.error(err);
       }
     }
   };
@@ -229,13 +217,11 @@ const WarehouseManagement: React.FC = () => {
       }
       setError(null);
       setDeleteDialogOpen(false);
-      setWarehouseToDelete(null);
-    } catch (err) {
+      setWarehouseToDelete(null);    } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
         setError('Failed to delete warehouse');
-        console.error(err);
       }
     }
   };
@@ -244,11 +230,9 @@ const WarehouseManagement: React.FC = () => {
     setDeleteDialogOpen(false);
     setWarehouseToDelete(null);
   };
-
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        Warehouse Management
+      <Typography variant="h4" gutterBottom>        Warehouse Management
       </Typography>
 
       {error && (
@@ -347,16 +331,17 @@ const WarehouseManagement: React.FC = () => {
                       <TableCell>Status</TableCell>
                       <TableCell align="right">Actions</TableCell>
                     </TableRow>
-                  </TableHead>                  <TableBody>
+                  </TableHead>
+                  <TableBody>
                     {Array.isArray(inventory) && inventory.length > 0 ? (
-                      inventory.map((item) => (
-                        <TableRow key={item.id}>
+                      inventory.map((item) => (                        <TableRow key={item.id}>
                           <TableCell>{item.product?.name}</TableCell>
                           <TableCell align="right">{item.quantity}</TableCell>
-                          <TableCell>{item.location || 'N/A'}</TableCell>
+                          <TableCell>{(item.warehouse as any)?.address || 'N/A'}</TableCell>
                           <TableCell>
                             {item.quantity <= (item.min_threshold || 0) ? 'Low Stock' : 'In Stock'}
-                          </TableCell>                          <TableCell align="right">
+                          </TableCell>
+                          <TableCell align="right">
                             {canPerform('inventoryEdit') && (
                               <Tooltip title="Edit">
                                 <IconButton size="small">

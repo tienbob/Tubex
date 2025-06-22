@@ -6,9 +6,12 @@ export interface Tokens {
   refreshToken: string;
 }
 
-export const generateTokens = (userId: string): Tokens => {
+export const generateTokens = (userId: string, rememberMe: boolean = false): Tokens => {
+  // Set access token expiry based on rememberMe option
+  const accessTokenExpiry = rememberMe ? '30d' : '15m'; // 30 days if rememberMe, 15 minutes otherwise
+  
   const accessToken = jwt.sign({ id: userId }, config.jwt.secret as jwt.Secret, {
-    expiresIn: '15m'
+    expiresIn: accessTokenExpiry
   });
   
   const refreshToken = jwt.sign({ id: userId }, config.jwt.secret as jwt.Secret, {

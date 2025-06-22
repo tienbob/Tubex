@@ -4,6 +4,7 @@ import { companyValidators } from './validators';
 import { authenticate } from '../../middleware/auth';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { validationHandler } from '../../middleware/validationHandler';
+import { cacheResponse } from '../../middleware/cache';
 
 const router = Router();
 
@@ -355,6 +356,7 @@ router.get('/dealers',
  */
 router.get('/:id', 
     validationHandler(companyValidators.getCompanyById),
+    cacheResponse(300), // Cache for 5 minutes (company data changes less frequently)
     asyncHandler(companyController.getCompanyById.bind(companyController)) as RequestHandler
 );
 

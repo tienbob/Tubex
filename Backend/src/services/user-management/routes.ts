@@ -222,4 +222,10 @@ router.delete(
  *                       name:
  *                         type: string
  */
+router.get('/roles', 
+    authenticate,
+    isCompanyAdmin,
+    wrap(getAvailableRoles)
+);
+
 export const userManagementRoutes = router;

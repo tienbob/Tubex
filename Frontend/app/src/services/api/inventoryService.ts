@@ -37,6 +37,7 @@ export interface InventoryItem {
   reorder_point?: number;
   reorder_quantity?: number;
   auto_reorder?: boolean;
+  // Nested objects
   product?: {
     name: string;
     sku: string;
@@ -44,6 +45,13 @@ export interface InventoryItem {
   warehouse?: {
     name: string;
   };
+  // Flat properties added by backend for easier access
+  product_name?: string;
+  warehouse_name?: string;
+  supplier_name?: string;
+  threshold?: number;
+  warehouse_capacity?: number;
+  last_updated?: string;
 }
 
 export interface InventoryCreateInput {
@@ -139,8 +147,7 @@ export interface InventoryAuditLog {
   created_at: string;
 }
 
-export const inventoryService = {
-  async getInventory(params: GetInventoryParams): Promise<ApiResponse<InventoryItem[]>> {
+export const inventoryService = {  async getInventory(params: GetInventoryParams): Promise<ApiResponse<InventoryItem[]>> {
     try {
       const companyId = params?.companyId || getCurrentCompanyId();
       if (!companyId) {
@@ -151,12 +158,55 @@ export const inventoryService = {
       const { companyId: _, ...restParams } = params || {};
       
       const endpoint = `/inventory/company/${companyId}${params.warehouseId ? `/warehouse/${params.warehouseId}` : ''}`;
-      
-      const response = await get<ApiResponse<InventoryItem[]>>(endpoint, {
+      const response = await get<any>(endpoint, {
         params: restParams
       });
       
-      return response.data;
+      // The response.data contains the actual API response
+      const apiData = response.data;
+      
+      // Handle both wrapped and direct array responses
+      if (Array.isArray(apiData)) {
+        // API returns array directly
+        return {
+          data: apiData,
+          pagination: {
+            total: apiData.length,
+            page: params.page || 1,
+            limit: params.limit || 10
+          }
+        };
+      } else if (apiData && apiData.data && Array.isArray(apiData.data)) {
+        // API returns wrapped response with data property
+        return {
+          data: apiData.data,
+          pagination: apiData.pagination || {
+            total: apiData.data.length,
+            page: params.page || 1,
+            limit: params.limit || 10
+          }
+        };
+      } else if (apiData && apiData.status === 'success' && Array.isArray(apiData.data)) {
+        // API returns success wrapper with data property
+        return {
+          data: apiData.data,
+          pagination: apiData.pagination || {
+            total: apiData.data.length,
+            page: params.page || 1,
+            limit: params.limit || 10
+          }
+        };
+      } else {
+        // Fallback
+        return {
+          data: [],
+          pagination: {
+            total: 0,
+            page: 1,
+            limit: 10
+          }
+        };
+      }
     } catch (error) {
       if (error instanceof AxiosError) {
         throw new ApiError(

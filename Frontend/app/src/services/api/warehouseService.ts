@@ -86,14 +86,15 @@ export class ApiError extends Error {
 
 export const warehouseService = {  getWarehouses: async (params?: any): Promise<any> => {
     try {
-      const companyId = getCurrentCompanyId(true);
+      // If companyId is passed in params, use it; otherwise get from storage
+      const companyId = params?.companyId || getCurrentCompanyId(true);
       
       // Use consistent URL pattern with correct API path
       const response = await get<any>(`/warehouses/company/${companyId}`, {
         params: {
           limit: 10,
           page: 1,
-          ...params
+          ...(params ? { ...params, companyId: undefined } : {}) // Remove companyId from query params
         }
       });
       
@@ -104,7 +105,7 @@ export const warehouseService = {  getWarehouses: async (params?: any): Promise<
       }
       throw error;
     }
-  },    getWarehouse: async (companyId: string, warehouseId: string): Promise<ApiResponse<Warehouse>> => {
+  },getWarehouse: async (companyId: string, warehouseId: string): Promise<ApiResponse<Warehouse>> => {
     if (!warehouseId || typeof warehouseId !== 'string') {
       return Promise.reject(new ApiError('Valid warehouse ID is required'));
     }

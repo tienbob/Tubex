@@ -81,21 +81,16 @@ const Dashboard: React.FC = () => {
       // Optionally, you could clear companyId here if strict reset is needed during auth loading
       // setCompanyId(''); 
       return;
-    }
-
-    // Auth process is complete
+    }    // Auth process is complete
     if (user?.companyId) {
       setCompanyId(user.companyId);
-      console.log('Dashboard: CompanyId set from AuthContext:', user.companyId);
     } else {
       setCompanyId(''); // Clear local companyId if not available from context
-      console.log('Dashboard: CompanyId cleared (user or user.companyId missing after auth). User:', user);
       if (user && !user.companyId) {
         console.warn('Dashboard: User object from AuthContext is present but companyId is missing.');
       }
     }
   }, [user, authLoading]);
-
   // Main data fetching logic based on active tab and companyId availability
   useEffect(() => {
     if (authLoading) {
@@ -104,44 +99,48 @@ const Dashboard: React.FC = () => {
       return;
     }
 
-    // Auth is loaded. Proceed with fetching.
-    // Clear previous errors for the current scope (overview or active tab)
-    if (value === 0) setError(null); else setActiveTabError(null);
+    // Add a small delay to prevent rapid-fire requests during development
+    const timeoutId = setTimeout(() => {
+      // Auth is loaded. Proceed with fetching.      // Clear previous errors for the current scope (overview or active tab)
+      if (value === 0) setError(null); else setActiveTabError(null);
 
-    console.log(`Dashboard: Fetching data for tab ${value}, companyId: "${companyId}"`);
+      console.log(`Dashboard: Fetching data for tab ${value}, companyId: "${companyId}", auth loading: ${authLoading}`);
 
-    switch (value) {
-      case 0: // Overview
-        fetchDashboardData();
-        break;
-      case 1: // User Management
-        // Components handle their own data.
-        // EmployeeInvitationGenerator is passed companyId and should react to its changes.
-        // Ensure loading states are reset if they were set by other tabs.
-        setActiveTabLoading(false);
-        break;
-      case 2: // Products
-        fetchProducts();
-        break;
-      case 3: // Orders
-        fetchOrders();
-        break;
-      case 4: // Inventory Tab
-        if (companyId) {
-          fetchInventory(); // This function explicitly uses companyId
-        } else {
-          // companyId is not available, and auth is complete.
-          console.log('Dashboard: Company ID not available for Inventory tab (Tab 4).');
-          setInventory([]); // Clear data
-          setActiveTabError('Company ID is not available. Cannot load inventory.');
-          setActiveTabLoading(false); // Ensure loading is false
-        }
-        break;
-      default:
-        // For any other tabs, ensure loading states are reset.
-        if (value !==0) setActiveTabLoading(false); else setLoading(false);
-        break;
-    }
+      switch (value) {
+        case 0: // Overview
+          fetchDashboardData();
+          break;
+        case 1: // User Management
+          // Components handle their own data.
+          // EmployeeInvitationGenerator is passed companyId and should react to its changes.
+          // Ensure loading states are reset if they were set by other tabs.
+          setActiveTabLoading(false);
+          break;
+        case 2: // Products
+          fetchProducts();
+          break;
+        case 3: // Orders
+          fetchOrders();
+          break;        case 4: // Inventory Tab
+          if (companyId && companyId.trim() !== '') {
+            console.log('Dashboard: Starting inventory fetch for companyId:', companyId);
+            fetchInventory(); // This function explicitly uses companyId
+          } else {
+            // companyId is not available, and auth is complete.
+            console.log('Dashboard: Company ID not available for Inventory tab (Tab 4). CompanyId:', companyId, 'Auth loading:', authLoading);
+            setInventory([]); // Clear data
+            setActiveTabError('Company ID is not available. Cannot load inventory.');
+            setActiveTabLoading(false); // Ensure loading is false
+          }
+          break;
+        default:
+          // For any other tabs, ensure loading states are reset.
+          if (value !== 0) setActiveTabLoading(false); else setLoading(false);
+          break;
+      }
+    }, 100); // 100ms delay to debounce rapid changes
+
+    return () => clearTimeout(timeoutId);
   }, [value, companyId, authLoading]); // Key dependencies: tab, companyId, and auth status
 
   const fetchDashboardData = async () => {
@@ -184,16 +183,17 @@ const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const fetchProducts = async () => {
+  };  const fetchProducts = async () => {
     setActiveTabLoading(true);
     setActiveTabError(null);
     
     try {
       const response = await productService.getProducts({ limit: 5 });
-      // Using PaginationResponse format
-      setProducts(response.products || []);
+      
+      // Handle the response format from productService
+      const productsData = response.data || response.products || [];
+      
+      setProducts(productsData);
     } catch (err: any) {
       console.error('Error fetching products:', err);
       setActiveTabError(err.message || 'Failed to load products');
@@ -225,9 +225,8 @@ const Dashboard: React.FC = () => {
     } finally {
       setActiveTabLoading(false);
     }
-  };
-
-  const fetchInventory = async () => {
+  };  const fetchInventory = async (retryCount = 0) => {
+    const maxRetries = 2;
     setActiveTabLoading(true);
     setActiveTabError(null);
     
@@ -239,14 +238,72 @@ const Dashboard: React.FC = () => {
     }
 
     try {
-      // Use getInventory instead of getInventoryItems which doesn't exist
-      const response = await inventoryService.getInventory({ companyId, limit: 5 });
-      setInventory(response.data || []);
+      console.log(`Dashboard - fetchInventory: Starting fetch (attempt ${retryCount + 1}/${maxRetries + 1}) with companyId:`, companyId);
+      
+      // Always pass companyId explicitly to avoid getCurrentCompanyId() issues
+      const response = await inventoryService.getInventory({ 
+        companyId: companyId, // Explicitly pass the companyId we have from AuthContext
+        limit: 5 
+      });
+      
+      console.log('Dashboard - fetchInventory: Raw response:', response);
+      console.log('Dashboard - fetchInventory: Response type:', typeof response);
+      console.log('Dashboard - fetchInventory: Response keys:', Object.keys(response || {}));
+      
+      const inventoryData = response.data || response || [];
+      console.log('Dashboard - fetchInventory: Extracted inventory data:', inventoryData);
+      console.log('Dashboard - fetchInventory: Inventory data type:', typeof inventoryData);
+      console.log('Dashboard - fetchInventory: Is array?', Array.isArray(inventoryData));
+      console.log('Dashboard - fetchInventory: Array length:', inventoryData?.length);
+      console.log('Dashboard - inventory sample item:', inventoryData[0]); // Debug first item structure
+      
+      if (!Array.isArray(inventoryData)) {
+        console.warn('Dashboard - fetchInventory: Expected array but got:', typeof inventoryData, inventoryData);
+        
+        if (retryCount < maxRetries) {
+          console.log(`Dashboard - fetchInventory: Retrying in 1 second (attempt ${retryCount + 1}/${maxRetries})`);
+          setTimeout(() => fetchInventory(retryCount + 1), 1000);
+          return;
+        }
+        
+        setActiveTabError('Invalid inventory data format received');
+        return;
+      }
+      
+      console.log('Dashboard - fetchInventory: About to set inventory state with:', inventoryData);
+      setInventory(inventoryData);
+      console.log('Dashboard - fetchInventory: Successfully set inventory data, count:', inventoryData.length);
+      
+      // Additional verification - check state after setting
+      setTimeout(() => {
+        console.log('Dashboard - fetchInventory: State verification - current inventory state length:', inventory.length);
+      }, 100);
+      
     } catch (err: any) {
-      console.error('Error fetching inventory:', err);
+      console.error('Dashboard - fetchInventory: Error occurred:', err);
+      console.error('Dashboard - fetchInventory: Error details:', {
+        message: err.message,
+        status: err.status,
+        data: err.data,
+        stack: err.stack
+      });
+      
+      // Retry logic for network or temporary errors
+      if (retryCount < maxRetries && (
+        err.message?.includes('network') || 
+        err.message?.includes('timeout') || 
+        err.status >= 500 ||
+        err.status === 429 // Rate limit
+      )) {
+        console.log(`Dashboard - fetchInventory: Retrying due to ${err.message} (attempt ${retryCount + 1}/${maxRetries})`);
+        setTimeout(() => fetchInventory(retryCount + 1), 1000 * (retryCount + 1)); // Exponential backoff
+        return;
+      }
+      
       setActiveTabError(err.message || 'Failed to load inventory');
     } finally {
       setActiveTabLoading(false);
+      console.log('Dashboard - fetchInventory: Finished, loading set to false');
     }
   };
 
@@ -257,26 +314,37 @@ const Dashboard: React.FC = () => {
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
   };
-
   // Handle navigation with query params instead of routes
   const handleNavigation = (path: string) => {
-    // Extract the base path and action
-    const [basePath, action] = path.split('/').filter(Boolean);
+    console.log('Dashboard handleNavigation called with path:', path);
     
-    if (action === 'create' || action === 'transfer' || action === 'adjust') {
-      // Instead of navigating to a new route, add query param to existing route
-      navigate(`/${basePath}?action=${action}`);
-    } else if (path.includes('/')) {
-      // For item details, extract the ID and use query param
-      const segments = path.split('/');
-      const id = segments[segments.length - 1];
-      if (segments.length > 2 && segments[2] === 'adjust') {
-        navigate(`/${basePath}?id=${id}&action=adjust`);
+    // Extract the base path and segments
+    const segments = path.split('/').filter(Boolean);
+    const basePath = segments[0]; // e.g., 'inventory', 'products', 'orders'
+    
+    console.log('Parsed segments:', segments);
+    console.log('Base path:', basePath);
+    
+    if (segments.length === 1) {
+      // Just the base path, navigate to main section
+      navigate(`/${basePath}`);
+    } else if (segments.length === 2) {
+      const secondSegment = segments[1];
+      
+      if (secondSegment === 'create' || secondSegment === 'transfer') {
+        // Action without ID: /inventory/create or /inventory/transfer
+        navigate(`/${basePath}?action=${secondSegment}`);
       } else {
-        navigate(`/${basePath}?id=${id}`);
+        // Likely an ID: /inventory/item-id
+        navigate(`/${basePath}?id=${secondSegment}`);
       }
+    } else if (segments.length === 3) {
+      // Three segments: /inventory/item-id/adjust
+      const itemId = segments[1];
+      const action = segments[2];
+      navigate(`/${basePath}?id=${itemId}&action=${action}`);
     } else {
-      // Regular navigation for main sections
+      // Fallback: navigate to the exact path
       navigate(path);
     }
   };
@@ -699,9 +767,12 @@ const Dashboard: React.FC = () => {
               {activeTabLoading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
                   <CircularProgress />
-                </Box>
-              ) : (
+                </Box>              ) : (
                 <>
+                  {console.log('Dashboard - Render: Inventory state for rendering:', inventory)}
+                  {console.log('Dashboard - Render: Inventory length:', inventory.length)}
+                  {console.log('Dashboard - Render: Inventory type:', typeof inventory)}
+                  {console.log('Dashboard - Render: Is array?', Array.isArray(inventory))}
                   {inventory.length > 0 ? (
                     <Paper sx={{ width: '100%', overflow: 'auto', borderRadius: 2, boxShadow: 0 }}>
                       <Box sx={{ p: 2 }}>
@@ -719,11 +790,10 @@ const Dashboard: React.FC = () => {
                             </Box>
                           </Box>
                           <Box component="tbody">
-                            {inventory.map((item) => (
-                              <Box component="tr" key={item.id} sx={{ borderBottom: '1px solid #e0e0e0', transition: 'background 0.2s', '&:hover': { bgcolor: 'grey.100' } }}>
-                                <Box component="td" sx={{ p: 1 }}>{item.product?.name || 'Unknown Product'}</Box>
-                                <Box component="td" sx={{ p: 1 }}>{item.warehouse?.name || 'Unknown Warehouse'}</Box>
-                                <Box component="td" sx={{ p: 1 }}>{item.quantity} {item.unit}</Box>
+                            {inventory.map((item) => (                              <Box component="tr" key={item.id} sx={{ borderBottom: '1px solid #e0e0e0', transition: 'background 0.2s', '&:hover': { bgcolor: 'grey.100' } }}>
+                                <Box component="td" sx={{ p: 1 }}>{item.product?.name || item.product_name || 'Unknown Product'}</Box>
+                                <Box component="td" sx={{ p: 1 }}>{item.warehouse?.name || item.warehouse_name || 'Unknown Warehouse'}</Box>
+                                <Box component="td" sx={{ p: 1 }}>{item.quantity} {item.unit || ''}</Box>
                                 <Box component="td" sx={{ p: 1 }}>
                                   <Box sx={{
                                     display: 'inline-block',

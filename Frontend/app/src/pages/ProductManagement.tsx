@@ -20,27 +20,39 @@ const ProductManagement: React.FC = () => {
   // Get company ID from auth context
   const { user } = useAuth();
   const [companyId, setCompanyId] = useState<string>('');
-  
-  // Set companyId from auth context when user data is available
+    // Set companyId from auth context when user data is available
   useEffect(() => {
+    console.log('ProductManagement - user from auth context:', user);
     if (user && user.companyId) {
+      console.log('ProductManagement - setting companyId:', user.companyId);
       setCompanyId(user.companyId);
+    } else {
+      console.log('ProductManagement - No company ID found in user data');
     }
   }, [user]);
-
   // Parse query parameters
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     const action = queryParams.get('action');
     const id = queryParams.get('id');
     
+    console.log('=== PRODUCT MANAGEMENT URL PARAMS ===');
+    console.log('Current URL:', location.search);
+    console.log('Action param:', action);
+    console.log('ID param:', id);
+    console.log('Current selectedProductId:', selectedProductId);
+    console.log('Current showAddForm:', showAddForm);
+    
     if (action === 'create') {
+      console.log('Setting to create mode');
       setShowAddForm(true);
       setSelectedProductId(null);
     } else if (id) {
+      console.log('Setting to edit mode with ID:', id);
       setSelectedProductId(id);
       setShowAddForm(false);
     } else {
+      console.log('Setting to list mode');
       // Reset to list view if no params
       setShowAddForm(false);
       setSelectedProductId(null);

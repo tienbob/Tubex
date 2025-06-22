@@ -27,6 +27,16 @@ export interface ApiResponse<T> {
   };
 }
 
+export interface ProductCategory {
+  id: string;
+  name: string;
+  description?: string;
+  company_id: string;
+  parent_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -121,8 +131,16 @@ export const productService = {  getProducts: async (params?: any): Promise<any>
           ...params
         }
       });
+        console.log('ProductService.getProducts - API response:', response.data);
       
-      console.log('ProductService.getProducts - API response:', response.data);
+      // Handle the response format - backend returns {products: [...], pagination: {...}}
+      if (response.data && response.data.products) {
+        return {
+          data: response.data.products,
+          pagination: response.data.pagination
+        };
+      }
+      
       return response.data;
     } catch (error) {
       console.error('ProductService.getProducts - Error:', error);
@@ -377,7 +395,6 @@ export const productService = {  getProducts: async (params?: any): Promise<any>
       throw error;
     }
   },
-
   getProductsBySupplier: async (supplierId: string, params?: any): Promise<any> => {
     try {
       console.log('ProductService.getProductsBySupplier - supplierId:', supplierId);
@@ -399,6 +416,33 @@ export const productService = {  getProducts: async (params?: any): Promise<any>
       if (error instanceof AxiosError) {
         throw new ApiError(
           error.response?.data?.message || 'Failed to fetch supplier products',
+          error.response?.status || 500,
+          error.response?.data
+        );
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Create a new product category
+   */
+  createCategory: async (companyId: string, data: { name: string; description?: string; parent_id?: string }): Promise<ApiResponse<ProductCategory>> => {
+    try {
+      if (!companyId || typeof companyId !== 'string') {
+        throw new Error('Valid company ID is required');
+      }
+      
+      if (!data.name || data.name.trim() === '') {
+        throw new Error('Category name is required');
+      }
+      
+      const response = await post<ApiResponse<ProductCategory>>(`/companies/${companyId}/product-categories`, data);
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        throw new ApiError(
+          error.response?.data?.message || 'Failed to create product category',
           error.response?.status || 500,
           error.response?.data
         );

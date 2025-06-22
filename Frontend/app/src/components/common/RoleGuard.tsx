@@ -8,7 +8,7 @@ interface RoleGuardProps {
   permission?: keyof AccessPermissions;
   requiredPermissions?: (keyof AccessPermissions)[];
   action?: string; // For canPerform checks
-  fallback?: React.ReactNode;
+  fallback?: React.ReactElement | null;
   showFallback?: boolean;
   mode?: 'all' | 'any'; // Whether all or any permissions are required
 }
@@ -16,7 +16,7 @@ interface RoleGuardProps {
 /**
  * Component that conditionally renders content based on user permissions
  */
-const RoleGuard: React.FC<RoleGuardProps> = ({ 
+const RoleGuard = ({ 
   children, 
   permission,
   requiredPermissions = [],
@@ -24,7 +24,7 @@ const RoleGuard: React.FC<RoleGuardProps> = ({
   fallback,
   showFallback = false,
   mode = 'all'
-}) => {
+}: RoleGuardProps) => {
   const { hasPermission, canPerform, loading } = useAccessControl();
     if (loading) {
     return null; // or a loading spinner
@@ -49,8 +49,7 @@ const RoleGuard: React.FC<RoleGuardProps> = ({
     if (!hasPermissions) {
       return showFallback ? (fallback || <DefaultFallback />) : null;
     }
-  }
-  
+  }  
   return <>{children}</>;
 };
 

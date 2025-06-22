@@ -162,33 +162,36 @@ export const dashboardService = {
           page: 1
         } 
       });
+        // Format the data to match what the dashboard expects
+      // Backend returns direct array in response.data
+      const inventoryItems = Array.isArray(response.data) ? response.data : (response.data.items || response.data.data || []);
+        // Calculate total inventory quantity
+      const totalQuantity = inventoryItems.reduce((sum: number, item: any) => sum + (parseFloat(item.quantity) || 0), 0);
+        // Calculate warehouse utilization based on actual warehouse capacity
+      const totalWarehouseCapacity = inventoryItems.reduce((sum: number, item: any) => {
+        const warehouseCapacity = parseFloat(item.warehouse_capacity) || parseFloat(item.warehouse?.capacity) || 1000;
+        return sum + warehouseCapacity;
+      }, 0);
       
-      // Format the data to match what the dashboard expects
-      const inventoryItems = response.data.items || response.data.data || [];
-      
-      // Calculate total inventory quantity
-      const totalQuantity = inventoryItems.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
-      
-      // Calculate approximate warehouse usage (a simple estimate)
-      const totalCapacity = 10000; // Default capacity for visualization purposes
-      const warehouseUtilization = Math.min(100, Math.round((totalQuantity / totalCapacity) * 100));
+      const warehouseUtilization = totalWarehouseCapacity > 0 
+        ? Math.min(100, Math.round((totalQuantity / totalWarehouseCapacity) * 100))
+        : 0;
       
       // Count low stock items
       const lowStockItems = inventoryItems.filter((item: any) => 
-        (item.min_threshold && item.quantity <= item.min_threshold) || item.quantity === 0
+        (item.min_threshold && parseFloat(item.quantity) <= parseFloat(item.min_threshold)) || parseFloat(item.quantity) === 0
       );
       
       // Create the summary object
       const summary: InventorySummary = {
         totalItems: inventoryItems.length,
         lowStockItems: lowStockItems.length,
-        warehouseUtilization,
-        recentMovements: inventoryItems.slice(0, 5).map((item: any) => ({
+        warehouseUtilization,        recentMovements: inventoryItems.slice(0, 5).map((item: any) => ({
           id: item.id,
           date: item.updated_at || new Date().toISOString(),
-          product: item.product?.name || 'Unknown Product',
-          quantity: item.quantity,
-          type: item.quantity > 0 ? 'in' : 'out'
+          product: item.product?.name || item.product_name || 'Unknown Product',
+          quantity: parseFloat(item.quantity) || 0,
+          type: (parseFloat(item.quantity) || 0) > 0 ? 'in' : 'out'
         }))
       };
       

@@ -473,6 +473,11 @@ export const getUserPermissions = (user: User): AccessPermissions => {
   const companyType = user.companyType || 'supplier'; // Default to supplier
   const key = `${companyType}-${user.role}`;
   
+  console.log('getUserPermissions - user:', user);
+  console.log('getUserPermissions - key:', key);
+  console.log('getUserPermissions - available keys:', Object.keys(ROLE_PERMISSIONS));
+  console.log('getUserPermissions - permissions found:', !!ROLE_PERMISSIONS[key]);
+  
   return ROLE_PERMISSIONS[key] || ROLE_PERMISSIONS['supplier-staff']; // Default to most restrictive
 };
 

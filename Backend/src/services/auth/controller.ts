@@ -213,10 +213,14 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
                     throw new AppError(401, 'Your company account is not active. Please contact support for assistance.');
                 }
             }
-        }
+        }        // Generate tokens with rememberMe option
+        const { accessToken, refreshToken } = generateTokens(user.id, rememberMe);
 
-        // Generate tokens
-        const { accessToken, refreshToken } = generateTokens(user.id);
+        // Store user preference for rememberMe
+        const userPreferenceKey = `user_prefs:${user.id}`;
+        await redisClient.set(userPreferenceKey, JSON.stringify({ rememberMe }), {
+            EX: 30 * 24 * 60 * 60 // 30 days
+        });
 
         // Store refresh token in Redis with longer expiry if "Remember me" is selected
         const refreshTokenExpiry = rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60; // 30 days for "Remember me", 7 days default
@@ -269,16 +273,26 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
             deviceId
         }), {
             EX: 90 * 24 * 60 * 60 // 90 days retention
-        });
-
-        console.log(`Login successful for user: ${user.id}`);
+        });        console.log(`Login successful for user: ${user.id}`);
+        
+        // Ensure companyId is available
+        const companyId = user.company?.id || user.company_id;
+        if (!companyId) {
+            console.error('User has no company assigned:', {
+                userId: user.id,
+                email: user.email,
+                company: user.company,
+                company_id: user.company_id
+            });
+            throw new AppError(500, 'User account is not properly configured. Please contact support.');
+        }
         
         // Return a response that includes all the fields the frontend expects
         res.status(200).json({
             status: 'success',
             data: {
                 userId: user.id,
-                companyId: user.company?.id,
+                companyId: companyId,
                 email: user.email,
                 role: user.role,
                 status: user.status,
@@ -304,21 +318,32 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
         }
 
         // Verify refresh token
-        const decoded = jwt.verify(refreshToken, config.jwt.secret as jwt.Secret) as { id: string };
-
-        // Check if refresh token exists in Redis
+        const decoded = jwt.verify(refreshToken, config.jwt.secret as jwt.Secret) as { id: string };        // Check if refresh token exists in Redis
         const storedToken = await redisClient.get(`refresh_token:${decoded.id}`);
         if (!storedToken || storedToken !== refreshToken) {
             throw new AppError(401, 'Invalid refresh token');
         }
 
-        // Generate new tokens
-        const tokens = generateTokens(decoded.id);
-        
         // Use the same "Remember me" preference that was set during login
         // or use the current request's value if explicitly provided
         const userPreferenceKey = `user_prefs:${decoded.id}`;
         let shouldRemember = rememberMe;
+        
+        // If rememberMe wasn't provided in the request, try to get from stored preferences
+        if (shouldRemember === undefined) {
+            const userPrefs = await redisClient.get(userPreferenceKey);
+            if (userPrefs) {
+                try {
+                    const parsedPrefs = JSON.parse(userPrefs);
+                    shouldRemember = parsedPrefs.rememberMe || false;
+                } catch (e) {
+                    shouldRemember = false;
+                }
+            }
+        }
+
+        // Generate new tokens with rememberMe preference
+        const tokens = generateTokens(decoded.id, shouldRemember);
         
         // If rememberMe wasn't provided in the request, try to get from stored preferences
         if (shouldRemember === undefined) {
@@ -844,10 +869,8 @@ export const completeOAuthRegistration = async (req: Request, res: Response, nex
             registeredAt: new Date().toISOString()
         };
         
-        await userRepository.save(user);
-
-        // Generate tokens for automatic login
-        const { accessToken, refreshToken } = generateTokens(user.id);
+        await userRepository.save(user);        // Generate tokens for automatic login (default to short expiry for security)
+        const { accessToken, refreshToken } = generateTokens(user.id, false);
 
         // Store refresh token in Redis
         await redisClient.set(`refresh_token:${user.id}`, refreshToken, {
@@ -899,10 +922,8 @@ export const handleOAuthCallback = async (req: Request, res: Response) => {
             `email=${encodeURIComponent(user.email)}&` +
             `provider=${user.provider}`
         );
-    }
-
-    // Regular OAuth login - generate tokens
-    const { accessToken, refreshToken } = generateTokens(user.id);
+    }    // Regular OAuth login - generate tokens (default to short expiry for security)
+    const { accessToken, refreshToken } = generateTokens(user.id, false);
 
     // Store refresh token in Redis
     await redisClient.set(`refresh_token:${user.id}`, refreshToken, {

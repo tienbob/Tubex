@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Company } from './company';
+import { ProductCategory } from './product-category';
 
 @Entity('products')
 export class Product {
@@ -11,10 +12,16 @@ export class Product {
 
     @Column({ type: 'text', nullable: true })
     description: string;    @Column({ type: 'decimal', precision: 10, scale: 2, name: 'base_price' })
-    base_price: number;
-
-    @Column()
+    base_price: number;    @Column()
     unit: string;
+
+    // Product category relationship
+    @Column({ name: 'category_id', nullable: true })
+    category_id: string;
+
+    @ManyToOne(() => ProductCategory, { nullable: true })
+    @JoinColumn({ name: 'category_id' })
+    category: ProductCategory;
 
     // Supplier is the company that provides/manufactures this product
     @Column({ name: 'supplier_id' })

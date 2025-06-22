@@ -13,6 +13,8 @@ import {
 import  InventoryList  from '../components/whitelabel/inventory/InventoryList';
 import  InventoryTransferModal  from '../components/inventory/InventoryTransferModal';
 import  InventoryAuditLog  from '../components/inventory/InventoryAuditLog';
+import  InventoryForm  from '../components/whitelabel/inventory/InventoryForm';
+import  InventoryAdjustForm  from '../components/whitelabel/inventory/InventoryAdjustForm';
 import { inventoryService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -136,7 +138,28 @@ const InventoryManagement: React.FC = () => {
   };
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
+    setTabValue(newValue);  };
+
+  const handleAdjustInventory = (inventoryId: string) => {
+    // Navigate to adjust inventory view
+    setSelectedInventoryItem(inventoryId);
+    setViewMode('adjust');
+    // Optionally, fetch the inventory item data
+    fetchInventoryItem(inventoryId);
+  };
+
+  const handleTransferInventory = (inventoryId: string) => {
+    // Navigate to transfer inventory view
+    setSelectedInventoryItem(inventoryId);
+    setViewMode('transfer');
+    // Optionally, fetch the inventory item data
+    fetchInventoryItem(inventoryId);
+  };
+
+  const handleAddInventory = () => {
+    // Navigate to create inventory view
+    setViewMode('create');
+    setSelectedItem(null);
   };
 
   const handleOpenTransferModal = (product: { id: string; name: string }) => {
@@ -153,11 +176,15 @@ const InventoryManagement: React.FC = () => {
     setSelectedInventoryItem(inventoryId);
     setTabValue(3); // Switch to Audit Log tab
   };
-
   const handleTransferComplete = () => {
     // Refresh inventory list after a transfer
-    // If you have a refresh function in your InventoryList component, call it here
     fetchAlerts(); // Refresh alerts as well
+    setTransferModalOpen(false);
+    setSelectedProduct(null);
+    // If we're in transfer view mode, go back to list
+    if (viewMode === 'transfer') {
+      setViewMode('list');
+    }
   };
 
   // Parse query parameters and set up the correct view
@@ -318,11 +345,13 @@ const InventoryManagement: React.FC = () => {
                   <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
                     <Typography>Loading...</Typography>
                   </Box>
-                ) : companyId ? (
-                  <InventoryList 
+                ) : companyId ? (                  <InventoryList 
                     companyId={companyId}
                     onTransferClick={handleOpenTransferModal}
                     onInventorySelect={handleInventorySelect}
+                    onAdjustInventory={handleAdjustInventory}
+                    onTransferInventory={handleTransferInventory}
+                    onAddInventory={handleAddInventory}
                   />
                 ) : (
                   <Alert severity="error" sx={{ mb: 2 }}>
@@ -358,36 +387,105 @@ const InventoryManagement: React.FC = () => {
           </Box>
         </Box>
       )}
-      
-      {viewMode === 'create' && (
+        {viewMode === 'create' && (
         <Box>
-          <Typography variant="h6">Create Inventory Item</Typography>
-          {/* Render create form */}
-          {/* ...existing code... */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h4">Add New Inventory Item</Typography>
+            <Button 
+              variant="outlined" 
+              onClick={() => setViewMode('list')}
+            >
+              Back to List
+            </Button>
+          </Box>          <Paper sx={{ p: 3 }}>
+            <InventoryForm 
+              companyId={companyId}
+              onSave={() => {
+                setViewMode('list');
+                fetchAlerts(); // Refresh alerts after adding inventory
+              }}
+              onCancel={() => setViewMode('list')}
+            />
+          </Paper>
         </Box>
       )}
-      
-      {viewMode === 'view' && selectedItem && (
+        {viewMode === 'view' && selectedItem && (
         <Box>
-          <Typography variant="h6">Inventory Item Details</Typography>
-          {/* Render inventory item details */}
-          {/* ...existing code... */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h4">Inventory Item Details</Typography>
+            <Button 
+              variant="outlined" 
+              onClick={() => setViewMode('list')}
+            >
+              Back to List
+            </Button>
+          </Box>
+          <Paper sx={{ p: 3 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+              <Box>
+                <Typography variant="h6" gutterBottom>Product Information</Typography>
+                <Typography><strong>Name:</strong> {selectedItem.product?.name || 'N/A'}</Typography>
+                <Typography><strong>Quantity:</strong> {selectedItem.quantity} {selectedItem.unit}</Typography>
+                <Typography><strong>Warehouse:</strong> {selectedItem.warehouse?.name || 'N/A'}</Typography>
+                <Typography><strong>Status:</strong> {selectedItem.status}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="h6" gutterBottom>Thresholds</Typography>
+                <Typography><strong>Min Threshold:</strong> {selectedItem.min_threshold || 'Not set'}</Typography>
+                <Typography><strong>Max Threshold:</strong> {selectedItem.max_threshold || 'Not set'}</Typography>
+                <Typography><strong>Reorder Point:</strong> {selectedItem.reorder_point || 'Not set'}</Typography>
+                <Typography><strong>Last Updated:</strong> {selectedItem.updated_at ? new Date(selectedItem.updated_at).toLocaleString() : 'N/A'}</Typography>
+              </Box>
+            </Box>
+          </Paper>
         </Box>
       )}
-      
-      {viewMode === 'adjust' && selectedItem && (
+        {viewMode === 'adjust' && selectedItem && (
         <Box>
-          <Typography variant="h6">Adjust Inventory</Typography>
-          {/* Render adjustment form */}
-          {/* ...existing code... */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h4">Adjust Inventory</Typography>
+            <Button 
+              variant="outlined" 
+              onClick={() => setViewMode('list')}
+            >
+              Back to List
+            </Button>
+          </Box>
+          <Paper sx={{ p: 3 }}>
+            <InventoryAdjustForm 
+              inventoryId={selectedInventoryItem || ''}
+              companyId={companyId}
+              onSave={() => {
+                setViewMode('list');
+                fetchAlerts(); // Refresh alerts after adjustment
+              }}
+              onCancel={() => setViewMode('list')}
+            />
+          </Paper>
         </Box>
       )}
-      
-      {viewMode === 'transfer' && (
+        {viewMode === 'transfer' && (
         <Box>
-          <Typography variant="h6">Transfer Inventory</Typography>
-          {/* Render transfer form */}
-          {/* ...existing code... */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h4">Transfer Inventory</Typography>
+            <Button 
+              variant="outlined" 
+              onClick={() => setViewMode('list')}
+            >
+              Back to List
+            </Button>
+          </Box>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Select an inventory item from the list to transfer
+            </Typography>
+            <InventoryList 
+              companyId={companyId}
+              onTransferClick={handleOpenTransferModal}
+              hideActions={false}
+              maxHeight="400px"
+            />
+          </Paper>
         </Box>
       )}
 

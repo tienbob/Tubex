@@ -2,6 +2,7 @@ import { Router, RequestHandler } from "express";
 import { authenticate } from "../../middleware/auth";
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { validationHandler } from '../../middleware/validationHandler';
+import { cacheResponse } from '../../middleware/cache';
 import { 
     validateCompanyAccess, 
     validateResourceOwnership, 
@@ -146,6 +147,7 @@ inventoryRoutes.use(companyRateLimit(500, 60000) as RequestHandler); // 500 requ
 inventoryRoutes.get("/company/:companyId", 
     validateCompanyAccess as RequestHandler,
     auditSecurityEvent('inventory_list_access') as RequestHandler,
+    // REMOVED: cacheResponse(60) - inventory data changes frequently and shouldn't be cached
     getInventory as RequestHandler
 );
 

@@ -4,6 +4,7 @@ import { orderValidators } from './validators';
 import { validationHandler } from '../../middleware/validationHandler';
 import { authenticate, authorize } from '../../middleware/auth';
 import { asyncHandler } from '../../middleware/asyncHandler';
+import { cacheResponse } from '../../middleware/cache';
 
 const router = Router();
 
@@ -392,7 +393,7 @@ router.get('/', orderController.listOrders as RequestHandler);
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
-router.get('/company/:companyId', orderController.listOrders as RequestHandler);
+router.get('/company/:companyId', cacheResponse(60), orderController.listOrders as RequestHandler); // Cache for 1 minute
 
 /**
  * @swagger

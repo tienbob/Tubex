@@ -3,6 +3,7 @@ import { productController } from './controller';
 import { productValidators } from './validators';
 import { validationHandler } from '../../middleware/validationHandler';
 import { authenticate, authorize } from '../../middleware/auth';
+import { cacheResponse } from '../../middleware/cache';
 import { RequestHandler } from 'express';
 
 const router = Router();
@@ -510,7 +511,7 @@ router.post(
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
-router.get('/company/:companyId', productController.listProducts as RequestHandler);
+router.get('/company/:companyId', cacheResponse(60), productController.listProducts as RequestHandler); // Cache for 1 minute
 
 /**
  * @swagger
@@ -556,5 +557,252 @@ router.get('/company/:companyId', productController.listProducts as RequestHandl
  *         $ref: '#/components/responses/ServerError'
  */
 router.get('/company/:companyId/:id', productController.getProduct as RequestHandler);
+
+/**
+ * @swagger
+ * /products/company/{companyId}/{id}:
+ *   put:
+ *     summary: Update a product for a specific company
+ *     description: Update an existing product within a company context
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: companyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Company ID
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Product ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ProductUpdateInput'
+ *     responses:
+ *       200:
+ *         $ref: '#/components/responses/ProductResponse'
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.put(
+    '/company/:companyId/:id',
+    validationHandler(productValidators.updateProduct),
+    productController.updateProduct as RequestHandler
+);
+
+/**
+ * @swagger
+ * /products/company/{companyId}/{id}:
+ *   delete:
+ *     summary: Delete a product for a specific company
+ *     description: Delete an existing product within a company context
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: companyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Company ID
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Product ID
+ *     responses:
+ *       204:
+ *         description: Product deleted successfully
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.delete('/company/:companyId/:id', productController.deleteProduct as RequestHandler);
+
+/**
+ * @swagger
+ * /products/company/{companyId}/{productId}/price-history:
+ *   get:
+ *     summary: Get price history for a product
+ *     description: Retrieve the price change history for a specific product
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: companyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Company ID
+ *       - in: path
+ *         name: productId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Product ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 10
+ *         description: Number of items per page
+ *     responses:
+ *       200:
+ *         description: Price history retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         format: uuid *                       product_id:
+ *                         type: string
+ *                         format: uuid
+ *                       old_price:
+ *                         type: number
+ *                         format: float
+ *                       new_price:
+ *                         type: number
+ *                         format: float
+ *                       reason:
+ *                         type: string
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *                       changed_by_id:
+ *                         type: string
+ *                         format: uuid
+ *                       user:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           username:
+ *                             type: string
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     total:
+ *                       type: integer
+ *                     pages:
+ *                       type: integer
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.get('/company/:companyId/:productId/price-history', productController.getPriceHistory as RequestHandler);
+
+/**
+ * @swagger
+ * /products/company/{companyId}/{productId}/price-history:
+ *   post:
+ *     summary: Create a price history entry
+ *     description: Manually create a price history entry for a product
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: companyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Company ID
+ *       - in: path
+ *         name: productId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Product ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - old_price
+ *               - new_price
+ *             properties:
+ *               old_price:
+ *                 type: number
+ *                 format: float
+ *                 description: Previous price
+ *               new_price:
+ *                 type: number
+ *                 format: float
+ *                 description: New price
+ *               reason:
+ *                 type: string
+ *                 description: Reason for price change
+ *     responses:
+ *       201:
+ *         description: Price history entry created successfully
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.post('/company/:companyId/:productId/price-history', productController.createPriceHistoryEntry as RequestHandler);
 
 export const productRoutes = router;
