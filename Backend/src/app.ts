@@ -20,7 +20,6 @@ import { errorHandler } from './middleware/errorHandler';
 import compression from 'compression';
 import { rateLimiter } from './middleware/rateLimiter';
 import { quoteRoutes } from './services/quote/routes';
-import { priceListRoutes } from './services/price-list/routes';
 import { paymentRoutes } from './services/payment/routes';
 import { invoiceRoutes } from './services/invoice/routes';
 import { batchRoutes } from './services/batch/routes';
@@ -85,7 +84,6 @@ app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/inventory', inventoryRoutes);
 app.use('/api/v1/batches', batchRoutes); // New batch management routes
 app.use('/api/v1/quotes', quoteRoutes); // New quote management routes
-app.use('/api/v1/price-lists', priceListRoutes); // New price list management routes
 app.use('/api/v1/payments', paymentRoutes); // New payment management routes
 app.use('/api/v1/invoices', invoiceRoutes); // New invoice management routes
 app.use('/api/v1/company-verification', companyVerificationRoutes);

@@ -486,39 +486,41 @@ export const productController = {
         try {
             const { companyId, productId } = req.params;
             const { old_price, new_price, reason } = req.body;
-            
             // Security check
             if (!req.user) {
                 throw new AppError(401, 'Authentication required');
             }
-            
             if (req.user.role !== 'admin' && req.user.companyId !== companyId) {
                 throw new AppError(403, 'Unauthorized access to company data');
             }
-            
             // Verify the product exists
-            const product = await AppDataSource.getRepository(Product).findOne({
+            const productRepo = AppDataSource.getRepository(Product);
+            const product = await productRepo.findOne({
                 where: { 
                     id: productId,
                     supplier_id: companyId 
                 }
             });
-            
             if (!product) {
                 throw new AppError(404, 'Product not found');
             }
-              const priceHistory = new ProductPriceHistory();
+            // If old_price is not provided, use the product's current base_price
+            const resolvedOldPrice = (typeof old_price === 'number' && !isNaN(old_price)) ? old_price : product.base_price;
+            // Update product base_price to new_price
+            if (typeof new_price === 'string' || typeof new_price === 'number') {
+                product.base_price = parseFloat(new_price.toString());
+                await productRepo.save(product);
+            }
+            const priceHistory = new ProductPriceHistory();
             priceHistory.product_id = productId;
-            priceHistory.old_price = old_price;
+            priceHistory.old_price = resolvedOldPrice;
             priceHistory.new_price = new_price;
             priceHistory.changed_by_id = req.user.id;
             priceHistory.reason = reason || 'Manual price history entry';
             priceHistory.metadata = {
                 created_via: 'api'
             };
-            
             const savedHistory = await AppDataSource.getRepository(ProductPriceHistory).save(priceHistory);
-            
             res.status(201).json(savedHistory);
         } catch (error) {
             logger.error('Error creating price history entry:', error);

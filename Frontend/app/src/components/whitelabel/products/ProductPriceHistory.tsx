@@ -193,9 +193,9 @@ const ProductPriceHistory: React.FC<ProductPriceHistoryProps> = ({
                 {priceHistory.length > 0 ? (
                   priceHistory.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell>{formatCurrency(item.price)}</TableCell>
-                      <TableCell>{formatDate(item.effective_date)}</TableCell>
-                      <TableCell>{item.created_by}</TableCell>
+                      <TableCell>{formatCurrency(Number(item.new_price))}</TableCell>
+                      <TableCell>{item.effective_date ? formatDate(item.effective_date) : (item.created_at ? formatDate(item.created_at) : '')}</TableCell>
+                      <TableCell>{item.created_by || item.changed_by_id || (item.user && item.user.name) || ''}</TableCell>
                     </TableRow>
                   ))
                 ) : (

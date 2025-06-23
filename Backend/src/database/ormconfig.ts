@@ -10,8 +10,6 @@ import { Warehouse } from './models/sql/warehouse';
 import { Batch } from './models/sql/batch';
 import { Quote, QuoteItem } from './models/sql/quote';
 import { Invoice, InvoiceItem } from './models/sql/invoice';
-import { PriceList } from './models/sql/price-list';
-import { PriceListItem } from './models/sql/price-list-item';
 import { ProductPriceHistory } from './models/sql/product-price-history';
 import { Payment } from './models/sql/payment';
 import { ProductCategory } from './models/sql/product-category';
@@ -40,8 +38,6 @@ export const AppDataSource = new DataSource({
     QuoteItem,
     Invoice,
     InvoiceItem,    
-    PriceList,
-    PriceListItem,
     ProductPriceHistory,
     Payment,
     ProductCategory

@@ -12,8 +12,6 @@ import { Warehouse } from "./src/database/models/sql/warehouse";
 import { Batch } from "./src/database/models/sql/batch";
 import { Quote, QuoteItem } from "./src/database/models/sql/quote";
 import { Invoice, InvoiceItem } from "./src/database/models/sql/invoice";
-import { PriceList } from "./src/database/models/sql/price-list";
-import { PriceListItem } from "./src/database/models/sql/price-list-item";
 import { ProductPriceHistory } from "./src/database/models/sql/product-price-history";
 import { Payment } from "./src/database/models/sql/payment";
 import { ProductCategory } from "./src/database/models/sql/product-category";
@@ -52,8 +50,7 @@ export default new DataSource({
     Quote,
     QuoteItem,
     Invoice,
-    InvoiceItem,    PriceList,
-    PriceListItem,
+    InvoiceItem, 
     ProductPriceHistory,
     Payment,
     ProductCategory

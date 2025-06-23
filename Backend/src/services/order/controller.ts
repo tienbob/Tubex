@@ -164,15 +164,12 @@ export const orderController = {
         const queryRunner = AppDataSource.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();        try {
-            // Try to find by either companyId or customerId for backward compatibility
-            const order = await queryRunner.manager.findOne(Order, {
-                where: [
-                    { id, companyId }, // Try with companyId
-                    { id, customerId: companyId } // Try with customerId
-                ],
-                relations: ['items'],
-                lock: { mode: "pessimistic_write" }
-            });
+            // Use explicit UUID cast for Postgres
+            const order = await queryRunner.manager.createQueryBuilder(Order, 'order')
+                .leftJoinAndSelect('order.items', 'items')
+                .where('(order.id = CAST(:id AS uuid) AND (order.companyId = CAST(:companyId AS uuid) OR order.customerId = CAST(:companyId AS uuid)))', { id, companyId })
+                .setLock('pessimistic_write')
+                .getOne();
 
             if (!order) {
                 throw new AppError(404, 'Order not found');
@@ -260,11 +257,13 @@ export const orderController = {
         // For company-specific route, get companyId from params
         const targetCompanyId = req.params.companyId || null;
 
-        // First, get the order without filters to check permissions
-        const order = await AppDataSource.getRepository(Order).findOne({
-            where: { id },
-            relations: ['items', 'items.product']
-        });
+        // Use explicit UUID cast for Postgres
+        const order = await AppDataSource.getRepository(Order)
+            .createQueryBuilder('order')
+            .leftJoinAndSelect('order.items', 'items')
+            .leftJoinAndSelect('items.product', 'product')
+            .where('order.id = CAST(:id AS uuid)', { id })
+            .getOne();
 
         if (!order) {
             throw new AppError(404, 'Order not found');
@@ -366,14 +365,11 @@ export const orderController = {
         const queryRunner = AppDataSource.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();        try {
-            // Try to find by either companyId or customerId for backward compatibility
-            const order = await queryRunner.manager.findOne(Order, {
-                where: [
-                    { id, companyId }, // Try with companyId
-                    { id, customerId: companyId } // Try with customerId
-                ],
-                relations: ['items']
-            });
+            // Use explicit UUID cast for Postgres
+            const order = await queryRunner.manager.createQueryBuilder(Order, 'order')
+                .leftJoinAndSelect('order.items', 'items')
+                .where('order.id = CAST(:id AS uuid) AND (order.companyId = CAST(:companyId AS uuid) OR order.customerId = CAST(:companyId AS uuid))', { id, companyId })
+                .getOne();
 
             if (!order) {
                 throw new AppError(404, 'Order not found');
@@ -416,11 +412,11 @@ export const orderController = {
         const queryRunner = AppDataSource.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();        try {
-            // Find orders matching any of the IDs and either the companyId or customerId
+            // Use explicit UUID cast for Postgres
             const orders = await queryRunner.manager.createQueryBuilder(Order, 'order')
                 .leftJoinAndSelect('order.items', 'items')
                 .where('order.id IN (:...orderIds)', { orderIds })
-                .andWhere('(order.companyId = :companyId OR order.customerId = :companyId)', { companyId })
+                .andWhere('(order.companyId = CAST(:companyId AS uuid) OR order.customerId = CAST(:companyId AS uuid))', { companyId })
                 .setLock('pessimistic_write')
                 .getMany();
 
@@ -528,12 +524,11 @@ export const orderController = {
         
         const { id } = req.params;
         const companyId = req.user.companyId;        // Verify order ownership - check both companyId and customerId for backward compatibility
-        const order = await AppDataSource.getRepository(Order).findOne({
-            where: [
-                { id, companyId },
-                { id, customerId: companyId }
-            ]
-        });
+        // Use explicit UUID cast for Postgres
+        const order = await AppDataSource.getRepository(Order)
+            .createQueryBuilder('order')
+            .where('order.id = CAST(:id AS uuid) AND (order.companyId = CAST(:companyId AS uuid) OR order.customerId = CAST(:companyId AS uuid))', { id, companyId })
+            .getOne();
 
         if (!order) {
             throw new AppError(404, 'Order not found');

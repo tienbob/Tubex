@@ -6,8 +6,6 @@ export * from './payment';
 export * from './product';
 export * from './product-category';
 export * from './product-price-history'; // TODO: Remove after migration to ProductPricing
-export * from './price-list'; // TODO: Remove after migration to ProductPricing
-export * from './price-list-item'; // TODO: Remove after migration to ProductPricing
 export * from './product-pricing'; // NEW: Unified pricing system
 export * from './pricing-history'; // NEW: Unified pricing audit trail
 export * from './warehouse';
