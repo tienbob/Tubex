@@ -42,7 +42,10 @@ async function createOrderHistoryEntry(
 export const orderController = {
     async createOrder(req: Request, res: Response) {
         if (!req.user) throw new AppError(401, 'Authentication required');
-        
+        // Only company admin or manager can create orders
+        if (!["admin", "manager"].includes(req.user.role)) {
+            throw new AppError(403, 'Only company admin or manager can create orders');
+        }
         const { items, deliveryAddress, paymentMethod } = req.body;
         const companyId = req.user.companyId;
 
@@ -53,18 +56,32 @@ export const orderController = {
 
         const queryRunner = AppDataSource.createQueryRunner();
         await queryRunner.connect();
-        await queryRunner.startTransaction();
-
-        try {
+        await queryRunner.startTransaction();        try {
             // Validate products and calculate total
             const productIds = items.map((item: OrderItemRequest) => item.productId);
-            const products = await AppDataSource.getRepository(Product)
+            
+            // Build product query with dealer context
+            const productQueryBuilder = AppDataSource.getRepository(Product)
                 .createQueryBuilder('product')
-                .whereInIds(productIds)
-                .getMany();
+                .whereInIds(productIds);
+            
+            // For dealers, only allow products they have in their catalog
+            if (req.user.role === 'dealer') {
+                productQueryBuilder.andWhere('product.dealer_id = :dealerId', { dealerId: companyId });
+            } else if (req.user.role === 'supplier') {
+                productQueryBuilder.andWhere('product.supplier_id = :supplierId', { supplierId: companyId });
+            } else if (["admin", "manager"].includes(req.user.role)) {
+                // Company admin/manager can only create orders for their own company
+                productQueryBuilder.andWhere('(product.company_id = :companyId)', { companyId });
+            } else {
+                throw new AppError(403, 'Access denied: Invalid role for creating orders');
+            }
+            // Admin can access all products, no additional filter needed
+            
+            const products = await productQueryBuilder.getMany();
 
             if (products.length !== productIds.length) {
-                throw new AppError(400, 'One or more products not found');
+                throw new AppError(400, 'One or more products not found or not accessible');
             }
 
             // Check inventory and create order items
@@ -135,6 +152,10 @@ export const orderController = {
 
     async updateOrder(req: Request, res: Response) {
         if (!req.user) throw new AppError(401, 'Authentication required');
+        // Only company admin or manager can update orders
+        if (!["admin", "manager"].includes(req.user.role)) {
+            throw new AppError(403, 'Only company admin or manager can update orders');
+        }
         
         const { id } = req.params;
         const updates = req.body;
@@ -262,9 +283,12 @@ export const orderController = {
             if (!hasSupplierProducts) {
                 throw new AppError(403, 'Access denied: This order does not contain your products');
             }
-        } else if (userRole !== 'admin' && order.companyId !== userCompanyId) {
-            // Other roles (staff, managers) can only access their company's orders
-            throw new AppError(403, 'Access denied: This order does not belong to your company');
+        } else if (["admin", "manager", "staff"].includes(userRole)) {
+            if (order.companyId !== userCompanyId) {
+                throw new AppError(403, 'Access denied: You can only view your company\'s orders');
+            }
+        } else {
+            throw new AppError(403, 'Access denied: Invalid role');
         }
 
         res.json(order);
@@ -285,35 +309,28 @@ export const orderController = {
             .leftJoinAndSelect('items.product', 'product');        // Apply appropriate filter based on user role and route
         if (userRole === 'dealer') {
             // Dealers should see only their own orders
-            // For the company-specific route, check both permission and the requested company ID
             if (targetCompanyId !== userCompanyId) {
-                // If dealer tries to access another company's orders
                 throw new AppError(403, 'Access denied: You can only view your company\'s orders');
             }
-            
-            // Using customerId field while the migration is in progress
-            // Later this can be changed to just use companyId when the migration is complete
-            queryBuilder.where('(order.customerId = :companyId OR order.companyId = :companyId)', { companyId: targetCompanyId });
+            // Use explicit UUID cast for Postgres
+            queryBuilder.where('(order.customerId = CAST(:companyId AS uuid) OR order.companyId = CAST(:companyId AS uuid))', { companyId: targetCompanyId });
         } else if (userRole === 'supplier') {
-            // Suppliers should see orders containing their products
             queryBuilder.innerJoin(
-                'product', 
-                'p', 
-                'p.id = items.productId AND p.supplier_id = :supplierId', 
+                'product',
+                'p',
+                'p.id = items.productId AND p.supplier_id = :supplierId',
                 { supplierId: userCompanyId }
             );
-            
-            // If specific company is requested, add that filter too
             if (req.params.companyId) {
-                queryBuilder.andWhere('(order.customerId = :targetCompanyId OR order.companyId = :targetCompanyId)', { targetCompanyId });
+                queryBuilder.andWhere('(order.customerId = CAST(:targetCompanyId AS uuid) OR order.companyId = CAST(:targetCompanyId AS uuid))', { targetCompanyId });
             }
-        } else if (userRole !== 'admin') {
-            // Other roles (staff, managers) should only see their company's orders
+        } else if (["admin", "manager", "staff"].includes(userRole)) {
             if (targetCompanyId !== userCompanyId) {
-                // If user tries to access another company's orders
                 throw new AppError(403, 'Access denied: You can only view your company\'s orders');
             }
-            queryBuilder.where('(order.customerId = :companyId OR order.companyId = :companyId)', { companyId: targetCompanyId });
+            queryBuilder.where('(order.customerId = CAST(:companyId AS uuid) OR order.companyId = CAST(:companyId AS uuid))', { companyId: targetCompanyId });
+        } else {
+            throw new AppError(403, 'Access denied: Invalid role');
         }
 
         if (status) {
@@ -338,6 +355,10 @@ export const orderController = {
 
     async cancelOrder(req: Request, res: Response) {
         if (!req.user) throw new AppError(401, 'Authentication required');
+        // Only company admin or manager can cancel orders
+        if (!["admin", "manager"].includes(req.user.role)) {
+            throw new AppError(403, 'Only company admin or manager can cancel orders');
+        }
         
         const { id } = req.params;
         const companyId = req.user.companyId;
@@ -385,6 +406,10 @@ export const orderController = {
 
     async bulkProcessOrders(req: Request, res: Response) {
         if (!req.user) throw new AppError(401, 'Authentication required');
+        // Only company admin or manager can bulk process orders
+        if (!["admin", "manager"].includes(req.user.role)) {
+            throw new AppError(403, 'Only company admin or manager can bulk process orders');
+        }
         
         const { orderIds, status, notes } = req.body;
         const companyId = req.user.companyId;

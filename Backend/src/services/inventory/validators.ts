@@ -1,5 +1,5 @@
+import { ValidationSchema } from "../../middleware/unified-validation";
 import Joi from "joi";
-import { ValidationSchema } from '../../middleware/validationHandler';
 
 export const inventoryValidators: Record<string, ValidationSchema> = {
     createInventory: {

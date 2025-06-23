@@ -1,10 +1,16 @@
-import { Router } from 'express';
+import { Router, RequestHandler } from 'express';
 import { productController } from './controller';
 import { productValidators } from './validators';
-import { validationHandler } from '../../middleware/validationHandler';
-import { authenticate, authorize } from '../../middleware/auth';
-import { cacheResponse } from '../../middleware/cache';
-import { RequestHandler } from 'express';
+import { 
+  authenticate, 
+  authorize, 
+  validate, 
+  cacheResponse,
+  requireSupplier,
+  companyProtectedRoute,
+  supplierOnlyRoute,
+  asyncHandler
+} from '../../middleware';
 
 const router = Router();
 
@@ -229,8 +235,8 @@ router.get('/:id', productController.getProduct as RequestHandler);
  */
 router.post(
     '/',
-    authorize('supplier'),
-    validationHandler(productValidators.createProduct),
+    authorize({ companyTypes: ['supplier'] }),
+    validate(productValidators.createProduct),
     productController.createProduct as RequestHandler
 );
 
@@ -328,8 +334,8 @@ router.post(
  */
 router.put(
     '/:id',
-    authorize('supplier'),
-    validationHandler(productValidators.updateProduct),
+    authorize({ companyTypes: ['supplier'], requireCompanyMatch: true }),
+    validate(productValidators.updateProduct),
     productController.updateProduct as RequestHandler
 );
 
@@ -375,7 +381,7 @@ router.put(
  */
 router.delete(
     '/:id',
-    authorize('supplier'),
+    authorize({ companyTypes: ['supplier'], requireCompanyMatch: true }),
     productController.deleteProduct as RequestHandler
 );
 
@@ -442,8 +448,8 @@ router.delete(
  */
 router.post(
     '/bulk-status',
-    authorize('supplier'),
-    validationHandler(productValidators.bulkUpdateStatus),
+    authorize({ companyTypes: ['supplier'], requireCompanyMatch: true }),
+    validate(productValidators.bulkUpdateStatus),
     productController.bulkUpdateStatus as RequestHandler
 );
 
@@ -604,7 +610,7 @@ router.get('/company/:companyId/:id', productController.getProduct as RequestHan
  */
 router.put(
     '/company/:companyId/:id',
-    validationHandler(productValidators.updateProduct),
+    validate(productValidators.updateProduct),
     productController.updateProduct as RequestHandler
 );
 
@@ -696,11 +702,11 @@ router.delete('/company/:companyId/:id', productController.deleteProduct as Requ
  *                 data:
  *                   type: array
  *                   items:
- *                     type: object
- *                     properties:
+ *                     type: object *                     properties:
  *                       id:
  *                         type: string
- *                         format: uuid *                       product_id:
+ *                         format: uuid
+ *                       product_id:
  *                         type: string
  *                         format: uuid
  *                       old_price:

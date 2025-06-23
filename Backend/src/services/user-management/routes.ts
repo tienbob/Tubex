@@ -1,6 +1,10 @@
 import { Router, RequestHandler } from 'express';
-import { authenticate } from '../../middleware/auth';
-import { isCompanyAdmin, canManageUser } from '../../middleware/adminAuth';
+import { 
+  authenticate, 
+  requireCompanyAdmin, 
+  preventSelfModification,
+  validate
+} from '../../middleware';
 import { validateUserManagement } from './validators';
 import {
     listCompanyUsers,
@@ -9,13 +13,8 @@ import {
     getUserAuditLogs,
     getAvailableRoles
 } from './controller';
-import { RequestHandlerWithAuth } from '../../types/express';
 
 const router = Router();
-
-// Convert authenticated handlers to regular request handlers
-const wrap = (handler: RequestHandlerWithAuth): RequestHandler => 
-    (req, res, next) => handler(req as any, res, next);
 
 /**
  * @swagger
@@ -40,8 +39,8 @@ const wrap = (handler: RequestHandlerWithAuth): RequestHandler =>
  */
 router.get('/', 
     authenticate,
-    isCompanyAdmin,
-    wrap(listCompanyUsers)
+    requireCompanyAdmin,
+    listCompanyUsers as RequestHandler
 );
 
 /**
@@ -60,8 +59,8 @@ router.get('/',
  */
 router.get('/audit-logs', 
     authenticate,
-    isCompanyAdmin,
-    wrap(getUserAuditLogs)
+    requireCompanyAdmin,
+    getUserAuditLogs as RequestHandler
 );
 
 /**
@@ -111,10 +110,10 @@ router.get('/audit-logs',
 router.put(
     '/:userId',
     authenticate,
-    isCompanyAdmin,
-    wrap(canManageUser),
+    requireCompanyAdmin,
+    preventSelfModification,
     validateUserManagement,
-    wrap(updateUserRole)
+    updateUserRole as RequestHandler
 );
 
 /**
@@ -156,10 +155,10 @@ router.put(
 router.delete(
     '/:userId',
     authenticate,
-    isCompanyAdmin,
-    wrap(canManageUser),
+    requireCompanyAdmin,
+    preventSelfModification,
     validateUserManagement,
-    wrap(removeUser)
+    removeUser as RequestHandler
 );
 
 /**
@@ -224,8 +223,8 @@ router.delete(
  */
 router.get('/roles', 
     authenticate,
-    isCompanyAdmin,
-    wrap(getAvailableRoles)
+    requireCompanyAdmin,
+    getAvailableRoles as RequestHandler
 );
 
 export const userManagementRoutes = router;

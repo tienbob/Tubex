@@ -1,14 +1,7 @@
 import { Router, RequestHandler } from "express";
-import { authenticate } from "../../middleware/auth";
+import { authenticate, authorize, validate } from "../../middleware";
 import { asyncHandler } from '../../middleware/asyncHandler';
-import { validationHandler } from '../../middleware/validationHandler';
 import { cacheResponse } from '../../middleware/cache';
-import { 
-    validateCompanyAccess, 
-    validateResourceOwnership, 
-    companyRateLimit,
-    auditSecurityEvent 
-} from '../../middleware/multiTenantSecurity';
 import {
     getInventory,
     getInventoryItem,
@@ -26,9 +19,6 @@ const inventoryRoutes = Router();
 
 // Apply JWT authentication to all inventory routes
 inventoryRoutes.use(authenticate);
-
-// Apply company-level rate limiting to prevent abuse
-inventoryRoutes.use(companyRateLimit(500, 60000) as RequestHandler); // 500 requests per minute per company
 
 /**
  * @swagger
@@ -145,10 +135,9 @@ inventoryRoutes.use(companyRateLimit(500, 60000) as RequestHandler); // 500 requ
  *         $ref: '#/components/responses/ServerError'
  */
 inventoryRoutes.get("/company/:companyId", 
-    validateCompanyAccess as RequestHandler,
-    auditSecurityEvent('inventory_list_access') as RequestHandler,
+    authorize({ requireCompanyMatch: true }) as RequestHandler,
     // REMOVED: cacheResponse(60) - inventory data changes frequently and shouldn't be cached
-    getInventory as RequestHandler
+    asyncHandler(getInventory) as RequestHandler
 );
 
 /**
@@ -216,10 +205,8 @@ inventoryRoutes.get("/company/:companyId",
  *         $ref: '#/components/responses/ServerError'
  */
 inventoryRoutes.get("/company/:companyId/warehouse/:warehouseId", 
-    validateCompanyAccess as RequestHandler,
-    validateResourceOwnership('warehouse') as RequestHandler,
-    auditSecurityEvent('inventory_warehouse_access') as RequestHandler,
-    getInventory as RequestHandler
+    authorize({ requireCompanyMatch: true }) as RequestHandler,
+    asyncHandler(getInventory) as RequestHandler
 );
 
 /**
@@ -309,10 +296,8 @@ inventoryRoutes.get("/company/:companyId/warehouse/:warehouseId",
  *         $ref: '#/components/responses/ServerError'
  */
 inventoryRoutes.get("/company/:companyId/item/:id", 
-    validateCompanyAccess as RequestHandler,
-    validateResourceOwnership('inventory') as RequestHandler,
-    auditSecurityEvent('inventory_item_access') as RequestHandler,
-    getInventoryItem as RequestHandler
+    authorize({ requireCompanyMatch: true }) as RequestHandler,
+    asyncHandler(getInventoryItem) as RequestHandler
 );
 
 /**
@@ -398,8 +383,8 @@ inventoryRoutes.get("/company/:companyId/item/:id",
  */
 inventoryRoutes.post(
     "/company/:companyId",
-    validationHandler(inventoryValidators.createInventory),
-    createInventoryItem as RequestHandler
+    validate(inventoryValidators.createInventory),
+    asyncHandler(createInventoryItem) as RequestHandler
 );
 
 /**
@@ -481,8 +466,8 @@ inventoryRoutes.post(
  */
 inventoryRoutes.put(
     "/company/:companyId/item/:id",
-    validationHandler(inventoryValidators.updateInventory),
-    updateInventoryItem as RequestHandler
+    validate(inventoryValidators.updateInventory),
+    asyncHandler(updateInventoryItem) as RequestHandler
 );
 
 /**
@@ -562,8 +547,8 @@ inventoryRoutes.put(
  */
 inventoryRoutes.patch(
     "/company/:companyId/item/:id/adjust",
-    validationHandler(inventoryValidators.adjustQuantity),
-    adjustInventoryQuantity as RequestHandler
+    validate(inventoryValidators.adjustQuantity),
+    asyncHandler(adjustInventoryQuantity) as RequestHandler
 );
 
 /**
@@ -644,8 +629,8 @@ inventoryRoutes.patch(
  */
 inventoryRoutes.post(
     "/company/:companyId/transfer",
-    validationHandler(inventoryValidators.transferStock),
-    transferStock as RequestHandler
+    validate(inventoryValidators.transferStock),
+    asyncHandler(transferStock) as RequestHandler
 );
 
 /**
@@ -694,7 +679,7 @@ inventoryRoutes.post(
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
-inventoryRoutes.delete("/company/:companyId/item/:id", deleteInventoryItem as RequestHandler);
+inventoryRoutes.delete("/company/:companyId/item/:id", asyncHandler(deleteInventoryItem) as RequestHandler);
 
 /**
  * @swagger
@@ -728,7 +713,7 @@ inventoryRoutes.delete("/company/:companyId/item/:id", deleteInventoryItem as Re
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
-inventoryRoutes.get("/company/:companyId/low-stock", checkLowStock as RequestHandler);
+inventoryRoutes.get("/company/:companyId/low-stock", asyncHandler(checkLowStock) as RequestHandler);
 
 /**
  * @swagger
@@ -786,6 +771,6 @@ inventoryRoutes.get("/company/:companyId/low-stock", checkLowStock as RequestHan
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
-inventoryRoutes.get("/company/:companyId/expiring-batches", getExpiringBatches as RequestHandler);
+inventoryRoutes.get("/company/:companyId/expiring-batches", asyncHandler(getExpiringBatches) as RequestHandler);
 
 export { inventoryRoutes };

@@ -29,8 +29,8 @@ export const productController = {
             if (!supplier) {
                 throw new AppError(404, 'Supplier not found');
             }            // Check if user has permission to create products for this supplier
-            if (req.user.role === 'admin') {
-                // Admin can create products for any supplier
+            if (req.user.role === 'admin' && req.user.companyId === effectiveSupplierID) {
+                // Company admin can create products for their own company
             } else if (req.user.role === 'supplier' && req.user.companyId === effectiveSupplierID) {
                 // Suppliers can create products for themselves
             } else if (req.user.role === 'dealer') {
@@ -46,7 +46,7 @@ export const productController = {
             product.base_price = base_price;
             product.unit = unit;
             product.supplier_id = effectiveSupplierID;
-            product.category_id = category_id || null; // Set the category_id
+            product.category_id = category_id; // Set the category_id
             product.dealer_id = req.user.companyId; // Add the dealer who created this product
             product.status = status || 'active';
 
@@ -172,9 +172,9 @@ export const productController = {
             }
             
             if (userRole === 'admin') {
-                // Admin can access all products or company-specific products if companyId is provided
-                if (companyId && product.supplier_id !== companyId) {
-                    throw new AppError(404, 'Product not found in the specified company');
+                // Company admin can only access products for their own company
+                if (product.supplier_id !== userCompanyId) {
+                    throw new AppError(404, 'Product not found in your company');
                 }
             } else if (userRole === 'supplier') {
                 // Suppliers can only view their own products
@@ -235,25 +235,8 @@ export const productController = {
                         .andWhere('company.status = :companyStatus', { companyStatus: 'active' });
                 }
             } else if (userRole === 'admin') {
-                // Admin users should treat like dealers when viewing dealer company products
-                console.log('Admin user accessing dealer company products');                if (companyIdParam) {
-                    // Check if the companyIdParam is a supplier or dealer by checking the URL context
-                    // If accessing /products/company/{id}, we want to show that company's products
-                    const companyEntity = await AppDataSource.getRepository(Company).findOne({
-                        where: { id: companyIdParam as string }
-                    });
-                    
-                    if (companyEntity?.type === 'supplier') {
-                        // Show supplier's original products
-                        queryBuilder.andWhere('product.supplier_id = :companyIdParam', { companyIdParam });
-                    } else {
-                        // Show dealer's catalog products
-                        queryBuilder.andWhere('product.dealer_id = :companyIdParam', { companyIdParam });
-                    }
-                } else {
-                    console.log('Filtering by dealer_id =', userCompanyId);
-                    queryBuilder.andWhere('product.dealer_id = :userCompanyId', { userCompanyId });
-                }
+                // Company admin should only see products for their own company
+                queryBuilder.andWhere('product.supplier_id = :userCompanyId', { userCompanyId });
                 // Ensure suppliers are active (using existing supplier join)
                 queryBuilder.andWhere('supplier.status = :companyStatus', { companyStatus: 'active' });
             } else {

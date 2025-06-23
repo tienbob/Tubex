@@ -15,18 +15,9 @@ import {
   handleOAuthCallback,
   getPendingEmployees
 } from './controller';
-import { 
-  validateRegistration, 
-  validateLogin, 
-  validateEmployeeRegistration,
-  validateOAuthRegistrationCompletion
-} from './validators';
+import { schemas } from './validators';
 import { authLimiter } from '../../middleware/rateLimiter';
-import { authenticate, authorize } from '../../middleware/auth';
-import { asyncHandler } from '../../middleware/asyncHandler';
-import { generateTokens } from './utils';
-import { config } from '../../config';
-import { User } from '../../database/models/sql';
+import { authenticate, authorize, validate } from '../../middleware';
 
 declare global {
   namespace Express {
@@ -150,7 +141,7 @@ const router = Router();
  *       400:
  *         description: Invalid input or email already exists
  */
-router.post('/register', authLimiter, validateRegistration, register as RequestHandler);
+router.post('/register', authLimiter, validate({ body: schemas.registration }), register as RequestHandler);
 
 /**
  * @swagger
@@ -187,7 +178,7 @@ router.post('/register', authLimiter, validateRegistration, register as RequestH
  *       403:
  *         description: Account not verified or company pending approval
  */
-router.post('/login', authLimiter, validateLogin, login as RequestHandler);
+router.post('/login', authLimiter, validate({ body: schemas.login }), login as RequestHandler);
 
 /**
  * @swagger
@@ -371,7 +362,7 @@ router.get('/facebook/callback',
  *       201:
  *         description: Registration completed successfully
  */
-router.post('/complete-oauth-registration', authLimiter, validateOAuthRegistrationCompletion, completeOAuthRegistration as RequestHandler);
+router.post('/complete-oauth-registration', authLimiter, validate({ body: schemas.oauthRegistrationCompletion }), completeOAuthRegistration as RequestHandler);
 
 /**
  * @swagger
@@ -420,7 +411,7 @@ router.get('/invitation-code/:code', verifyInvitationCode as RequestHandler);
  *       401:
  *         description: Authentication required
  */
-router.post('/invitation-code', authenticate, authorize('admin', 'manager'), generateInvitationCode as RequestHandler);
+router.post('/invitation-code', authenticate, authorize({ roles: ['admin', 'manager'] }), generateInvitationCode as RequestHandler);
 
 /**
  * @swagger
@@ -481,7 +472,7 @@ router.get('/verify-email/:token', verifyEmail as RequestHandler);
  *       404:
  *         description: Company not found
  */
-router.post('/verify-company', authenticate, authorize('admin'), verifyCompany as RequestHandler);
+router.post('/verify-company', authenticate, authorize({ roles: ['admin'] }), verifyCompany as RequestHandler);
 
 /**
  * @swagger
@@ -524,7 +515,7 @@ router.post('/verify-company', authenticate, authorize('admin'), verifyCompany a
  *       400:
  *         description: Invalid input or invitation code
  */
-router.post('/register-employee', authLimiter, validateEmployeeRegistration, registerEmployee as RequestHandler);
+router.post('/register-employee', authLimiter, validate({ body: schemas.employeeRegistration }), registerEmployee as RequestHandler);
 
 /**
  * @swagger

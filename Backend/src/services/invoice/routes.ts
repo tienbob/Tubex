@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import { invoiceController } from './controller';
 import { invoiceValidators } from './validators';
-import { validationHandler } from '../../middleware/validationHandler';
-import { authenticate, authorize } from '../../middleware/auth';
+import { authenticate, authorize, validate } from '../../middleware';
 import { asyncHandler } from '../../middleware/asyncHandler';
 
 const router = Router();
@@ -104,7 +103,7 @@ router.use(authenticate);
  *       401:
  *         description: Unauthorized
  */
-router.post('/', validationHandler(invoiceValidators.createInvoice), asyncHandler(invoiceController.createInvoice));
+router.post('/', validate(invoiceValidators.createInvoice), asyncHandler(invoiceController.createInvoice));
 
 /**
  * @swagger
@@ -268,7 +267,7 @@ router.get('/:id/pdf', asyncHandler(invoiceController.generatePdf));
  *       401:
  *         description: Unauthorized
  */
-router.put('/:id', validationHandler(invoiceValidators.updateInvoice), asyncHandler(invoiceController.updateInvoice));
+router.put('/:id', validate(invoiceValidators.updateInvoice), asyncHandler(invoiceController.updateInvoice));
 
 /**
  * @swagger
@@ -295,7 +294,7 @@ router.put('/:id', validationHandler(invoiceValidators.updateInvoice), asyncHand
  *       401:
  *         description: Unauthorized
  */
-router.delete('/:id', authorize('admin'), asyncHandler(invoiceController.deleteInvoice));
+router.delete('/:id', authorize({ roles: ['admin'] }), asyncHandler(invoiceController.deleteInvoice));
 
 /**
  * @swagger
@@ -355,7 +354,7 @@ router.delete('/:id', authorize('admin'), asyncHandler(invoiceController.deleteI
  *       401:
  *         description: Unauthorized
  */
-router.post('/order/:id', validationHandler(invoiceValidators.createInvoiceFromOrder), asyncHandler(invoiceController.createInvoiceFromOrder));
+router.post('/order/:id', validate(invoiceValidators.createInvoiceFromOrder), asyncHandler(invoiceController.createInvoiceFromOrder));
 
 /**
  * @swagger
@@ -408,7 +407,7 @@ router.post('/order/:id', validationHandler(invoiceValidators.createInvoiceFromO
  *       401:
  *         description: Unauthorized
  */
-router.post('/:id/payment', validationHandler(invoiceValidators.recordPayment), asyncHandler(invoiceController.recordPayment));
+router.post('/:id/payment', validate(invoiceValidators.recordPayment), asyncHandler(invoiceController.recordPayment));
 
 /**
  * @swagger
@@ -627,7 +626,7 @@ router.get('/company/:companyId/:id/pdf', asyncHandler(invoiceController.generat
  *       401:
  *         description: Unauthorized
  */
-router.put('/company/:companyId/:id', validationHandler(invoiceValidators.updateInvoice), asyncHandler(invoiceController.updateInvoice));
+router.put('/company/:companyId/:id', validate(invoiceValidators.updateInvoice), asyncHandler(invoiceController.updateInvoice));
 
 /**
  * @swagger
@@ -650,8 +649,7 @@ router.put('/company/:companyId/:id', validationHandler(invoiceValidators.update
  *         name: id
  *         schema:
  *           type: string
- *           format: uuid
- *         required: true
+ *           format: uuid *         required: true
  *         description: Invoice ID
  *     responses:
  *       200:
@@ -661,7 +659,7 @@ router.put('/company/:companyId/:id', validationHandler(invoiceValidators.update
  *       401:
  *         description: Unauthorized
  */
-router.delete('/company/:companyId/:id', authorize('admin'), asyncHandler(invoiceController.deleteInvoice));
+router.delete('/company/:companyId/:id', authorize({ roles: ['admin'] }), asyncHandler(invoiceController.deleteInvoice));
 
 /**
  * @swagger
@@ -728,7 +726,7 @@ router.delete('/company/:companyId/:id', authorize('admin'), asyncHandler(invoic
  *       401:
  *         description: Unauthorized
  */
-router.post('/company/:companyId/order/:id', validationHandler(invoiceValidators.createInvoiceFromOrder), asyncHandler(invoiceController.createInvoiceFromOrder));
+router.post('/company/:companyId/order/:id', validate(invoiceValidators.createInvoiceFromOrder), asyncHandler(invoiceController.createInvoiceFromOrder));
 
 /**
  * @swagger
@@ -788,7 +786,7 @@ router.post('/company/:companyId/order/:id', validationHandler(invoiceValidators
  *       401:
  *         description: Unauthorized
  */
-router.post('/company/:companyId/:id/payment', validationHandler(invoiceValidators.recordPayment), asyncHandler(invoiceController.recordPayment));
+router.post('/company/:companyId/:id/payment', validate(invoiceValidators.recordPayment), asyncHandler(invoiceController.recordPayment));
 
 /**
  * @swagger
@@ -936,7 +934,7 @@ router.post('/company/:companyId/:id/send', asyncHandler(invoiceController.sendI
  *       401:
  *         description: Unauthorized
  */
-router.post('/company/:companyId', validationHandler(invoiceValidators.createInvoice), asyncHandler(invoiceController.createInvoice));
+router.post('/company/:companyId', validate(invoiceValidators.createInvoice), asyncHandler(invoiceController.createInvoice));
 
 /**
  * @swagger
@@ -1100,7 +1098,7 @@ router.get('/company/:companyId/:id/pdf', asyncHandler(invoiceController.generat
  *       401:
  *         description: Unauthorized
  */
-router.put('/company/:companyId/:id', validationHandler(invoiceValidators.updateInvoice), asyncHandler(invoiceController.updateInvoice));
+router.put('/company/:companyId/:id', validate(invoiceValidators.updateInvoice), asyncHandler(invoiceController.updateInvoice));
 
 /**
  * @swagger
@@ -1119,15 +1117,14 @@ router.put('/company/:companyId/:id', validationHandler(invoiceValidators.update
  *           format: uuid
  *         required: true
  *         description: Invoice ID
- *     responses:
- *       200:
+ *     responses: *       200:
  *         description: Invoice voided successfully
  *       404:
  *         description: Invoice not found
  *       401:
  *         description: Unauthorized
  */
-router.delete('/company/:companyId/:id', authorize('admin'), asyncHandler(invoiceController.deleteInvoice));
+router.delete('/company/:companyId/:id', authorize({ roles: ['admin'] }), asyncHandler(invoiceController.deleteInvoice));
 
 /**
  * @swagger
@@ -1187,7 +1184,7 @@ router.delete('/company/:companyId/:id', authorize('admin'), asyncHandler(invoic
  *       401:
  *         description: Unauthorized
  */
-router.post('/company/:companyId/order/:id', validationHandler(invoiceValidators.createInvoiceFromOrder), asyncHandler(invoiceController.createInvoiceFromOrder));
+router.post('/company/:companyId/order/:id', validate(invoiceValidators.createInvoiceFromOrder), asyncHandler(invoiceController.createInvoiceFromOrder));
 
 /**
  * @swagger
@@ -1240,7 +1237,7 @@ router.post('/company/:companyId/order/:id', validationHandler(invoiceValidators
  *       401:
  *         description: Unauthorized
  */
-router.post('/company/:companyId/:id/payment', validationHandler(invoiceValidators.recordPayment), asyncHandler(invoiceController.recordPayment));
+router.post('/company/:companyId/:id/payment', validate(invoiceValidators.recordPayment), asyncHandler(invoiceController.recordPayment));
 
 /**
  * @swagger

@@ -14,7 +14,17 @@ export class CompanyController {
      * Get all companies with filtering and pagination
      */
     async getAllCompanies(req: Request, res: Response, next: NextFunction) {
+        if (!req.user) {
+            return res.status(401).json({ status: 'error', message: 'Authentication required' });
+        }
         try {
+            // Only company admin can see all companies
+            if (req.user.role !== 'admin') {
+                // Non-admins can only see their own company
+                const company = await this.companyRepository.findOne({ where: { id: req.user.companyId } });
+                return res.status(200).json({ status: 'success', data: [company], pagination: { page: 1, limit: 1, totalItems: 1, totalPages: 1 } });
+            }
+
             const {
                 page = 1,
                 limit = 10,

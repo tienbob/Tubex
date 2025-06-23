@@ -1,9 +1,8 @@
 import { Router, RequestHandler } from 'express';
 import { companyController } from './controller';
 import { companyValidators } from './validators';
-import { authenticate } from '../../middleware/auth';
+import { authenticate, validate } from '../../middleware';
 import { asyncHandler } from '../../middleware/asyncHandler';
-import { validationHandler } from '../../middleware/validationHandler';
 import { cacheResponse } from '../../middleware/cache';
 
 const router = Router();
@@ -141,7 +140,7 @@ router.use(authenticate);
  *         $ref: '#/components/responses/ServerError'
  */
 router.get('/', 
-    validationHandler(companyValidators.getAllCompanies),
+    validate(companyValidators.getAllCompanies),
     asyncHandler(companyController.getAllCompanies.bind(companyController)) as RequestHandler
 );
 
@@ -185,7 +184,7 @@ router.get('/',
  *         $ref: '#/components/responses/ServerError'
  */
 router.get('/batch', 
-    validationHandler(companyValidators.getCompaniesByIds),
+    validate(companyValidators.getCompaniesByIds),
     asyncHandler(companyController.getCompaniesByIds.bind(companyController)) as RequestHandler
 );
 
@@ -249,7 +248,7 @@ router.get('/batch',
  *         $ref: '#/components/responses/ServerError'
  */
 router.get('/suppliers', 
-    validationHandler(companyValidators.getSuppliers),
+    validate(companyValidators.getSuppliers),
     asyncHandler(companyController.getSuppliers.bind(companyController)) as RequestHandler
 );
 
@@ -313,7 +312,7 @@ router.get('/suppliers',
  *         $ref: '#/components/responses/ServerError'
  */
 router.get('/dealers', 
-    validationHandler(companyValidators.getDealers),
+    validate(companyValidators.getDealers),
     asyncHandler(companyController.getDealers.bind(companyController)) as RequestHandler
 );
 
@@ -355,7 +354,7 @@ router.get('/dealers',
  *         $ref: '#/components/responses/ServerError'
  */
 router.get('/:id', 
-    validationHandler(companyValidators.getCompanyById),
+    validate(companyValidators.getCompanyById),
     cacheResponse(300), // Cache for 5 minutes (company data changes less frequently)
     asyncHandler(companyController.getCompanyById.bind(companyController)) as RequestHandler
 );

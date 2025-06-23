@@ -1,10 +1,9 @@
 import express from 'express';
 import { paymentController } from './controller';
 import { paymentValidators } from './validators';
-import { authenticate } from '../../middleware/auth';
+import { authenticate, validate } from '../../middleware';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { Request, Response, NextFunction } from 'express';
-import { validationHandler } from '../../middleware/validationHandler';
 
 export const paymentRoutes = express.Router();
 
@@ -80,7 +79,7 @@ interface CreatePaymentRequest extends Request {
 
 paymentRoutes.post(
         '/',        authenticate,
-        validationHandler(paymentValidators.createPayment),
+        validate(paymentValidators.createPayment),
         asyncHandler((req: CreatePaymentRequest, res: Response, next: NextFunction) => {
                 return paymentController.createPayment(req, res);
         })
@@ -157,7 +156,7 @@ paymentRoutes.post(
 paymentRoutes.get(
     '/',
     authenticate,
-    validationHandler(paymentValidators.getPayments),
+    validate(paymentValidators.getPayments),
     asyncHandler(paymentController.getPayments)
 );
 
@@ -187,7 +186,7 @@ paymentRoutes.get(
 paymentRoutes.get(
     '/:id',
     authenticate,
-    validationHandler(paymentValidators.getPaymentById),
+    validate(paymentValidators.getPaymentById),
     asyncHandler(paymentController.getPaymentById)
 );
 
@@ -249,7 +248,7 @@ paymentRoutes.get(
 paymentRoutes.put(
     '/:id',
     authenticate,
-    validationHandler(paymentValidators.updatePayment),
+    validate(paymentValidators.updatePayment),
     asyncHandler(paymentController.updatePayment)
 );
 
@@ -279,7 +278,7 @@ paymentRoutes.put(
 paymentRoutes.delete(
     '/:id',
     authenticate,
-    validationHandler(paymentValidators.deletePayment),
+    validate(paymentValidators.deletePayment),
     asyncHandler(paymentController.deletePayment)
 );
 
@@ -323,7 +322,7 @@ paymentRoutes.delete(
 paymentRoutes.post(
     '/:id/reconcile',
     authenticate,
-    validationHandler(paymentValidators.reconcilePayment),
+    validate(paymentValidators.reconcilePayment),
     asyncHandler(paymentController.reconcilePayment)
 );
 

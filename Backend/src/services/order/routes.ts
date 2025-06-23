@@ -1,8 +1,7 @@
 import { Router, RequestHandler } from 'express';
 import { orderController } from './controller';
 import { orderValidators } from './validators';
-import { validationHandler } from '../../middleware/validationHandler';
-import { authenticate, authorize } from '../../middleware/auth';
+import { authenticate, authorize, validate } from '../../middleware';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { cacheResponse } from '../../middleware/cache';
 
@@ -12,7 +11,7 @@ const router = Router();
 router.use(authenticate);
 
 // Only allow dealers to access order routes
-router.use(authorize('dealer'));
+router.use(authorize({ companyTypes: ['dealer'] }));
 
 /**
  * @swagger
@@ -158,7 +157,7 @@ router.use(authorize('dealer'));
  */
 router.post(
     '/',
-    validationHandler(orderValidators.createOrder),
+    validate(orderValidators.createOrder),
     orderController.createOrder as RequestHandler
 );
 
@@ -570,7 +569,7 @@ router.post('/:id/cancel', orderController.cancelOrder as RequestHandler);
  */
 router.post(
     '/bulk-process',
-    validationHandler(orderValidators.bulkProcessOrders),
+    validate(orderValidators.bulkProcessOrders),
     orderController.bulkProcessOrders as RequestHandler
 );
 

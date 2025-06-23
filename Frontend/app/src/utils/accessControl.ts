@@ -288,11 +288,10 @@ const ROLE_PERMISSIONS: Record<string, AccessPermissions> = {
   'dealer-admin': {
     dashboard: true,
     analytics: true,
-    
-    productView: true,
-    productCreate: false, // Dealers don't create products, they order from suppliers
-    productEdit: false,
-    productDelete: false,
+      productView: true,
+    productCreate: true, // Dealers can add supplier products to their catalog
+    productEdit: false, // Dealers can't edit supplier products
+    productDelete: false, // Dealers can't delete supplier products
     
     inventoryView: true,
     inventoryCreate: false, // Inventory comes from orders
@@ -344,13 +343,12 @@ const ROLE_PERMISSIONS: Record<string, AccessPermissions> = {
     settingsEdit: true,
     companySettings: true,
   },
-  
-  'dealer-manager': {
+    'dealer-manager': {
     dashboard: true,
     analytics: true,
     
     productView: true,
-    productCreate: false,
+    productCreate: true, // Dealers can add supplier products to their catalog
     productEdit: false,
     productDelete: false,
     
@@ -404,13 +402,12 @@ const ROLE_PERMISSIONS: Record<string, AccessPermissions> = {
     settingsEdit: false,
     companySettings: false,
   },
-  
-  'dealer-staff': {
+    'dealer-staff': {
     dashboard: true,
     analytics: false,
     
     productView: true,
-    productCreate: false,
+    productCreate: false, // Staff cannot add products, only managers and admins
     productEdit: false,
     productDelete: false,
     

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { getAllUsers, getUserById, updateUser, deleteUser } from './controller';
-import { validateUserUpdate } from './validators';
-import { authenticate } from '../../middleware/auth';
+import { userUpdateSchema } from './validators';
+import { authenticate, validate } from '../../middleware';
 import { asyncHandler } from '../../middleware/asyncHandler';
 
 const router = Router();
@@ -168,7 +168,7 @@ router.get('/:id', getUserById);
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
-router.put('/:id', validateUserUpdate, updateUser);
+router.put('/:id', validate({ body: userUpdateSchema }), updateUser);
 
 /**
  * @swagger

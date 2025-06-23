@@ -3,7 +3,7 @@ import Joi from 'joi';
 import { AppError } from '../../middleware/errorHandler';
 
 // Validation schema for user updates
-const userUpdateSchema = Joi.object({
+export const userUpdateSchema = Joi.object({
     email: Joi.string().email().optional(),
     role: Joi.string().valid('admin', 'manager', 'staff').optional(),
     status: Joi.string().valid('active', 'inactive', 'pending', 'suspended').optional(),

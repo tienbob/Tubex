@@ -15,7 +15,7 @@ export interface ValidationSchema {
 /**
  * Type for express-validator middleware arrays
  */
-export type ExpressValidatorMiddleware = any[]; // Array of express-validator middlewares
+export type ExpressValidatorMiddleware = any[];
 
 /**
  * Union type that can represent both validation approaches
@@ -24,11 +24,12 @@ export type ValidationDefinition = ValidationSchema | ExpressValidatorMiddleware
 
 /**
  * Unified validation middleware that handles both Joi and express-validator validations
+ * This consolidates both express-validation.ts and the existing validationHandler.ts
  * 
  * @param schema - Can be either a Joi schema object or express-validator middleware array
  * @returns Express middleware
  */
-export const validationHandler = (schema: ValidationDefinition): any[] | ((req: Request, res: Response, next: NextFunction) => void) => {
+export const validate = (schema: ValidationDefinition): any[] | ((req: Request, res: Response, next: NextFunction) => void) => {
   // If schema is an array, assume it's express-validator middleware
   if (Array.isArray(schema)) {
     return [
@@ -89,4 +90,23 @@ export const validationHandler = (schema: ValidationDefinition): any[] | ((req: 
 
     next();
   };
+};
+
+// Legacy alias for backward compatibility
+export const validationHandler = validate;
+
+/**
+ * Simple express-validator error handler for standalone use
+ */
+export const checkValidationErrors = (req: Request, res: Response, next: NextFunction) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    const errorMessages = errors.array().map(err => {
+      const field = (err as any).param || 'field';
+      const message = (err as any).msg || String(err);
+      return `${field}: ${message}`;
+    }).join(', ');
+    throw new AppError(400, `Validation failed: ${errorMessages}`);
+  }
+  next();
 };

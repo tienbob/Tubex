@@ -1,10 +1,9 @@
 import { Router } from 'express';
 import { productCategoryController } from './category-controller';
 import { productCategoryValidators } from './category-validators';
-import { validationHandler } from '../../middleware/validationHandler';
-import { authenticate, authorize } from '../../middleware/auth';
-import { asyncHandler } from '../../middleware/asyncHandler';
+import { authenticate } from '../../middleware/auth';
 import { RequestHandler } from 'express';
+import { validationHandler } from '../../middleware/unified-validation';
 
 const router = Router();
 

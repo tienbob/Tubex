@@ -108,10 +108,9 @@ export interface RolesResponse {
 const userManagementService = {
   /**
    * Get all users with optional filtering
-   */
-  getUsers: async (params: UserListParams = {}): Promise<UserListResponse> => {
+   */  getUsers: async (params: UserListParams = {}): Promise<UserListResponse> => {
     try {
-      const response = await apiClient.get('/users', { params });
+      const response = await apiClient.get('/company/manage', { params });
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {

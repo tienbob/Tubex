@@ -1,6 +1,5 @@
-import { authenticate } from '../../middleware/auth';
+import { ValidationSchema } from '../../middleware/unified-validation';
 import Joi from 'joi';
-import { ValidationSchema } from '../../middleware/validationHandler';
 
 export const productValidators: Record<string, ValidationSchema> = {    createProduct: {
         body: Joi.object({

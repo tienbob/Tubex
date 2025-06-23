@@ -1,4 +1,4 @@
-import { ValidationSchema } from '../../middleware/validationHandler';
+import { ValidationSchema } from '../../middleware/unified-validation';
 import Joi from 'joi';
 import { InvoiceStatus, PaymentTerm } from '../../database/models/sql/invoice';
 

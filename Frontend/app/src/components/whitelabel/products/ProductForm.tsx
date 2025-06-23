@@ -26,7 +26,6 @@ import ProductPriceHistory from './ProductPriceHistory';
 import DealerProductForm from './DealerProductForm';
 import { productService, companyService, warehouseService, inventoryService } from '../../../services/api';
 import { useAccessControl } from '../../../hooks/useAccessControl';
-import SmartCategoryInput from '../../common/SmartCategoryInput';
 
 // Types
 interface TabPanelProps {
@@ -142,8 +141,10 @@ const ProductForm: React.FC<ProductFormProps> = ({
   if (accessLoading) {
     return <div>Loading...</div>;
   }
+
   // Render different forms based on user company type
   if (user?.companyType === 'dealer' || user?.role === 'dealer') {
+    console.log('Rendering DealerProductForm - companyType:', user?.companyType, 'role:', user?.role);
     return (
       <DealerProductForm
         companyId={companyId}
@@ -153,6 +154,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
     );
   }
   
+  console.log('Rendering SupplierProductForm - companyType:', user?.companyType, 'role:', user?.role);
   // For supplier users, render the SupplierProductForm
   return (
     <SupplierProductForm
@@ -168,16 +170,17 @@ const ProductForm: React.FC<ProductFormProps> = ({
 const SupplierProductForm: React.FC<ProductFormProps> = ({
   productId,
   companyId,
-  onSave,  onCancel,
+  onSave,
+  onCancel,
 }) => {
-  const { user, permissions, canPerform } = useAccessControl();
+  const { permissions, canPerform } = useAccessControl();
   const isEditMode = !!productId;
-  
-  const [tabValue, setTabValue] = useState(0);const [categories, setCategories] = useState<Category[]>([]);
+  const [tabValue, setTabValue] = useState(0);  const [categories, setCategories] = useState<Category[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-
-  const [formData, setFormData] = useState<ProductFormData>({
+  
+  // Debug log to see component state
+  console.log('ProductForm render - suppliers state:', suppliers.length, suppliers);  const [formData, setFormData] = useState<ProductFormData>({
     name: '',
     description: '',
     price: '',
@@ -191,9 +194,6 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
       warehouses: [],
     },
   });
-  
-  // Track new category name if user creates one
-  const [newCategoryName, setNewCategoryName] = useState<string>('');
     const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(false);
@@ -214,37 +214,65 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
     } catch (err: any) {
       console.error('Error fetching categories:', err);
     }
-  };  const fetchSuppliers = async () => {
+  };
+  const fetchSuppliers = async () => {
     try {
+      console.log('Fetching suppliers...');
       const response = await companyService.getSuppliers();
+      console.log('Suppliers API response:', response);
+      console.log('Response data:', response.data);
+      console.log('Response data type:', typeof response.data);
+      console.log('Response data is array:', Array.isArray(response.data));
       
       const suppliersList = response.data || [];
+      console.log('Suppliers list before filtering:', suppliersList);
+      console.log('Suppliers list length:', suppliersList.length);
       
       const filteredSuppliers = suppliersList
-        .filter(supplier => supplier.type === 'supplier')
+        .filter(supplier => {
+          console.log('Checking supplier:', supplier);
+          console.log('Supplier type:', supplier.type);
+          return supplier.type === 'supplier';
+        })
         .map(supplier => ({
           id: supplier.id,
           name: supplier.name,
-          type: supplier.type as 'supplier'
+          type: supplier.type as 'supplier' // Type assertion to ensure it's treated as 'supplier'
         }));
       
+      console.log('Filtered suppliers:', filteredSuppliers);
+      console.log('Filtered suppliers length:', filteredSuppliers.length);
       setSuppliers(filteredSuppliers);
     } catch (err: any) {
-      console.error('Error fetching suppliers:', err);
+      console.error('Error fetching suppliers:', err);      console.error('Error details:', err.response?.data);
     }
-  };const fetchWarehouses = async () => {
+  };  const fetchWarehouses = async () => {
     try {
-      if (!companyId) {
-        console.error('No companyId available for fetching warehouses');
-        setWarehouses([]);
-        return;
+      const response = await warehouseService.getWarehouses();
+      console.log('Warehouses API response:', response);
+      
+      // Handle different possible response structures based on the backend controller
+      let warehousesList: Warehouse[] = [];
+      
+      if (Array.isArray(response)) {
+        // Direct array response
+        warehousesList = response;
+      } else if (response && response.data && Array.isArray(response.data.warehouses)) {
+        // Standard API response: { data: { warehouses: [...], pagination: {...} } }
+        warehousesList = response.data.warehouses;
+      } else if (response && Array.isArray(response.data)) {
+        // Alternative response: { data: [...] }
+        warehousesList = response.data;
+      } else if (response && response.warehouses && Array.isArray(response.warehouses)) {
+        // Direct warehouses property
+        warehousesList = response.warehouses;
+      } else {
+        console.warn('Unexpected warehouses response structure:', response);
+        warehousesList = [];
       }
       
-      // Call with parameters to ensure we get warehouses for the right company
-      const response = await warehouseService.getWarehouses({ companyId });
-      
-      // Extract warehouses from the correct nested structure
-      const warehousesList = response.data?.warehouses || response.data || [];
+      console.log('Warehouses list:', warehousesList);
+      console.log('Warehouses list length:', warehousesList.length);
       
       // Filter only active warehouses
       const activeWarehouses = warehousesList.filter((warehouse: Warehouse) => 
@@ -252,13 +280,13 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
       );
       
       setWarehouses(activeWarehouses);
-      
     } catch (err: any) {
       console.error('Error fetching warehouses:', err);
-      setWarehouses([]); // Ensure warehouses is set to empty array on error
+      // Set empty array on error to prevent further issues
+      setWarehouses([]);
     }
   };
-  // Updated the fetchProductDetails function to align with the Product type from productService
+    // Updated the fetchProductDetails function to align with the Product type from productService
   const fetchProductDetails = async () => {
     if (!productId) return;
 
@@ -267,60 +295,7 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
 
     try {
       const productResponse = await productService.getProductById(productId);
-      const product = productResponse.data || productResponse; // Handle different response structures      
-      console.log('=== FETCHING PRODUCT DETAILS ===');
-      console.log('Product data:', product);
-      console.log('Product inventory:', product.inventory);
-        // Fetch existing inventory records for this product
-      let existingWarehouseInventory: any[] = [];
-      try {
-        console.log('Fetching inventory for product ID:', productId);
-        
-        // Try to get inventory summary first, then detailed inventory
-        try {
-          const inventorySummary = await inventoryService.getProductInventorySummary(productId);
-          console.log('Inventory summary:', inventorySummary);
-          
-          if (inventorySummary?.data?.locations) {
-            existingWarehouseInventory = inventorySummary.data.locations.map((location: any) => ({
-              warehouseId: location.warehouse_id,
-              quantity: location.quantity.toString(),
-              minThreshold: '',
-              maxThreshold: '',
-              reorderPoint: '',
-              reorderQuantity: '',
-            }));
-          }
-        } catch (summaryError) {
-          console.warn('Failed to fetch inventory summary, trying general inventory:', summaryError);
-          
-          // Fallback: get general inventory and filter by product
-          const inventoryResponse = await inventoryService.getInventory({ 
-            companyId: companyId,
-            search: product.name // Search by product name as a fallback
-          });
-          console.log('General inventory response:', inventoryResponse);
-          
-          const inventoryData = inventoryResponse.data || [];
-          const productInventory = inventoryData.filter((inv: any) => inv.product_id === productId);
-          
-          existingWarehouseInventory = productInventory.map((inv: any) => ({
-            warehouseId: inv.warehouse_id || '',
-            quantity: inv.quantity?.toString() || '',
-            minThreshold: inv.min_threshold?.toString() || '',
-            maxThreshold: inv.max_threshold?.toString() || '',
-            reorderPoint: inv.reorder_point?.toString() || '',
-            reorderQuantity: inv.reorder_quantity?.toString() || '',
-          }));
-        }
-        
-        console.log('Existing warehouse inventory:', existingWarehouseInventory);
-      } catch (inventoryError) {
-        console.warn('Failed to fetch existing inventory:', inventoryError);
-        // Continue without existing inventory data
-      }
-
-      // Map API response to form data
+      const product = productResponse.data || productResponse; // Handle different response structures      // Map API response to form data
       setFormData({
         name: product.name || '',
         description: product.description || '',
@@ -332,38 +307,23 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
         inventory: {
           quantity: product.inventory?.quantity?.toString() || '',
           lowStockThreshold: product.inventory?.lowStockThreshold?.toString() || '',
-          warehouses: existingWarehouseInventory.map((inv: any) => ({
-            warehouseId: inv.warehouseId || '',
-            quantity: inv.quantity?.toString() || '',
-            minThreshold: inv.minThreshold?.toString() || '',
-            maxThreshold: inv.maxThreshold?.toString() || '',
-            reorderPoint: inv.reorderPoint?.toString() || '',
-            reorderQuantity: inv.reorderQuantity?.toString() || '',
-          })),
+          warehouses: [], // Will be populated from inventory API if needed
         },
       });
-      
-      console.log('Form data set with warehouse inventory:', existingWarehouseInventory.length, 'items');
     } catch (err: any) {
       setApiError(err.message || 'Failed to load product details');
       console.error('Error fetching product:', err);
     } finally {
       setFetchLoading(false);
     }
-  };const validateForm = () => {
+  };  const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
-    // Required fields according to ProductCreateInput in productService
+      // Required fields according to ProductCreateInput in productService
     if (!formData.name.trim()) {
       newErrors.name = 'Product name is required';
     }
     
-    // Check if either category is selected OR new category name is provided
-    // Also check if there's an existing category or new one being created
-    const hasCategory = formData.categoryId.trim() || newCategoryName.trim();
-    console.log('Validation check - categoryId:', formData.categoryId, 'newCategoryName:', newCategoryName, 'hasCategory:', hasCategory);
-    
-    if (!hasCategory) {
+    if (!formData.categoryId.trim()) {
       newErrors.categoryId = 'Product category is required';
     }
     
@@ -474,35 +434,25 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
       setErrors(prev => ({ ...prev, status: '' }));
     }
   };
+
   const addWarehouseInventory = () => {
-    console.log('=== ADD WAREHOUSE INVENTORY ===');
-    console.log('Current warehouse count:', formData.inventory.warehouses.length);
-    console.log('Available warehouses:', warehouses.length);
-    
-    setFormData((prev) => {
-      const newFormData = {
-        ...prev,
-        inventory: {
-          ...prev.inventory,
-          warehouses: [
-            ...prev.inventory.warehouses,
-            {
-              warehouseId: '',
-              quantity: '',
-              minThreshold: '',
-              maxThreshold: '',
-              reorderPoint: '',
-              reorderQuantity: '',
-            }
-          ]
-        }
-      };
-      
-      console.log('New warehouse count after add:', newFormData.inventory.warehouses.length);
-      console.log('New warehouse entries:', newFormData.inventory.warehouses);
-      
-      return newFormData;
-    });
+    setFormData((prev) => ({
+      ...prev,
+      inventory: {
+        ...prev.inventory,
+        warehouses: [
+          ...prev.inventory.warehouses,
+          {
+            warehouseId: '',
+            quantity: '',
+            minThreshold: '',
+            maxThreshold: '',
+            reorderPoint: '',
+            reorderQuantity: '',
+          }
+        ]
+      }
+    }));
   };
 
   const removeWarehouseInventory = (index: number) => {
@@ -514,137 +464,37 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
       }
     }));
   };
+
   const updateWarehouseInventory = (index: number, field: string, value: string) => {
-    console.log(`=== UPDATE WAREHOUSE INVENTORY [${index}] ===`);
-    console.log('Field:', field, 'Value:', value);
-    console.log('Current warehouse data before update:', formData.inventory.warehouses[index]);
-    
-    setFormData((prev) => {
-      const newFormData = {
-        ...prev,
-        inventory: {
-          ...prev.inventory,
-          warehouses: prev.inventory.warehouses.map((warehouse, i) => 
-            i === index ? { ...warehouse, [field]: value } : warehouse
-          )
-        }
-      };
-      
-      console.log('Updated warehouse data:', newFormData.inventory.warehouses[index]);
-      console.log('All warehouse data after update:', newFormData.inventory.warehouses);
-      
-      return newFormData;
-    });
-  };// Handle category changes (existing or new)
-  const handleCategoryChange = (categoryId: string, categoryName?: string) => {
-    console.log('handleCategoryChange called:', { categoryId, categoryName });
-    console.log('Current errors:', errors);
-    console.log('Current formData.categoryId:', formData.categoryId);
-    console.log('Current newCategoryName:', newCategoryName);
-    
-    if (categoryId) {
-      // Existing category selected
-      setFormData(prev => ({ ...prev, categoryId }));
-      setNewCategoryName('');
-      // Clear category error
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors.categoryId;
-        console.log('Clearing error, new errors:', newErrors);
-        return newErrors;
-      });
-      console.log('Set existing category ID:', categoryId);
-    } else if (categoryName) {
-      // New category name entered
-      setFormData(prev => ({ ...prev, categoryId: '' }));
-      setNewCategoryName(categoryName);
-      // Clear category error
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors.categoryId;
-        console.log('Clearing error for new category, new errors:', newErrors);
-        return newErrors;
-      });
-      console.log('Set new category name:', categoryName);
-    } else {
-      // Cleared
-      setFormData(prev => ({ ...prev, categoryId: '' }));
-      setNewCategoryName('');
-      console.log('Cleared category');
-      // Don't clear error here - user needs to select/enter a category
-    }
-  };  const handleSubmit = async () => {
-    console.log('=== FORM SUBMIT START ===');
-    console.log('Current formData:', formData);
-    console.log('formData.inventory:', formData.inventory);
-    console.log('formData.inventory.warehouses:', formData.inventory.warehouses);
-    console.log('formData.inventory.warehouses.length:', formData.inventory.warehouses.length);
-    console.log('Warehouse details:', formData.inventory.warehouses.map((w, i) => ({ 
-      index: i, 
-      warehouseId: w.warehouseId, 
-      quantity: w.quantity 
-    })));
-    console.log('ProductForm handleSubmit debug:', {
-      companyId,
-      user,
-      formData,
-      newCategoryName,
-      isEditMode,
-      productId
-    });
-    
-    if (!companyId) {
-      console.error('No companyId available for product creation');
-      setApiError('Company ID not available');
-      return;
-    }
-    
-    console.log('Form validation - before check:', { 
-      categoryId: formData.categoryId, 
-      newCategoryName: newCategoryName,
-      hasCategory: formData.categoryId.trim() || newCategoryName.trim()
-    });
-    
-    if (!validateForm()) {
-      console.log('Form validation failed, errors:', errors);
-      return;
-    }
+    setFormData((prev) => ({
+      ...prev,
+      inventory: {
+        ...prev.inventory,
+        warehouses: prev.inventory.warehouses.map((warehouse, i) => 
+          i === index ? { ...warehouse, [field]: value } : warehouse
+        )
+      }
+    }));
+  };const handleSubmit = async () => {
+    if (!validateForm()) return;
     
     setLoading(true);
     setApiError(null);
     
-    try {
-      let finalCategoryId = formData.categoryId;
-      
-      // Create new category if user entered a new one
-      if (!finalCategoryId && newCategoryName.trim()) {
-        try {
-          const categoryResponse = await productService.createCategory(companyId, {
-            name: newCategoryName.trim(),
-            description: `Auto-created category for product: ${formData.name}`
-          });
-          finalCategoryId = categoryResponse.data.id;
-          
-          // Refresh categories list to include the new one
-          await fetchCategories();
-        } catch (categoryError: any) {
-          console.error('Error creating category:', categoryError);
-          setApiError(`Failed to create category: ${categoryError.message}`);
-          return;
-        }
-      }      // Prepare data for API according to ProductCreateInput or ProductUpdateInput from productService
+    try {      // Prepare data for API according to ProductCreateInput or ProductUpdateInput from productService
       const productData: ProductApiInput = {
         name: formData.name,
         description: formData.description,
         base_price: parseFloat(formData.price),
-        category_id: finalCategoryId,
+        category_id: formData.categoryId,
         supplier_id: companyId, // Use the current company as the supplier since this is a supplier adding their own product
         status: formData.status === 'discontinued' ? 'inactive' : formData.status,
         unit: 'piece', // Default unit value
       };
       
-      // Only include inventory for creation, not updates (inventory is handled separately for existing products)
-      if (!isEditMode && (formData.inventory.quantity || formData.inventory.lowStockThreshold)) {
+      // Add optional fields only if they have values
+      
+      if (formData.inventory.quantity || formData.inventory.lowStockThreshold) {
         productData.inventory = {};
         if (formData.inventory.quantity) {
           productData.inventory.quantity = parseInt(formData.inventory.quantity);
@@ -653,54 +503,23 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
           productData.inventory.lowStockThreshold = parseInt(formData.inventory.lowStockThreshold);
         }
       }
-        let savedProduct;      if (isEditMode && productId) {
+      
+      let savedProduct;
+      
+      if (isEditMode && productId) {
         savedProduct = await productService.updateProduct(productId, productData);
       } else {
-        const productResponse = await productService.createProduct(productData);
-        // Handle different response structures - could be direct Product or wrapped in data
-        savedProduct = (productResponse as any).data || productResponse;
+        savedProduct = await productService.createProduct(productData);
       }
-        console.log('Raw product response:', savedProduct);
-      console.log('Saved product:', savedProduct);
-      console.log('Product ID from response:', savedProduct?.id);
-      console.log('Is edit mode check:', isEditMode);
-      console.log('Original productId prop:', productId);
-      
-      if (onSave) {
+        if (onSave) {
         onSave(savedProduct);
-      }      // Create inventory records for each warehouse
-      // This can happen during both product creation AND when editing a product to add warehouse inventory
-      const hasWarehouseInventory = formData.inventory.warehouses.length > 0;
-      const productIdToUse = savedProduct?.id || productId;
-      
-      console.log('=== INVENTORY CREATION LOGIC CHECK ===');
-      console.log('isEditMode:', isEditMode);
-      console.log('original productId:', productId);
-      console.log('savedProduct exists:', !!savedProduct);
-      console.log('savedProduct.id:', savedProduct?.id);
-      console.log('productIdToUse:', productIdToUse);
-      console.log('hasWarehouseInventory:', hasWarehouseInventory);
-      console.log('warehouse count:', formData.inventory.warehouses.length);
-      
-      // Create inventory if we have warehouse data and a valid product ID
-      if (hasWarehouseInventory && productIdToUse) {        console.log('=== INVENTORY CREATION DEBUG ===');
-        console.log('Creating warehouse inventory for product:', productIdToUse);
-        console.log('Number of warehouse entries:', formData.inventory.warehouses.length);
-        console.log('Warehouse inventory entries:', formData.inventory.warehouses);
-        console.log('Current user context:', user);
-        console.log('Is edit mode:', isEditMode);
-          try {
-          for (let index = 0; index < formData.inventory.warehouses.length; index++) {
-            const warehouseInventory = formData.inventory.warehouses[index];
-            console.log(`\n--- Processing warehouse ${index + 1} ---`);
-            console.log('Warehouse inventory data:', warehouseInventory);
-            console.log('Has warehouseId:', !!warehouseInventory.warehouseId);
-            console.log('Has quantity:', !!warehouseInventory.quantity);
-            
-            if (warehouseInventory.warehouseId && warehouseInventory.quantity) {
-              console.log('✓ Valid warehouse entry, creating inventory...');
-                const inventoryData = {
-                product_id: productIdToUse,
+      }
+
+      // Create inventory records for each warehouse if this is a new product
+      if (!isEditMode && formData.inventory.warehouses.length > 0) {
+        try {          for (const warehouseInventory of formData.inventory.warehouses) {
+            if (warehouseInventory.warehouseId && warehouseInventory.quantity) {              await inventoryService.createInventoryItem({
+                product_id: savedProduct.id,
                 warehouse_id: warehouseInventory.warehouseId,
                 quantity: parseFloat(warehouseInventory.quantity),
                 unit: 'piece', // Default unit
@@ -708,33 +527,13 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
                 max_threshold: warehouseInventory.maxThreshold ? parseFloat(warehouseInventory.maxThreshold) : undefined,
                 reorder_point: warehouseInventory.reorderPoint ? parseFloat(warehouseInventory.reorderPoint) : undefined,
                 reorder_quantity: warehouseInventory.reorderQuantity ? parseFloat(warehouseInventory.reorderQuantity) : undefined,
-              };
-              
-              console.log('Inventory data to create:', inventoryData);
-              console.log('About to call inventoryService.createInventoryItem...');
-              
-              const inventoryResult = await inventoryService.createInventoryItem(inventoryData);
-              console.log('✓ Inventory created successfully:', inventoryResult);
-            } else {
-              console.log('✗ Skipping warehouse entry - missing warehouseId or quantity');
-              console.log('  warehouseId:', warehouseInventory.warehouseId);
-              console.log('  quantity:', warehouseInventory.quantity);
+              });
             }
           }
-          console.log('=== INVENTORY CREATION COMPLETE ===');        } catch (inventoryError: any) {
-          console.error('=== INVENTORY CREATION ERROR ===');
-          console.error('Error type:', inventoryError?.constructor?.name);
-          console.error('Error message:', inventoryError?.message);
-          console.error('Error details:', inventoryError);
-          console.error('Error stack:', inventoryError?.stack);
+        } catch (inventoryError) {
           console.warn('Product created but inventory setup failed:', inventoryError);
           // Don't throw error since product was created successfully
-        }      } else {
-        console.log('=== INVENTORY CREATION SKIPPED ===');
-        console.log('Reason - hasWarehouseInventory:', hasWarehouseInventory);
-        console.log('Reason - productIdToUse:', productIdToUse);
-        console.log('Reason - warehouse count:', formData.inventory.warehouses.length);
-        console.log('Warehouse entries:', formData.inventory.warehouses);
+        }
       }
     } catch (err: any) {
       setApiError(err.message || `Failed to ${isEditMode ? 'update' : 'create'} product`);
@@ -772,17 +571,37 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
               disabled={loading}
               inputProps={{
                 'aria-describedby': 'product-name-helper-text'
-              }}            />
-            <SmartCategoryInput
-              companyId={companyId}
-              value={formData.categoryId}
-              onChange={handleCategoryChange}
-              error={errors.categoryId}
-              disabled={loading}
-              required
-              label="Product Category"
-              helperText="Choose or create a category that best describes your product"
+              }}
             />
+            <FormControl 
+              fullWidth 
+              required 
+              error={!!errors.categoryId}
+              disabled={loading}
+            >
+              <InputLabel id="category-label">Product Category</InputLabel>              <Select
+                labelId="category-label"
+                name="categoryId"
+                value={formData.categoryId}
+                onChange={handleSelectChange}
+                label="Product Category"
+                inputProps={{
+                  'aria-describedby': 'category-helper-text'
+                }}
+              >
+                <MenuItem value="" disabled>
+                  {categories.length === 0 ? 'No categories available' : 'Select a category'}
+                </MenuItem>
+                {categories.map((category) => (
+                  <MenuItem key={category.id} value={category.id}>
+                    {category.name}
+                  </MenuItem>
+                ))}
+              </Select>
+              <FormHelperText id="category-helper-text">
+                {errors.categoryId || "Choose the category that best describes your product"}
+              </FormHelperText>
+            </FormControl>
           </Stack>
 
           <TextField

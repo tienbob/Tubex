@@ -96,6 +96,16 @@ const ProductList: React.FC<ProductListProps> = ({
       console.log('ProductList - products data:', productsData);
       console.log('ProductList - pagination data:', paginationData);
       
+      // Debug: Check inventory data in products
+      productsData.forEach((product: any, index: number) => {
+        console.log(`ProductList - Product ${index}:`, {
+          id: product.id,
+          name: product.name,
+          inventory: product.inventory,
+          inventoryQuantity: product.inventory?.quantity
+        });
+      });
+      
       setProducts(productsData);
       setTotalCount(paginationData.total || 0);
     } catch (err: any) {

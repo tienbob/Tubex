@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import Joi from 'joi';
 import { AppError } from '../../middleware/errorHandler';
-import { ValidationSchema } from '../../middleware/validationHandler';
 
 const addressSchema = Joi.object({
   street: Joi.string().required(),
@@ -125,4 +124,12 @@ export const validateOAuthRegistrationCompletion = async (
   } catch (error) {
     next(new AppError(400, error instanceof Error ? error.message : 'Validation error occurred'));
   }
+};
+
+// Export schemas for use with unified validation middleware
+export const schemas = {
+  registration: registrationSchema,
+  employeeRegistration: employeeRegistrationSchema,
+  login: loginSchema,
+  oauthRegistrationCompletion: completeOAuthRegistrationSchema
 };

@@ -1,7 +1,7 @@
 // filepath: d:\All python project\Tubex\Backend\src\services\payment\validators.ts
 import Joi from 'joi';
 import { PaymentMethod, PaymentType, PaymentReconciliationStatus } from '../../database/models/sql/payment';
-import { ValidationSchema } from '../../middleware/validationHandler';
+import { ValidationSchema } from '../../middleware/unified-validation';
 
 export const paymentValidators: Record<string, ValidationSchema> = {
     createPayment: {

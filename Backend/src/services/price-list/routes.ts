@@ -1,8 +1,7 @@
 import { Router, Request, Response, NextFunction, RequestHandler } from 'express';
-import { authenticate } from '../../middleware/auth';
+import { authenticate, validate } from '../../middleware';
 import { priceListController } from './controller';
 import { priceListValidators } from './validators';
-import { validationHandler } from '../../middleware/validationHandler';
 import multer from 'multer';
 import { parse } from 'csv-parse/sync';
 
@@ -188,7 +187,7 @@ router.get('/:id', priceListController.getPriceListById as RequestHandler);
  */
 router.post(
     '/', 
-    validationHandler(priceListValidators.createPriceList), 
+    validate(priceListValidators.createPriceList), 
     priceListController.createPriceList as RequestHandler
 );
 /**
@@ -268,7 +267,7 @@ router.post(
  */
 router.put(
     '/:id', 
-    validationHandler(priceListValidators.updatePriceList), 
+    validate(priceListValidators.updatePriceList), 
     priceListController.updatePriceList as RequestHandler
 );
 
@@ -451,7 +450,7 @@ router.get('/:id/items', priceListController.getPriceListItems as RequestHandler
  */
 router.post(
     '/:id/items', 
-    validationHandler(priceListValidators.addPriceListItem), 
+    validate(priceListValidators.addPriceListItem), 
     priceListController.addPriceListItem as RequestHandler
 );
 /**
@@ -529,7 +528,7 @@ router.post(
  */
 router.put(
     '/:id/items/:itemId', 
-    validationHandler(priceListValidators.updatePriceListItem), 
+    validate(priceListValidators.updatePriceListItem), 
     priceListController.updatePriceListItem as RequestHandler
 );
 
@@ -676,7 +675,7 @@ router.delete('/:id/items/:itemId', priceListController.deletePriceListItem as R
  */
 router.post(
     '/:id/bulk-add', 
-    validationHandler(priceListValidators.bulkAddItems), 
+    validate(priceListValidators.bulkAddItems), 
     priceListController.bulkAddItems as RequestHandler
 );
 
@@ -765,7 +764,7 @@ router.post(
  */
 router.put(
     '/:id/bulk-update', 
-    validationHandler(priceListValidators.bulkUpdateItems), 
+    validate(priceListValidators.bulkUpdateItems), 
     priceListController.bulkUpdateItems as RequestHandler
 );
 
@@ -894,7 +893,7 @@ router.get('/:id/export', priceListController.exportPriceList as RequestHandler)
  */
 router.post(
     '/import', 
-    validationHandler(priceListValidators.importPriceList), 
+    validate(priceListValidators.importPriceList), 
     priceListController.importPriceList as RequestHandler
 );
 

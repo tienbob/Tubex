@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { BatchService } from './controller';
-import { authenticate } from '../../middleware/auth';
+import { authenticate } from '../../middleware';
 import { asyncHandler } from '../../middleware/asyncHandler';
 
 const batchRoutes = Router();

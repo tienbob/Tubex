@@ -1,6 +1,6 @@
-import { ValidationSchema } from '../../middleware/validationHandler';
 import Joi from 'joi';
 import { OrderStatus, PaymentStatus } from '../../database/models/sql/order';
+import { ValidationSchema } from '../../middleware/unified-validation';
 
 export const orderValidators: Record<string, ValidationSchema> = {
     createOrder: {

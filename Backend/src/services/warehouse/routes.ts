@@ -1,6 +1,10 @@
 import { Router, RequestHandler } from 'express';
-import { authenticate } from '../../middleware/auth';
-import { validationHandler } from '../../middleware/validationHandler';
+import { 
+  authenticate, 
+  authorize, 
+  requireSupplier,
+  validate
+} from '../../middleware';
 import {
     getAllWarehouses,
     getWarehouseById,
@@ -367,13 +371,15 @@ warehouseRoutes.get(
 
 warehouseRoutes.post(
     '/company/:companyId',
-    validationHandler(warehouseValidators.createWarehouse),
+    authorize({ companyTypes: ['supplier'], requireCompanyMatch: true }),
+    validate(warehouseValidators.createWarehouse),
     createWarehouse as RequestHandler
 );
 
 warehouseRoutes.put(
     '/company/:companyId/:warehouseId',
-    validationHandler(warehouseValidators.updateWarehouse),
+    authorize({ companyTypes: ['supplier'], requireCompanyMatch: true }),
+    validate(warehouseValidators.updateWarehouse),
     updateWarehouse as RequestHandler
 );
 

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { quoteController } from './controller';
-import { authenticate, authorize } from '../../middleware/auth';
+import { authenticate, authorize } from '../../middleware';
 import { asyncHandler } from '../../middleware/asyncHandler';
 
 const router = Router();
