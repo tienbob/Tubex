@@ -68,7 +68,7 @@ export class BatchService {
             // Validate product access
             const product = await productRepository.findOne({
                 where: { id: product_id },
-                relations: ['supplier', 'dealer']
+                relations: ['supplier']
             });
 
             if (!product) {
@@ -77,7 +77,14 @@ export class BatchService {
 
             // Check if company has access to this product
             const isSupplier = product.supplier_id === companyId;
-            const isAuthorizedDealer = product.dealer_id === companyId || product.dealer_id === null;
+            let isAuthorizedDealer = false;
+            // Check dealer-product relationship
+            if (!isSupplier) {
+                const dealerProduct = await AppDataSource.getRepository('dealer_products').findOne({
+                    where: { product_id, dealer_id: companyId }
+                });
+                isAuthorizedDealer = !!dealerProduct;
+            }
 
             if (!isSupplier && !isAuthorizedDealer) {
                 throw new AppError(403, "Your company doesn't have access to this product");

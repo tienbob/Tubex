@@ -34,22 +34,13 @@ export const useAccessControl = (): UseAccessControlResult => {
           userId: authUser.userId,
           role: authUser.role,
           companyId: authUser.companyId,
-          companyType: company.type as any // Cast to CompanyType
+          companyType: company.type
         };
         
         console.log('Full user created:', fullUser);
         setUser(fullUser);
       } catch (error) {
         console.error('Error fetching company type:', error);
-        // Fallback to user without company type
-        const fallbackUser: User = {
-          userId: authUser.userId,
-          role: authUser.role,
-          companyId: authUser.companyId,
-          companyType: 'supplier' // Default fallback
-        };
-        console.log('Using fallback user:', fallbackUser);
-        setUser(fallbackUser);
       } finally {
         setLoading(false);
       }
@@ -90,7 +81,8 @@ export const useAccessControl = (): UseAccessControlResult => {
       case '/price-lists':
         return permissions.priceListView;
       case '/reports':
-        return permissions.reportView;      case '/settings':
+        return permissions.reportView;      
+      case '/settings':
         return permissions.settingsView;
       case '/profile':
         return true; // All authenticated users should have access to their own profile

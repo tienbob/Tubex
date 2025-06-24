@@ -58,7 +58,6 @@ interface ProductFormData {
   name: string;
   description: string;
   price: string;
-  cost: string;
   categoryId: string;
   supplierId: string;
   status: 'active' | 'inactive' | 'out_of_stock' | 'discontinued';
@@ -66,6 +65,7 @@ interface ProductFormData {
     quantity: string;
     lowStockThreshold: string;
     warehouses: Array<{
+      id?: string; // <-- allow id for inventory record
       warehouseId: string;
       quantity: string;
       minThreshold: string;
@@ -175,7 +175,8 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
 }) => {
   const { permissions, canPerform } = useAccessControl();
   const isEditMode = !!productId;
-  const [tabValue, setTabValue] = useState(0);  const [categories, setCategories] = useState<Category[]>([]);
+  const [tabValue, setTabValue] = useState(0);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   
@@ -184,7 +185,6 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
     name: '',
     description: '',
     price: '',
-    cost: '',
     categoryId: '',
     supplierId: '',
     status: 'active',
@@ -198,6 +198,54 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  // State for inventory summary
+  const [inventorySummary, setInventorySummary] = useState<{ totalQuantity: number; globalLowStockThreshold: number | '' }>({ totalQuantity: 0, globalLowStockThreshold: '' });
+
+  // Reset form state when productId changes to prevent stale inventory data
+  useEffect(() => {
+    setFormData({
+      name: '',
+      description: '',
+      price: '',
+      categoryId: '',
+      supplierId: '',
+      status: 'active',
+      inventory: {
+        quantity: '',
+        lowStockThreshold: '',
+        warehouses: [],
+      },
+    });
+    setErrors({});
+    setInventorySummary({ totalQuantity: 0, globalLowStockThreshold: '' });
+  }, [productId]);
+
+  // Fetch inventory summary from backend and filter by companyId and productId
+  useEffect(() => {
+    const fetchInventorySummary = async () => {
+      try {
+        const response = await inventoryService.getInventory({ companyId, product_id: productId });
+        if (response && Array.isArray(response.data)) {
+          // Filter by companyId and productId
+          const warehouseInventories = response.data.filter((inv: any) =>
+            inv.company_id === companyId && inv.product_id === productId
+          );
+          const totalQuantity = warehouseInventories.reduce((sum: number, w: any) => sum + (parseFloat(w.quantity) || 0), 0);
+          const minThresholds = warehouseInventories.map((w: any) => parseFloat(w.min_threshold)).filter((v: number) => !isNaN(v));
+          const globalLowStockThreshold = minThresholds.length > 0 ? Math.min(...minThresholds) : '';
+          setInventorySummary({ totalQuantity, globalLowStockThreshold });
+        } else {
+          setInventorySummary({ totalQuantity: 0, globalLowStockThreshold: '' });
+        }
+      } catch (err) {
+        setInventorySummary({ totalQuantity: 0, globalLowStockThreshold: '' });
+      }
+    };
+    if (productId && tabValue === 1) {
+      fetchInventorySummary();
+    }
+  }, [productId, companyId, tabValue]);
+
   useEffect(() => {
     fetchCategories();
     fetchSuppliers();
@@ -295,19 +343,43 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
 
     try {
       const productResponse = await productService.getProductById(productId);
-      const product = productResponse.data || productResponse; // Handle different response structures      // Map API response to form data
+      const product = productResponse.data || productResponse; // Handle different response structures
+      // Fetch inventory per warehouse for this product
+      let warehouseInventories: Array<any> = [];
+      try {
+        const inventoryResponse = await inventoryService.getInventory({ companyId, product_id: productId });
+        if (inventoryResponse && Array.isArray(inventoryResponse.data)) {
+          // Strictly filter inventory for the current product only
+          const filteredInventories = inventoryResponse.data.filter((inv: any) => inv.product_id === productId);
+          warehouseInventories = filteredInventories.map((inv: any) => ({
+            id: inv.id, // <-- include inventory id
+            warehouseId: inv.warehouse_id,
+            quantity: inv.quantity?.toString() || '',
+            minThreshold: inv.min_threshold?.toString() || '',
+            maxThreshold: inv.max_threshold?.toString() || '',
+            reorderPoint: inv.reorder_point?.toString() || '',
+            reorderQuantity: inv.reorder_quantity?.toString() || '',
+          }));
+        }
+      } catch (err) {
+        console.warn('Could not fetch warehouse inventory for product:', err);
+      }
+      // Calculate total quantity and global low stock threshold from warehouseInventories
+      const totalQuantity = warehouseInventories.reduce((sum, w) => sum + (parseFloat(w.quantity) || 0), 0);
+      // For global low stock threshold, use the minimum of all minThresholds, or blank if none
+      const minThresholds = warehouseInventories.map(w => parseFloat(w.minThreshold)).filter(v => !isNaN(v));
+      const globalLowStockThreshold = minThresholds.length > 0 ? Math.min(...minThresholds) : '';
       setFormData({
         name: product.name || '',
         description: product.description || '',
         price: product.base_price?.toString() || '',
-        cost: '', // Cost is not part of the Product interface
         categoryId: product.category_id || '',
         supplierId: product.supplier_id || '',
         status: product.status || 'active',
         inventory: {
-          quantity: product.inventory?.quantity?.toString() || '',
-          lowStockThreshold: product.inventory?.lowStockThreshold?.toString() || '',
-          warehouses: [], // Will be populated from inventory API if needed
+          quantity: totalQuantity.toString(),
+          lowStockThreshold: globalLowStockThreshold !== '' ? globalLowStockThreshold.toString() : (product.inventory?.lowStockThreshold?.toString() || ''),
+          warehouses: warehouseInventories,
         },
       });
     } catch (err: any) {
@@ -318,49 +390,39 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
     }
   };  const validateForm = () => {
     const newErrors: Record<string, string> = {};
-      // Required fields according to ProductCreateInput in productService
+    // Required fields according to ProductCreateInput in productService
     if (!formData.name.trim()) {
       newErrors.name = 'Product name is required';
     }
-    
     if (!formData.categoryId.trim()) {
       newErrors.categoryId = 'Product category is required';
     }
-    
     if (!formData.price.trim()) {
       newErrors.price = 'Price is required';
     } else if (isNaN(parseFloat(formData.price)) || parseFloat(formData.price) < 0) {
       newErrors.price = 'Price must be a valid positive number';
     }
-    
-    // Optional fields validation
-    if (formData.cost.trim() && (isNaN(parseFloat(formData.cost)) || parseFloat(formData.cost) < 0)) {
-      newErrors.cost = 'Cost must be a valid positive number';
-    }
-    
+    // Removed cost validation
     if (formData.inventory.quantity.trim() && (isNaN(parseInt(formData.inventory.quantity)) || parseInt(formData.inventory.quantity) < 0)) {
       newErrors.quantity = 'Quantity must be a valid non-negative integer';
     }
-      if (formData.inventory.lowStockThreshold.trim() && (isNaN(parseInt(formData.inventory.lowStockThreshold)) || parseInt(formData.inventory.lowStockThreshold) < 0)) {
+    if (formData.inventory.lowStockThreshold.trim() && (isNaN(parseInt(formData.inventory.lowStockThreshold)) || parseInt(formData.inventory.lowStockThreshold) < 0)) {
       newErrors.lowStockThreshold = 'Low stock threshold must be a valid non-negative integer';
     }
-    
+    // Check Reorder Point >= Min Threshold for each warehouse
+    formData.inventory.warehouses.forEach((w, idx) => {
+      const min = parseFloat(w.minThreshold);
+      const reorder = parseFloat(w.reorderPoint);
+      if (!isNaN(min) && !isNaN(reorder) && reorder < min) {
+        newErrors[`warehouse_${idx}_reorderPoint`] = 'Reorder Point must be greater than or equal to Min Threshold';
+      }
+    });
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
   
   const calculateMargins = (price: string, cost: string) => {
-    const priceNum = parseFloat(price);
-    const costNum = parseFloat(cost);
-    
-    if (!isNaN(priceNum) && !isNaN(costNum) && costNum > 0) {
-      const margin = priceNum - costNum;
-      const marginPercentage = (margin / costNum) * 100;
-      return {
-        margin: Number(margin.toFixed(2)),
-        marginPercentage: Number(marginPercentage.toFixed(2))
-      };
-    }
+    // Remove margin calculation since cost is removed
     return {
       margin: 0,
       marginPercentage: 0
@@ -388,18 +450,7 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
           ...prev,
           [name]: value
         };
-        
-        // Recalculate margins when price or cost changes
-        if (name === 'price' || name === 'cost') {
-          const newPrice = name === 'price' ? String(value) : newData.price;
-          const newCost = name === 'cost' ? String(value) : newData.cost;
-          const margins = calculateMargins(newPrice, newCost);
-          return {
-            ...newData,
-            computedFields: margins
-          };
-        }
-        
+        // Remove margin recalculation since cost is removed
         return newData;
       });
     }
@@ -477,11 +528,10 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
     }));
   };const handleSubmit = async () => {
     if (!validateForm()) return;
-    
     setLoading(true);
     setApiError(null);
-    
-    try {      // Prepare data for API according to ProductCreateInput or ProductUpdateInput from productService
+    try {
+      // Prepare data for API according to ProductCreateInput or ProductUpdateInput from productService
       const productData: ProductApiInput = {
         name: formData.name,
         description: formData.description,
@@ -491,10 +541,8 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
         status: formData.status === 'discontinued' ? 'inactive' : formData.status,
         unit: 'piece', // Default unit value
       };
-      
       // Add optional fields only if they have values
-      
-      if (formData.inventory.quantity || formData.inventory.lowStockThreshold) {
+      if (!isEditMode && (formData.inventory.quantity || formData.inventory.lowStockThreshold)) {
         productData.inventory = {};
         if (formData.inventory.quantity) {
           productData.inventory.quantity = parseInt(formData.inventory.quantity);
@@ -503,36 +551,53 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
           productData.inventory.lowStockThreshold = parseInt(formData.inventory.lowStockThreshold);
         }
       }
-      
       let savedProduct;
-      
       if (isEditMode && productId) {
         savedProduct = await productService.updateProduct(productId, productData);
       } else {
         savedProduct = await productService.createProduct(productData);
       }
-        if (onSave) {
+      if (onSave) {
         onSave(savedProduct);
       }
 
-      // Create inventory records for each warehouse if this is a new product
-      if (!isEditMode && formData.inventory.warehouses.length > 0) {
-        try {          for (const warehouseInventory of formData.inventory.warehouses) {
-            if (warehouseInventory.warehouseId && warehouseInventory.quantity) {              await inventoryService.createInventoryItem({
-                product_id: savedProduct.id,
+      // Always use a valid product_id for inventory actions
+      const product_id = (savedProduct && savedProduct.id) ? savedProduct.id : productId;
+
+      // Create or update inventory records for each warehouse
+      console.log('%c[TUBEX-INVENTORY] WAREHOUSE DATA:', 'color: #fff; background: #1976d2; font-weight: bold; padding:2px 6px; border-radius:3px;', formData.inventory.warehouses);
+      if (formData.inventory.warehouses.length > 0) {
+        try {
+          for (const warehouseInventory of formData.inventory.warehouses) {
+            if (!warehouseInventory || typeof warehouseInventory !== 'object') {
+              console.log('%c[TUBEX-INVENTORY] SKIP: invalid warehouseInventory', 'color: #fff; background: #1976d2; font-weight: bold; padding:2px 6px; border-radius:3px;', warehouseInventory);
+              continue;
+            }
+            if (warehouseInventory.warehouseId && warehouseInventory.quantity) {
+              const inventoryData = {
+                product_id: product_id as string,
                 warehouse_id: warehouseInventory.warehouseId,
                 quantity: parseFloat(warehouseInventory.quantity),
-                unit: 'piece', // Default unit
+                unit: 'piece',
                 min_threshold: warehouseInventory.minThreshold ? parseFloat(warehouseInventory.minThreshold) : undefined,
                 max_threshold: warehouseInventory.maxThreshold ? parseFloat(warehouseInventory.maxThreshold) : undefined,
                 reorder_point: warehouseInventory.reorderPoint ? parseFloat(warehouseInventory.reorderPoint) : undefined,
                 reorder_quantity: warehouseInventory.reorderQuantity ? parseFloat(warehouseInventory.reorderQuantity) : undefined,
-              });
+              };
+              console.log('%c[TUBEX-INVENTORY] INVENTORY SUBMIT:', 'color: #fff; background: #1976d2; font-weight: bold; padding:2px 6px; border-radius:3px;', inventoryData, 'ID:', warehouseInventory.id);
+              if (warehouseInventory.id) {
+                // Update existing inventory record
+                await inventoryService.updateInventoryItem(warehouseInventory.id, inventoryData);
+              } else {
+                // Create new inventory record
+                await inventoryService.createInventoryItem(inventoryData);
+              }
+            } else {
+              console.log('%c[TUBEX-INVENTORY] SKIP: missing warehouseId or quantity', 'color: #fff; background: #1976d2; font-weight: bold; padding:2px 6px; border-radius:3px;', warehouseInventory);
             }
           }
         } catch (inventoryError) {
-          console.warn('Product created but inventory setup failed:', inventoryError);
-          // Don't throw error since product was created successfully
+          console.warn('%c[TUBEX-INVENTORY] Inventory update/create failed:', 'color: #fff; background: #d32f2f; font-weight: bold; padding:2px 6px; border-radius:3px;', inventoryError);
         }
       }
     } catch (err: any) {
@@ -544,11 +609,16 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
   };
     const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     // Validate the current tab before moving to another
-    if (tabValue === 0) {
-      validateBasicInfo(formData, setErrors);
-    }
-    
+    // Removed call to validateBasicInfo (was missing)
     setTabValue(newValue);
+  };
+
+  // Compute total stock from warehouse inventories
+  const computeTotalStock = () => {
+    return formData.inventory.warehouses.reduce((sum, w) => {
+      const qty = parseInt(w.quantity);
+      return sum + (isNaN(qty) ? 0 : qty);
+    }, 0);
   };
 
   // Basic Info Tab Panel Content
@@ -557,7 +627,8 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
       <FormSection 
         title="Basic Information" 
         tooltip="Enter the fundamental details about your product"
-      >        <Stack spacing={3}>
+      >
+        <Stack spacing={3}>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
             <TextField
               name="name"
@@ -579,7 +650,8 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
               error={!!errors.categoryId}
               disabled={loading}
             >
-              <InputLabel id="category-label">Product Category</InputLabel>              <Select
+              <InputLabel id="category-label">Product Category</InputLabel>
+              <Select
                 labelId="category-label"
                 name="categoryId"
                 value={formData.categoryId}
@@ -626,66 +698,24 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
         tooltip="Set product pricing and view profit margins"
       >
         <Stack spacing={3}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-            <TextField
-              name="price"
-              label="Selling Price"
-              fullWidth
-              required
-              type="number"
-              inputProps={{ min: 0, step: 0.01, 'aria-describedby': 'price-helper-text' }}
-              value={formData.price}
-              onChange={handleChange}
-              error={!!errors.price}
-              helperText={errors.price || "The price customers will pay for this product"}
-              disabled={loading}
-              InputProps={{
-                startAdornment: <InputAdornment position="start">$</InputAdornment>,
-              }}
-            />
-            <TextField
-              name="cost"
-              label="Cost"
-              fullWidth
-              type="number"
-              inputProps={{ min: 0, step: 0.01, 'aria-describedby': 'cost-helper-text' }}
-              value={formData.cost}
-              onChange={handleChange}
-              error={!!errors.cost}
-              helperText={errors.cost || "Your cost to acquire or produce this product"}
-              disabled={loading}
-              InputProps={{
-                startAdornment: <InputAdornment position="start">$</InputAdornment>,
-              }}
-            />
-          </Stack>
-
-          {formData.computedFields && (formData.price || formData.cost) && (
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField
-                label="Profit Margin"
-                fullWidth
-                value={`$${formData.computedFields.margin.toFixed(2)}`}
-                InputProps={{
-                  readOnly: true,
-                }}
-                disabled
-                helperText="The dollar amount of profit per unit"
-              />
-              <TextField
-                label="Margin Percentage"
-                fullWidth
-                value={`${formData.computedFields.marginPercentage.toFixed(2)}%`}
-                InputProps={{
-                  readOnly: true,
-                }}
-                disabled
-                helperText="Percentage of profit relative to cost"
-              />
-            </Stack>          )}
+          <TextField
+            name="price"
+            label="Selling Price"
+            fullWidth
+            required
+            type="number"
+            inputProps={{ min: 0, step: 0.01, 'aria-describedby': 'price-helper-text' }}
+            value={formData.price}
+            onChange={handleChange}
+            error={!!errors.price}
+            helperText={errors.price || "The price customers will pay for this product"}
+            disabled={loading}
+            InputProps={{
+              startAdornment: <InputAdornment position="start">$</InputAdornment>,
+            }}
+          />
         </Stack>
       </FormSection>
-      
       <FormSection title="Product Status">
         <FormControl fullWidth>
           <InputLabel id="status-label">Status</InputLabel>
@@ -756,149 +786,156 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
           {renderBasicInfoTab()}
         </TabPanel>        {/* Inventory Tab */}
         <TabPanel value={tabValue} index={1} aria-labelledby="product-tab-1">
-          <Stack spacing={3}>
-            <FormSection title="General Inventory Settings">
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                <TextField
-                  name="inventory.quantity"
-                  label="Total Stock (All Warehouses)"
-                  fullWidth
-                  type="number"
-                  inputProps={{ min: 0, step: 1 }}
-                  value={formData.inventory.quantity}
-                  onChange={handleChange}
-                  error={!!errors.quantity}
-                  helperText={errors.quantity || "This will be distributed across warehouses"}
-                  disabled={loading}
-                />
-                <TextField
-                  name="inventory.lowStockThreshold"
-                  label="Global Low Stock Threshold"
-                  fullWidth
-                  type="number"
-                  inputProps={{ min: 0, step: 1 }}
-                  value={formData.inventory.lowStockThreshold}
-                  onChange={handleChange}
-                  error={!!errors.lowStockThreshold}
-                  helperText={errors.lowStockThreshold || 'Send alert when total stock falls below this level'}
-                  disabled={loading}
-                />
-              </Stack>
-            </FormSection>
+          {fetchLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
+              <Typography variant="body1" color="text.secondary">Loading inventory...</Typography>
+            </Box>
+          ) : (
+            <Stack spacing={3}>
+              <FormSection title="General Inventory Settings">
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                  <TextField
+                    name="inventory.quantity"
+                    label="Total Stock (All Warehouses)"
+                    fullWidth
+                    type="number"
+                    inputProps={{ min: 0, step: 1, readOnly: true }}
+                    value={inventorySummary.totalQuantity}
+                    onChange={() => {}}
+                    helperText={"This is fetched from the inventory database (sum of all warehouses)"}
+                    disabled={true}
+                  />
+                  <TextField
+                    name="inventory.lowStockThreshold"
+                    label="Global Low Stock Threshold"
+                    fullWidth
+                    type="number"
+                    inputProps={{ min: 0, step: 1, readOnly: true }}
+                    value={inventorySummary.globalLowStockThreshold}
+                    onChange={() => {}}
+                    helperText={'Send alert when total stock falls below this level (min threshold across all warehouses)'
+}
+                    disabled={true}
+                  />
+                </Stack>
+              </FormSection>
 
-            <FormSection title="Warehouse Distribution">
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="subtitle1">Stock Distribution by Warehouse</Typography>
-                <Button 
-                  variant="outlined" 
-                  onClick={addWarehouseInventory}
-                  disabled={loading || warehouses.length === 0}
-                >
-                  Add Warehouse Stock
-                </Button>
-              </Box>
-              
-              {warehouses.length === 0 && (
-                <Typography color="text.secondary" sx={{ my: 2, textAlign: 'center' }}>
-                  No warehouses available. Create a warehouse first to manage inventory distribution.
-                </Typography>
-              )}
-              
-              {formData.inventory.warehouses.length === 0 && warehouses.length > 0 && (
-                <Typography color="text.secondary" sx={{ my: 2, textAlign: 'center' }}>
-                  No warehouse stock entries yet. Click "Add Warehouse Stock" to distribute inventory across warehouses.
-                </Typography>
-              )}
-              
-              {formData.inventory.warehouses.map((warehouseInventory, index) => (
-                <Box key={index} sx={{ border: '1px solid #ddd', borderRadius: 1, p: 2, mb: 2 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="subtitle2">Warehouse {index + 1}</Typography>
-                    <IconButton 
-                      onClick={() => removeWarehouseInventory(index)}
-                      color="error"
-                      disabled={loading}
-                      size="small"
-                    >
-                      <DeleteOutlineIcon />
-                    </IconButton>
-                  </Box>
-                  
-                  <Stack spacing={2}>
-                    <FormControl fullWidth required>
-                      <InputLabel>Warehouse</InputLabel>
-                      <Select
-                        value={warehouseInventory.warehouseId}
-                        onChange={(e) => updateWarehouseInventory(index, 'warehouseId', e.target.value)}
+              <FormSection title="Warehouse Distribution">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="subtitle1">Stock Distribution by Warehouse</Typography>
+                  <Button 
+                    variant="outlined" 
+                    onClick={addWarehouseInventory}
+                    disabled={loading || warehouses.length === 0}
+                  >
+                    Add Warehouse Stock
+                  </Button>
+                </Box>
+                
+                {warehouses.length === 0 && (
+                  <Typography color="text.secondary" sx={{ my: 2, textAlign: 'center' }}>
+                    No warehouses available. Create a warehouse first to manage inventory distribution.
+                  </Typography>
+                )}
+                
+                {formData.inventory.warehouses.length === 0 && warehouses.length > 0 && (
+                  <Typography color="text.secondary" sx={{ my: 2, textAlign: 'center' }}>
+                    No warehouse stock entries yet. Click "Add Warehouse Stock" to distribute inventory across warehouses.
+                  </Typography>
+                )}
+                
+                {formData.inventory.warehouses.map((warehouseInventory, index) => (
+                  <Box key={index} sx={{ border: '1px solid #ddd', borderRadius: 1, p: 2, mb: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                      <Typography variant="subtitle2">Warehouse {index + 1}</Typography>
+                      <IconButton 
+                        onClick={() => removeWarehouseInventory(index)}
+                        color="error"
                         disabled={loading}
-                        label="Warehouse"
+                        size="small"
                       >
-                        <MenuItem value="" disabled>Select a warehouse</MenuItem>
-                        {warehouses.map((warehouse) => (
-                          <MenuItem key={warehouse.id} value={warehouse.id}>
-                            {warehouse.name} ({warehouse.type})
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
+                        <DeleteOutlineIcon />
+                      </IconButton>
+                    </Box>
                     
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                      <TextField
-                        label="Quantity in Warehouse"
-                        type="number"
-                        inputProps={{ min: 0, step: 1 }}
-                        value={warehouseInventory.quantity}
-                        onChange={(e) => updateWarehouseInventory(index, 'quantity', e.target.value)}
-                        disabled={loading}
-                        fullWidth
-                      />
-                      <TextField
-                        label="Min Threshold"
-                        type="number"
-                        inputProps={{ min: 0, step: 1 }}
-                        value={warehouseInventory.minThreshold}
-                        onChange={(e) => updateWarehouseInventory(index, 'minThreshold', e.target.value)}
-                        disabled={loading}
-                        fullWidth
-                      />
-                      <TextField
-                        label="Max Threshold"
-                        type="number"
-                        inputProps={{ min: 0, step: 1 }}
-                        value={warehouseInventory.maxThreshold}
-                        onChange={(e) => updateWarehouseInventory(index, 'maxThreshold', e.target.value)}
-                        disabled={loading}
-                        fullWidth
-                      />
+                    <Stack spacing={2}>
+                      <FormControl fullWidth required>
+                        <InputLabel>Warehouse</InputLabel>
+                        <Select
+                          value={warehouseInventory.warehouseId}
+                          onChange={(e) => updateWarehouseInventory(index, 'warehouseId', e.target.value)}
+                          disabled={loading}
+                          label="Warehouse"
+                        >
+                          <MenuItem value="" disabled>Select a warehouse</MenuItem>
+                          {warehouses.map((warehouse) => (
+                            <MenuItem key={warehouse.id} value={warehouse.id}>
+                              {warehouse.name} ({warehouse.type})
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                        <TextField
+                          label="Quantity in Warehouse"
+                          type="number"
+                          inputProps={{ min: 0, step: 1 }}
+                          value={warehouseInventory.quantity}
+                          onChange={(e) => updateWarehouseInventory(index, 'quantity', e.target.value)}
+                          disabled={loading}
+                          fullWidth
+                        />
+                        <TextField
+                          label="Min Threshold"
+                          type="number"
+                          inputProps={{ min: 0, step: 1 }}
+                          value={warehouseInventory.minThreshold}
+                          onChange={(e) => updateWarehouseInventory(index, 'minThreshold', e.target.value)}
+                          disabled={loading}
+                          fullWidth
+                        />
+                        <TextField
+                          label="Max Threshold"
+                          type="number"
+                          inputProps={{ min: 0, step: 1 }}
+                          value={warehouseInventory.maxThreshold}
+                          onChange={(e) => updateWarehouseInventory(index, 'maxThreshold', e.target.value)}
+                          disabled={loading}
+                          fullWidth
+                        />
+                      </Stack>
+                      
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                        <TextField
+                          label="Reorder Point"
+                          type="number"
+                          inputProps={{ min: 0, step: 1 }}
+                          value={warehouseInventory.reorderPoint}
+                          onChange={(e) => updateWarehouseInventory(index, 'reorderPoint', e.target.value)}
+                          disabled={loading}
+                          fullWidth
+                          helperText="Auto-reorder when stock hits this level"
+                        />
+                        <TextField
+                          label="Reorder Quantity"
+                          type="number"
+                          inputProps={{ min: 0, step: 1 }}
+                          value={warehouseInventory.reorderQuantity}
+                          onChange={(e) => updateWarehouseInventory(index, 'reorderQuantity', e.target.value)}
+                          disabled={loading}
+                          fullWidth
+                          helperText="Quantity to order when reordering"
+                        />
+                      </Stack>
                     </Stack>
-                    
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                      <TextField
-                        label="Reorder Point"
-                        type="number"
-                        inputProps={{ min: 0, step: 1 }}
-                        value={warehouseInventory.reorderPoint}
-                        onChange={(e) => updateWarehouseInventory(index, 'reorderPoint', e.target.value)}
-                        disabled={loading}
-                        fullWidth
-                        helperText="Auto-reorder when stock hits this level"
-                      />
-                      <TextField
-                        label="Reorder Quantity"
-                        type="number"
-                        inputProps={{ min: 0, step: 1 }}
-                        value={warehouseInventory.reorderQuantity}
-                        onChange={(e) => updateWarehouseInventory(index, 'reorderQuantity', e.target.value)}
-                        disabled={loading}
-                        fullWidth
-                        helperText="Quantity to order when reordering"
-                      />
-                    </Stack>
-                  </Stack>
-                </Box>              ))}
-            </FormSection>
-          </Stack>
-        </TabPanel>        {/* Price History Tab - Only shown in edit mode */}
+                  </Box>              
+                ))}
+              </FormSection>
+            </Stack>
+          )}
+        </TabPanel>        
+        {/* Price History Tab - Only shown in edit mode */}
         {isEditMode && (
           <TabPanel value={tabValue} index={2} aria-labelledby="product-tab-2">
             <ProductPriceHistory 
@@ -958,24 +995,3 @@ const FormSection: React.FC<FormSectionProps> = ({ title, tooltip, children }) =
     </Box>
   );
 };
-
-// Add this function to validate only the basic info tab
-const validateBasicInfo = (formData: any, setErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>, showErrors = true) => {
-  const newErrors: Record<string, string> = {};
-  
-  if (!formData.name.trim()) {
-    newErrors.name = 'Product name is required';
-  }
-    if (!formData.price.trim()) {
-    newErrors.price = 'Price is required';
-  } else if (isNaN(parseFloat(formData.price)) || parseFloat(formData.price) < 0) {
-    newErrors.price = 'Price must be a valid positive number';
-  }
-  
-  if (showErrors) {
-    setErrors(prev => ({ ...prev, ...newErrors }));
-  }
-  
-  return Object.keys(newErrors).length === 0;
-};
-

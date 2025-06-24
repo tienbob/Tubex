@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
-import { canAccessPage, User } from '../../utils/accessControl';
+import { canAccessPage, User, CompanyType } from '../../utils/accessControl';
 import { Box, Typography, Button } from '@mui/material';
 import { Lock as LockIcon } from '@mui/icons-material';
+import { companyService } from '../../services/api';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -11,27 +12,63 @@ interface ProtectedRouteProps {
   fallbackPath?: string;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
-  children, 
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  children,
   requiredPage,
-  fallbackPath = '/dashboard' 
+  fallbackPath = '/dashboard'
 }) => {
   const { user, isAuthenticated } = useAuth();
   const location = useLocation();
-  
-  // If not authenticated, redirect to login
+  const [companyType, setCompanyType] = useState<CompanyType | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (user?.companyId) {
+      companyService.getCompanyById(user.companyId)
+        .then(company => {
+          if (isMounted) {
+            setCompanyType(company.type as CompanyType);
+            setLoading(false);
+          }
+        })
+        .catch(() => {
+          if (isMounted) {
+            setCompanyType(null);
+            setLoading(false);
+          }
+        });
+    } else {
+      setLoading(false);
+    }
+    return () => { isMounted = false; };
+  }, [user?.companyId]);
+
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
-  
-  // Convert UserInfo to User type for access control
+
+  if (loading) {
+    return null; // Or a spinner/loading indicator
+  }
+
+  if (!companyType) {
+    return (
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        <Typography variant="h6" color="error">
+          Unable to determine company type.
+        </Typography>
+      </Box>
+    );
+  }
+
   const accessUser: User = {
     userId: user.userId,
     role: user.role,
     companyId: user.companyId,
+    companyType: companyType
   };
-  
-  // If specific page access is required, check permissions
+
   if (requiredPage && !canAccessPage(accessUser, requiredPage)) {
     return (
       <Box
@@ -69,7 +106,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       </Box>
     );
   }
-  
+
   return <>{children}</>;
 };
 

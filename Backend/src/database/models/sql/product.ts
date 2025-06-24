@@ -11,8 +11,10 @@ export class Product {
     name: string;
 
     @Column({ type: 'text', nullable: true })
-    description: string;    @Column({ type: 'decimal', precision: 10, scale: 2, name: 'base_price' })
-    base_price: number;    @Column()
+    description: string;    
+    @Column({ type: 'decimal', precision: 10, scale: 2, name: 'base_price' })
+    base_price: number;    
+    @Column()
     unit: string;
 
     // Product category relationship
@@ -31,15 +33,7 @@ export class Product {
     @JoinColumn({ name: 'supplier_id' })
     supplier: Company;
 
-    // Dealer is optional - only set when a dealer has exclusive rights to this product
-    // Most products will have null dealer_id (available to all dealers)
-    @Column({ name: 'dealer_id', nullable: true })
-    dealer_id: string;
-
-    @ManyToOne(() => Company, { nullable: true })
-    @JoinColumn({ name: 'dealer_id' })
-    dealer: Company;@Column({ default: 'active' })
-    status: string;
+    @Column()
 
     @Column("jsonb", { nullable: true })
     metadata: Record<string, any>;
@@ -49,4 +43,7 @@ export class Product {
 
     @UpdateDateColumn({ name: 'updated_at' })
     updated_at: Date;
+
+    @Column({ type: 'varchar', length: 32, default: 'active' })
+    status: string;
 }

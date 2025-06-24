@@ -69,10 +69,7 @@ const ProductPriceHistory: React.FC<ProductPriceHistoryProps> = ({
     try {
       const response = await productService.getPriceHistory(productId, { page, limit: 10 });
       setPriceHistory(response.data || []);
-      
-      if (response.pagination) {
-        setTotalPages(response.pagination.totalPages || 1);
-      }
+      setTotalPages(response.pagination?.totalPages || 1);
     } catch (err: any) {
       setError(err.message || 'Failed to load price history');
       console.error('Error loading price history:', err);
@@ -155,21 +152,6 @@ const ProductPriceHistory: React.FC<ProductPriceHistoryProps> = ({
     <Box sx={{ mt: 2 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h6">Price History</Typography>
-        {canUpdate && (
-          <Button 
-            variant="contained" 
-            color="primary" 
-            onClick={handlePriceDialogOpen}
-            sx={{
-              backgroundColor: whitelabelTheme?.primaryColor,
-              '&:hover': {
-                backgroundColor: whitelabelTheme?.primaryColor ? `${whitelabelTheme.primaryColor}dd` : undefined,
-              },
-            }}
-          >
-            Update Price
-          </Button>
-        )}
       </Box>
 
       {loading ? (
@@ -184,7 +166,8 @@ const ProductPriceHistory: React.FC<ProductPriceHistoryProps> = ({
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Price</TableCell>
+                  <TableCell>Old Price</TableCell>
+                  <TableCell>New Price</TableCell>
                   <TableCell>Effective Date</TableCell>
                   <TableCell>Updated By</TableCell>
                 </TableRow>
@@ -193,14 +176,15 @@ const ProductPriceHistory: React.FC<ProductPriceHistoryProps> = ({
                 {priceHistory.length > 0 ? (
                   priceHistory.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell>{formatCurrency(item.price)}</TableCell>
-                      <TableCell>{formatDate(item.effective_date)}</TableCell>
-                      <TableCell>{item.created_by}</TableCell>
+                      <TableCell>{formatCurrency(parseFloat(item.old_price))}</TableCell>
+                      <TableCell>{formatCurrency(parseFloat(item.new_price))}</TableCell>
+                      <TableCell>{formatDate(item.effective_date || item.created_at)}</TableCell>
+                      <TableCell>{item.created_by || item.changed_by_id}</TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={3} align="center">
+                    <TableCell colSpan={4} align="center">
                       No price history available
                     </TableCell>
                   </TableRow>

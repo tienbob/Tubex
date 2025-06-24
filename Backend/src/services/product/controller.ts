@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { AppDataSource } from '../../database/ormconfig';
 import { Product, ProductPriceHistory } from '../../database/models/sql';
+import { DealerProduct } from '../../database/models/sql/dealer-product';
 import { Company } from '../../database/models/sql/company';
 import { AppError } from '../../middleware/errorHandler';
 import { logger } from '../../app';
@@ -11,7 +12,8 @@ export const productController = {
     async createProduct(req: AuthenticatedRequest, res: Response) {
         const queryRunner = AppDataSource.createQueryRunner();
         await queryRunner.connect();
-        await queryRunner.startTransaction();        try {
+        await queryRunner.startTransaction();
+        try {
             const { name, description, base_price, unit, supplier_id, category_id, status } = req.body;
             
             // Get the company ID from the path params (for company-specific route)
@@ -47,10 +49,17 @@ export const productController = {
             product.unit = unit;
             product.supplier_id = effectiveSupplierID;
             product.category_id = category_id; // Set the category_id
-            product.dealer_id = req.user.companyId; // Add the dealer who created this product
             product.status = status || 'active';
 
             const savedProduct = await queryRunner.manager.save(product);
+
+            // If dealer, create dealer-product relation
+            if (req.user.role === 'dealer') {
+                const dealerProduct = new DealerProduct();
+                dealerProduct.product_id = savedProduct.id;
+                dealerProduct.dealer_id = req.user.companyId;
+                await queryRunner.manager.save(dealerProduct);
+            }
             await queryRunner.commitTransaction();
             
             res.status(201).json(savedProduct);
@@ -119,8 +128,13 @@ export const productController = {
             }            // Update product with version check
             const oldPrice = product.base_price;
             Object.assign(product, updates);
-              // If price has changed, create a price history record
-            if (updates.base_price && updates.base_price !== oldPrice) {
+            // Only create price history if price actually changes
+            if (
+                updates.base_price &&
+                updates.base_price !== oldPrice &&
+                typeof updates.base_price === 'number' &&
+                typeof oldPrice === 'number'
+            ) {
                 const priceHistory = new ProductPriceHistory();
                 priceHistory.product_id = product.id;
                 priceHistory.old_price = oldPrice;
@@ -130,7 +144,6 @@ export const productController = {
                 priceHistory.metadata = {
                     updated_via: 'api'
                 };
-                
                 await queryRunner.manager.save(ProductPriceHistory, priceHistory);
             }
             
@@ -203,7 +216,8 @@ export const productController = {
             throw new AppError(500, 'Failed to fetch product');
         }    },async listProducts(req: AuthenticatedRequest, res: Response) {
         try {
-            const { supplier_id, status, page = 1, limit = 10, search } = req.query;            const queryBuilder = AppDataSource.getRepository(Product)
+            const { supplier_id, status, page = 1, limit = 10, search } = req.query;
+            const queryBuilder = AppDataSource.getRepository(Product)
                 .createQueryBuilder('product')
                 .leftJoinAndSelect('product.supplier', 'supplier')
                 .leftJoinAndSelect('product.category', 'category');
@@ -229,7 +243,8 @@ export const productController = {
                         .andWhere('company.status = :companyStatus', { companyStatus: 'active' });
                 } else {
                     // Show products added by this dealer to their catalog
-                    queryBuilder.andWhere('product.dealer_id = :userCompanyId', { userCompanyId });
+                    queryBuilder.innerJoin(DealerProduct, 'dp', 'dp.product_id = product.id')
+                        .andWhere('dp.dealer_id = :userCompanyId', { userCompanyId });
                     // Also ensure suppliers are active
                     queryBuilder.innerJoin('supplier', 'company', 'company.id = product.supplier_id')
                         .andWhere('company.status = :companyStatus', { companyStatus: 'active' });
@@ -247,12 +262,12 @@ export const productController = {
                         // Show supplier's original products
                         queryBuilder.andWhere('product.supplier_id = :companyIdParam', { companyIdParam });
                     } else {
-                        // Show dealer's catalog products
-                        queryBuilder.andWhere('product.dealer_id = :companyIdParam', { companyIdParam });
+                        queryBuilder.innerJoin(DealerProduct, 'dp', 'dp.product_id = product.id')
+                            .andWhere('dp.dealer_id = :companyIdParam', { companyIdParam });
                     }
                 } else {
-                    console.log('Filtering by dealer_id =', userCompanyId);
-                    queryBuilder.andWhere('product.dealer_id = :userCompanyId', { userCompanyId });
+                    queryBuilder.innerJoin(DealerProduct, 'dp', 'dp.product_id = product.id')
+                        .andWhere('dp.dealer_id = :userCompanyId', { userCompanyId });
                 }
                 // Ensure suppliers are active (using existing supplier join)
                 queryBuilder.andWhere('supplier.status = :companyStatus', { companyStatus: 'active' });

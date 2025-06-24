@@ -25,7 +25,7 @@ export interface User {
   userId: string;
   role: string;
   companyId: string;
-  companyType?: CompanyType;
+  companyType: CompanyType;
 }
 
 export interface AccessPermissions {
@@ -180,7 +180,7 @@ const ROLE_PERMISSIONS: Record<string, AccessPermissions> = {
     inventoryDelete: false,
     
     warehouseView: true,
-    warehouseCreate: false,
+    warehouseCreate: true,
     warehouseEdit: true,
     warehouseDelete: false,
     
@@ -194,7 +194,7 @@ const ROLE_PERMISSIONS: Record<string, AccessPermissions> = {
     quoteCreate: true,
     quoteEdit: true,
     quoteDelete: false,
-    quoteApprove: false,
+    quoteApprove: true,
     
     invoiceView: true,
     invoiceCreate: true,
@@ -207,8 +207,8 @@ const ROLE_PERMISSIONS: Record<string, AccessPermissions> = {
     paymentDelete: false,
     
     userView: true,
-    userCreate: false,
-    userEdit: false,
+    userCreate: true,
+    userEdit: true,
     userDelete: false,
     
     priceListView: true,
@@ -288,7 +288,8 @@ const ROLE_PERMISSIONS: Record<string, AccessPermissions> = {
   'dealer-admin': {
     dashboard: true,
     analytics: true,
-      productView: true,
+    
+    productView: true,
     productCreate: true, // Dealers can add supplier products to their catalog
     productEdit: false, // Dealers can't edit supplier products
     productDelete: false, // Dealers can't delete supplier products
@@ -358,7 +359,7 @@ const ROLE_PERMISSIONS: Record<string, AccessPermissions> = {
     inventoryDelete: false,
     
     warehouseView: true,
-    warehouseCreate: false,
+    warehouseCreate: true,
     warehouseEdit: true,
     warehouseDelete: false,
     
@@ -467,15 +468,12 @@ const ROLE_PERMISSIONS: Record<string, AccessPermissions> = {
  * Get user permissions based on role and company type
  */
 export const getUserPermissions = (user: User): AccessPermissions => {
-  const companyType = user.companyType || 'supplier'; // Default to supplier
+  const companyType = user.companyType;
   const key = `${companyType}-${user.role}`;
-  
-  console.log('getUserPermissions - user:', user);
-  console.log('getUserPermissions - key:', key);
-  console.log('getUserPermissions - available keys:', Object.keys(ROLE_PERMISSIONS));
+  console.log('key: ', key);
   console.log('getUserPermissions - permissions found:', !!ROLE_PERMISSIONS[key]);
   
-  return ROLE_PERMISSIONS[key] || ROLE_PERMISSIONS['supplier-staff']; // Default to most restrictive
+  return ROLE_PERMISSIONS[key]; // Default to most restrictive
 };
 
 /**
@@ -516,7 +514,8 @@ export const canAccessPage = (user: User, page: string): boolean => {
     case '/price-lists':
       return permissions.priceListView;
     case '/reports':
-      return permissions.reportView;    case '/settings':
+      return permissions.reportView;    
+    case '/settings':
       return permissions.settingsView;
     case '/profile':
       return true; // All authenticated users should have access to their own profile
