@@ -24,7 +24,7 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import { inventoryService, warehouseService } from '../services/api';
 import { InventoryItem } from '../services/api/inventoryService';
 import { Warehouse, ContactInfo, ApiError } from '../services/api/warehouseService';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../components/auth/AuthContext';
 import { useAccessControl } from '../hooks/useAccessControl';
 
 

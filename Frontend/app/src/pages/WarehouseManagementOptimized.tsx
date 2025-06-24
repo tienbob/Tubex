@@ -25,7 +25,7 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import SearchIcon from '@mui/icons-material/Search';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { WarehouseCreateInput } from '../services/api/warehouseService';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../components/auth/AuthContext';
 import useForm from '../hooks/useForm';
 import InventoryItemRow from '../components/inventory/InventoryItemRow';
 import useWarehouseOperations from '../hooks/useWarehouseOperations';

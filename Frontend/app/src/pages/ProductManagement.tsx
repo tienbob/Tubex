@@ -7,9 +7,9 @@ import {
   IconButton,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import ProductList from '../components/whitelabel/products/ProductList';
-import ProductForm from '../components/whitelabel/products/ProductForm';
-import { useAuth } from '../contexts/AuthContext';
+import ProductList from '../components/products/ProductList';
+import ProductForm from '../components/products/ProductForm';
+import { useAuth } from '../components/auth/AuthContext';
 
 const ProductManagement: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(false);

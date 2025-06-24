@@ -44,7 +44,7 @@ import ReconcilePaymentModal from './ReconcilePaymentModal';
 import { format } from 'date-fns';
 import { useSnackbar } from 'notistack';
 import { useAccessControl } from '../../hooks/useAccessControl';
-import RoleGuard from '../../components/common/RoleGuard';
+import RoleGuard from '../auth/RoleGuard';
 
 const PaymentManagement: React.FC = () => {
   const { theme: whitelabelTheme } = useTheme();

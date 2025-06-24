@@ -10,13 +10,13 @@ import {
   Tab,
   Alert
 } from '@mui/material';
-import  InventoryList  from '../components/whitelabel/inventory/InventoryList';
+import  InventoryList  from '../components/inventory/InventoryList';
 import  InventoryTransferModal  from '../components/inventory/InventoryTransferModal';
 import  InventoryAuditLog  from '../components/inventory/InventoryAuditLog';
-import  InventoryForm  from '../components/whitelabel/inventory/InventoryForm';
-import  InventoryAdjustForm  from '../components/whitelabel/inventory/InventoryAdjustForm';
+import  InventoryForm  from '../components/inventory/forms/InventoryForm';
+import  InventoryAdjustForm  from '../components/inventory/forms/InventoryAdjustForm';
 import { inventoryService } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../components/auth/AuthContext';
 
 interface TabPanelProps {
   children?: React.ReactNode;

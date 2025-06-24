@@ -10,7 +10,6 @@ import { logger } from '../../app';
 export const paymentController = {
     async createPayment(req: Request, res: Response) {
         if (!req.user) throw new AppError(401, 'Authentication required');
-        // Only users with company access can create payments
         
         const { 
             transactionId,
@@ -245,7 +244,6 @@ export const paymentController = {
     
     async updatePayment(req: Request, res: Response) {
         if (!req.user) throw new AppError(401, 'Authentication required');
-        // Only company admin or payment creator can update
         
         const { id } = req.params;
         const updateData = req.body;
@@ -262,11 +260,6 @@ export const paymentController = {
             
             if (!payment) {
                 throw new AppError(404, 'Payment not found');
-            }
-            
-            // Check if user is admin of the company or the creator of the payment
-            if (!(req.user.role === 'admin' && req.user.companyId === payment.companyId) && req.user.id !== payment.recordedById) {
-                throw new AppError(403, 'Only company admin or payment creator can update payment');
             }
             
             // Handle order payment status updates if amount or orderId changes
@@ -416,7 +409,6 @@ export const paymentController = {
     
     async deletePayment(req: Request, res: Response) {
         if (!req.user) throw new AppError(401, 'Authentication required');
-        // Only company admin or payment creator can delete
         
         const { id } = req.params;
         
@@ -434,29 +426,25 @@ export const paymentController = {
                 throw new AppError(404, 'Payment not found');
             }
             
-            // Check if user is admin of the company or the creator of the payment
-            if (!(req.user.role === 'admin' && req.user.companyId === payment.companyId) && req.user.id !== payment.recordedById) {
-                throw new AppError(403, 'Only company admin or payment creator can delete payment');
-            }
-            
             // Handle order payment status updates
             if (payment.orderId) {
                 const order = await queryRunner.manager.findOne(Order, { where: { id: payment.orderId } });
                 if (order) {
-                    // Get total payments for this order
-                    const totalPayments = await queryRunner.manager
+                    const orderPayments = await queryRunner.manager
                         .createQueryBuilder(Payment, 'payment')
-                        .where('payment.orderId = :orderId', { orderId: payment.orderId })
+                        .where('payment.orderId = :orderId AND payment.id != :paymentId', { 
+                            orderId: payment.orderId,
+                            paymentId: payment.id
+                        })
                         .select('SUM(payment.amount)', 'total')
                         .getRawOne();
-                        
-                    const totalPaid = parseFloat(totalPayments?.total || '0');
                     
-                    // Update order payment status
-                    if (totalPaid >= order.totalAmount) {
+                    const orderTotalPaid = parseFloat(orderPayments?.total || '0');
+                    
+                    if (orderTotalPaid >= order.totalAmount) {
                         order.paymentStatus = OrderPaymentStatus.PAID;
-                    } else if (totalPaid > 0) {
-                        order.paymentStatus = OrderPaymentStatus.PENDING; // Partially paid
+                    } else if (orderTotalPaid > 0) {
+                        order.paymentStatus = OrderPaymentStatus.PENDING;
                     } else {
                         order.paymentStatus = OrderPaymentStatus.PENDING;
                     }
@@ -469,35 +457,40 @@ export const paymentController = {
             if (payment.invoiceId) {
                 const invoice = await queryRunner.manager.findOne(Invoice, { where: { id: payment.invoiceId } });
                 if (invoice) {
-                    // Get total payments for this invoice
-                    const totalPayments = await queryRunner.manager
+                    const invoicePayments = await queryRunner.manager
                         .createQueryBuilder(Payment, 'payment')
-                        .where('payment.invoiceId = :invoiceId', { invoiceId: payment.invoiceId })
+                        .where('payment.invoiceId = :invoiceId AND payment.id != :paymentId', { 
+                            invoiceId: payment.invoiceId,
+                            paymentId: payment.id
+                        })
                         .select('SUM(payment.amount)', 'total')
                         .getRawOne();
-                        
-                    const totalPaid = parseFloat(totalPayments?.total || '0');
-                    invoice.paidAmount = totalPaid;
                     
-                    // Update invoice status
-                    if (totalPaid >= invoice.totalAmount) {
+                    const invoiceTotalPaid = parseFloat(invoicePayments?.total || '0');
+                    invoice.paidAmount = invoiceTotalPaid;
+                    
+                    if (invoiceTotalPaid >= invoice.totalAmount) {
                         invoice.status = InvoiceStatus.PAID;
-                    } else if (totalPaid > 0) {
+                    } else if (invoiceTotalPaid > 0) {
                         invoice.status = InvoiceStatus.PARTIALLY_PAID;
+                    } else if (new Date() > invoice.dueDate) {
+                        invoice.status = InvoiceStatus.OVERDUE;
                     } else {
-                        invoice.status = InvoiceStatus.SENT; // Or set to OVERDUE based on your logic
+                        invoice.status = InvoiceStatus.SENT;
                     }
                     
                     await queryRunner.manager.save(Invoice, invoice);
                 }
             }
             
-            // Delete payment record
-            await queryRunner.manager.delete(Payment, { id });
-            
+            // Delete the payment
+            await queryRunner.manager.remove(Payment, payment);
             await queryRunner.commitTransaction();
             
-            res.status(204).send();
+            res.status(200).json({
+                success: true,
+                message: 'Payment deleted successfully'
+            });
         } catch (error) {
             await queryRunner.rollbackTransaction();
             logger.error('Failed to delete payment', { error, id: req.params.id });
@@ -506,40 +499,39 @@ export const paymentController = {
             await queryRunner.release();
         }
     },
-
+    
     async reconcilePayment(req: Request, res: Response) {
         if (!req.user) throw new AppError(401, 'Authentication required');
-        // Only company admin or manager can reconcile payments
-        if (!["admin", "manager"].includes(req.user.role)) {
-            throw new AppError(403, 'Only company admin or manager can reconcile payments');
-        }
+        
         const { id } = req.params;
         const { reconciliationStatus, notes } = req.body;
-        const queryRunner = AppDataSource.createQueryRunner();
-        await queryRunner.connect();
-        await queryRunner.startTransaction();
+        
         try {
-            const payment = await queryRunner.manager.findOne(Payment, {
-                where: { id, companyId: req.user.companyId },
-                relations: ['order', 'invoice', 'recordedBy', 'reconciledBy']
-            });
+            const payment = await AppDataSource.getRepository(Payment).findOne({ where: { id } });
+            
             if (!payment) {
-                throw new AppError(404, 'Payment not found or access denied');
+                throw new AppError(404, 'Payment not found');
             }
+            
             payment.reconciliationStatus = reconciliationStatus;
-            payment.reconciledById = req.user.id;
-            payment.notes = notes;
             payment.reconciliationDate = new Date();
-            const updatedPayment = await queryRunner.manager.save(Payment, payment);
-            await queryRunner.commitTransaction();
-            res.status(200).json({ success: true, data: updatedPayment });
+            payment.reconciledById = req.user.id;
+            
+            if (notes) {
+                payment.notes = payment.notes 
+                    ? `${payment.notes}\n\nReconciliation note (${new Date().toISOString()}): ${notes}`
+                    : `Reconciliation note (${new Date().toISOString()}): ${notes}`;
+            }
+            
+            const updatedPayment = await AppDataSource.getRepository(Payment).save(payment);
+            
+            res.status(200).json({
+                success: true,
+                data: updatedPayment
+            });
         } catch (error) {
-            await queryRunner.rollbackTransaction();
-            logger.error('Failed to reconcile payment', { error, id });
+            logger.error('Failed to reconcile payment', { error, id: req.params.id });
             throw error;
-        } finally {
-            await queryRunner.release();
         }
-    },
-
+    }
 };

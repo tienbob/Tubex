@@ -6,38 +6,34 @@ export { default as WhiteLabelFooter } from './WhiteLabelFooter';
 export { default as WhiteLabelButton } from './WhiteLabelButton';
 export { default as WhiteLabelStyleInjector } from './WhiteLabelStyleInjector';
 export { default as TenantConfigPanel } from './TenantConfigPanel';
-export { default as AdminPage } from './AdminPage';
-export { default as ConfirmationDialog } from './ConfirmationDialog';
-export { default as DashboardCard } from './DashboardCard';
+export { default as ConfirmationDialog } from '../shared/ConfirmationDialog';
+export { default as DashboardCard } from '../shared/DashboardCard';
 
 // Export utility functions
 export * from './WhiteLabelUtils';
 
 // Common UI components
-export { default as DataTable } from './DataTable';
-export { default as FormContainer } from './FormContainer';
-export { default as FormButtons } from './FormButtons';
+export { default as DataTable } from '../shared/DataTable';
+export { default as FormContainer } from '../shared/FormContainer';
+export { default as FormButtons } from '../shared/FormButtons';
 
 // Products
-export { default as ProductList } from './products/ProductList';
-export { default as ProductForm } from './products/ProductForm';
+export { default as ProductList } from '../products/ProductList';
+export { default as ProductForm } from '../products/ProductForm';
 
 // Inventory
-export { default as InventoryList } from './inventory/InventoryList';
-export { default as InventoryAdjustForm } from './inventory/InventoryAdjustForm';
+export { default as InventoryList } from '../inventory/InventoryList';
+export { default as InventoryAdjustForm } from '../inventory/forms/InventoryAdjustForm';
 
 // Orders
-export { default as OrderList } from './orders/OrderList';
+export { default as OrderList } from '../orders/OrderList';
 
 // Invoices
-export { InvoiceList, InvoiceDetail, InvoiceForm } from './invoices';
+export { InvoiceList, InvoiceDetail, InvoiceForm } from '../invoices';
 
 // Users
-export { default as UserList } from './users/UserList';
-export { default as UserForm } from './users/UserForm';
-
-// Verification
-export { default as CompanyVerificationList } from './verification/CompanyVerificationList';
+export { default as UserList } from '../users/UserList';
+export { default as UserForm } from '../users/UserForm';
 
 // Re-export types
-export type { Column } from './DataTable';
+export type { Column } from '../shared/DataTable';

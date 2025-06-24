@@ -17,7 +17,7 @@ import {
 import { Visibility, VisibilityOff, Google, Facebook } from '@mui/icons-material';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../../services/api/authService';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from './AuthContext';
 
 interface LoginProps {
   onLoginSuccess?: (userData: any) => void;

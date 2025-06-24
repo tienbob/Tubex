@@ -42,10 +42,7 @@ async function createOrderHistoryEntry(
 export const orderController = {
     async createOrder(req: Request, res: Response) {
         if (!req.user) throw new AppError(401, 'Authentication required');
-        // Only company admin or manager can create orders
-        if (!["admin", "manager"].includes(req.user.role)) {
-            throw new AppError(403, 'Only company admin or manager can create orders');
-        }
+        
         const { items, deliveryAddress, paymentMethod } = req.body;
         const companyId = req.user.companyId;
 
@@ -69,12 +66,8 @@ export const orderController = {
             if (req.user.role === 'dealer') {
                 productQueryBuilder.andWhere('product.dealer_id = :dealerId', { dealerId: companyId });
             } else if (req.user.role === 'supplier') {
+                // Suppliers can only create orders for their own products
                 productQueryBuilder.andWhere('product.supplier_id = :supplierId', { supplierId: companyId });
-            } else if (["admin", "manager"].includes(req.user.role)) {
-                // Company admin/manager can only create orders for their own company
-                productQueryBuilder.andWhere('(product.company_id = :companyId)', { companyId });
-            } else {
-                throw new AppError(403, 'Access denied: Invalid role for creating orders');
             }
             // Admin can access all products, no additional filter needed
             
@@ -152,10 +145,6 @@ export const orderController = {
 
     async updateOrder(req: Request, res: Response) {
         if (!req.user) throw new AppError(401, 'Authentication required');
-        // Only company admin or manager can update orders
-        if (!["admin", "manager"].includes(req.user.role)) {
-            throw new AppError(403, 'Only company admin or manager can update orders');
-        }
         
         const { id } = req.params;
         const updates = req.body;
@@ -164,12 +153,15 @@ export const orderController = {
         const queryRunner = AppDataSource.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();        try {
-            // Use explicit UUID cast for Postgres
-            const order = await queryRunner.manager.createQueryBuilder(Order, 'order')
-                .leftJoinAndSelect('order.items', 'items')
-                .where('(order.id = CAST(:id AS uuid) AND (order.companyId = CAST(:companyId AS uuid) OR order.customerId = CAST(:companyId AS uuid)))', { id, companyId })
-                .setLock('pessimistic_write')
-                .getOne();
+            // Try to find by either companyId or customerId for backward compatibility
+            const order = await queryRunner.manager.findOne(Order, {
+                where: [
+                    { id, companyId }, // Try with companyId
+                    { id, customerId: companyId } // Try with customerId
+                ],
+                relations: ['items'],
+                lock: { mode: "pessimistic_write" }
+            });
 
             if (!order) {
                 throw new AppError(404, 'Order not found');
@@ -257,13 +249,11 @@ export const orderController = {
         // For company-specific route, get companyId from params
         const targetCompanyId = req.params.companyId || null;
 
-        // Use explicit UUID cast for Postgres
-        const order = await AppDataSource.getRepository(Order)
-            .createQueryBuilder('order')
-            .leftJoinAndSelect('order.items', 'items')
-            .leftJoinAndSelect('items.product', 'product')
-            .where('order.id = CAST(:id AS uuid)', { id })
-            .getOne();
+        // First, get the order without filters to check permissions
+        const order = await AppDataSource.getRepository(Order).findOne({
+            where: { id },
+            relations: ['items', 'items.product']
+        });
 
         if (!order) {
             throw new AppError(404, 'Order not found');
@@ -282,12 +272,9 @@ export const orderController = {
             if (!hasSupplierProducts) {
                 throw new AppError(403, 'Access denied: This order does not contain your products');
             }
-        } else if (["admin", "manager", "staff"].includes(userRole)) {
-            if (order.companyId !== userCompanyId) {
-                throw new AppError(403, 'Access denied: You can only view your company\'s orders');
-            }
-        } else {
-            throw new AppError(403, 'Access denied: Invalid role');
+        } else if (userRole !== 'admin' && order.companyId !== userCompanyId) {
+            // Other roles (staff, managers) can only access their company's orders
+            throw new AppError(403, 'Access denied: This order does not belong to your company');
         }
 
         res.json(order);
@@ -308,28 +295,35 @@ export const orderController = {
             .leftJoinAndSelect('items.product', 'product');        // Apply appropriate filter based on user role and route
         if (userRole === 'dealer') {
             // Dealers should see only their own orders
+            // For the company-specific route, check both permission and the requested company ID
             if (targetCompanyId !== userCompanyId) {
+                // If dealer tries to access another company's orders
                 throw new AppError(403, 'Access denied: You can only view your company\'s orders');
             }
-            // Use explicit UUID cast for Postgres
-            queryBuilder.where('(order.customerId = CAST(:companyId AS uuid) OR order.companyId = CAST(:companyId AS uuid))', { companyId: targetCompanyId });
+            
+            // Using customerId field while the migration is in progress
+            // Later this can be changed to just use companyId when the migration is complete
+            queryBuilder.where('(order.customerId = :companyId OR order.companyId = :companyId)', { companyId: targetCompanyId });
         } else if (userRole === 'supplier') {
+            // Suppliers should see orders containing their products
             queryBuilder.innerJoin(
-                'product',
-                'p',
-                'p.id = items.productId AND p.supplier_id = :supplierId',
+                'product', 
+                'p', 
+                'p.id = items.productId AND p.supplier_id = :supplierId', 
                 { supplierId: userCompanyId }
             );
+            
+            // If specific company is requested, add that filter too
             if (req.params.companyId) {
-                queryBuilder.andWhere('(order.customerId = CAST(:targetCompanyId AS uuid) OR order.companyId = CAST(:targetCompanyId AS uuid))', { targetCompanyId });
+                queryBuilder.andWhere('(order.customerId = :targetCompanyId OR order.companyId = :targetCompanyId)', { targetCompanyId });
             }
-        } else if (["admin", "manager", "staff"].includes(userRole)) {
+        } else if (userRole !== 'admin') {
+            // Other roles (staff, managers) should only see their company's orders
             if (targetCompanyId !== userCompanyId) {
+                // If user tries to access another company's orders
                 throw new AppError(403, 'Access denied: You can only view your company\'s orders');
             }
-            queryBuilder.where('(order.customerId = CAST(:companyId AS uuid) OR order.companyId = CAST(:companyId AS uuid))', { companyId: targetCompanyId });
-        } else {
-            throw new AppError(403, 'Access denied: Invalid role');
+            queryBuilder.where('(order.customerId = :companyId OR order.companyId = :companyId)', { companyId: targetCompanyId });
         }
 
         if (status) {
@@ -354,10 +348,6 @@ export const orderController = {
 
     async cancelOrder(req: Request, res: Response) {
         if (!req.user) throw new AppError(401, 'Authentication required');
-        // Only company admin or manager can cancel orders
-        if (!["admin", "manager"].includes(req.user.role)) {
-            throw new AppError(403, 'Only company admin or manager can cancel orders');
-        }
         
         const { id } = req.params;
         const companyId = req.user.companyId;
@@ -365,11 +355,14 @@ export const orderController = {
         const queryRunner = AppDataSource.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();        try {
-            // Use explicit UUID cast for Postgres
-            const order = await queryRunner.manager.createQueryBuilder(Order, 'order')
-                .leftJoinAndSelect('order.items', 'items')
-                .where('order.id = CAST(:id AS uuid) AND (order.companyId = CAST(:companyId AS uuid) OR order.customerId = CAST(:companyId AS uuid))', { id, companyId })
-                .getOne();
+            // Try to find by either companyId or customerId for backward compatibility
+            const order = await queryRunner.manager.findOne(Order, {
+                where: [
+                    { id, companyId }, // Try with companyId
+                    { id, customerId: companyId } // Try with customerId
+                ],
+                relations: ['items']
+            });
 
             if (!order) {
                 throw new AppError(404, 'Order not found');
@@ -402,21 +395,17 @@ export const orderController = {
 
     async bulkProcessOrders(req: Request, res: Response) {
         if (!req.user) throw new AppError(401, 'Authentication required');
-        // Only company admin or manager can bulk process orders
-        if (!["admin", "manager"].includes(req.user.role)) {
-            throw new AppError(403, 'Only company admin or manager can bulk process orders');
-        }
         
         const { orderIds, status, notes } = req.body;
         const companyId = req.user.companyId;
         const queryRunner = AppDataSource.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();        try {
-            // Use explicit UUID cast for Postgres
+            // Find orders matching any of the IDs and either the companyId or customerId
             const orders = await queryRunner.manager.createQueryBuilder(Order, 'order')
                 .leftJoinAndSelect('order.items', 'items')
                 .where('order.id IN (:...orderIds)', { orderIds })
-                .andWhere('(order.companyId = CAST(:companyId AS uuid) OR order.customerId = CAST(:companyId AS uuid))', { companyId })
+                .andWhere('(order.companyId = :companyId OR order.customerId = :companyId)', { companyId })
                 .setLock('pessimistic_write')
                 .getMany();
 
@@ -524,11 +513,12 @@ export const orderController = {
         
         const { id } = req.params;
         const companyId = req.user.companyId;        // Verify order ownership - check both companyId and customerId for backward compatibility
-        // Use explicit UUID cast for Postgres
-        const order = await AppDataSource.getRepository(Order)
-            .createQueryBuilder('order')
-            .where('order.id = CAST(:id AS uuid) AND (order.companyId = CAST(:companyId AS uuid) OR order.customerId = CAST(:companyId AS uuid))', { id, companyId })
-            .getOne();
+        const order = await AppDataSource.getRepository(Order).findOne({
+            where: [
+                { id, companyId },
+                { id, customerId: companyId }
+            ]
+        });
 
         if (!order) {
             throw new AppError(404, 'Order not found');

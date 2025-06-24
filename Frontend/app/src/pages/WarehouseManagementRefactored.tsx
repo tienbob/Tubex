@@ -28,7 +28,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import { inventoryService, warehouseService } from '../services/api';
 import { InventoryItem } from '../services/api/inventoryService';
 import { Warehouse, ApiError, WarehouseCreateInput } from '../services/api/warehouseService';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../components/auth/AuthContext';
 import useApiRequest from '../hooks/useApiRequest';
 import useTableData from '../hooks/useTableData';
 import useForm from '../hooks/useForm';

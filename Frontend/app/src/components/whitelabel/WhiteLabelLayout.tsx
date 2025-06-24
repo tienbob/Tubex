@@ -4,7 +4,7 @@ import Container from '@mui/material/Container';
 import CircularProgress from '@mui/material/CircularProgress';
 import WhiteLabelFooter from './WhiteLabelFooter';
 import WhiteLabelStyleInjector from './WhiteLabelStyleInjector';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../components/auth/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import SideNavigation from './SideNavigation';
 import WhiteLabelHeader from './WhiteLabelHeader';

@@ -23,9 +23,9 @@ import {
   FormControlLabel,
 } from '@mui/material';
 import { userManagementService, UserListParams, UserListResponse, UserUpdateRequest, UserCreateRequest, Role, getUserName } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
-import UsersTab from '../components/whitelabel/user-management/UsersTab';
-import InvitationsTab from '../components/whitelabel/user-management/InvitationsTab';
+import { useAuth } from '../components/auth/AuthContext';
+import UsersTab from '../components/user-management/UsersTab';
+import InvitationsTab from '../components/user-management/InvitationsTab';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -463,7 +463,8 @@ const UserManagement: React.FC = () => {
           >
             {loading ? <CircularProgress size={24} /> : 'Save'}
           </Button>
-        </DialogActions>      </Dialog>
+        </DialogActions>      
+        </Dialog>
 
       {/* Invite Dialog */}
       <Dialog 

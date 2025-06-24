@@ -19,8 +19,8 @@ import {
   Save as SaveIcon,
   Cancel as CancelIcon
 } from '@mui/icons-material';
-import { useAuth } from '../contexts/AuthContext';
-import { LogoutButton } from '../components/common';
+import { useAuth } from '../components/auth/AuthContext';
+import { LogoutButton } from '../components/shared';
 
 interface TabPanelProps {
   children?: React.ReactNode;

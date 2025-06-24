@@ -14,10 +14,6 @@ export const getAllWarehouses = async (
     next: NextFunction
 ) => {
     try {
-        if (!req.user || req.user.companyId !== req.params.companyId) {
-            return next(new AppError(403, 'Access denied: You can only access your company warehouses'));
-        }
-
         const { companyId } = req.params;
         const page = parseInt(req.query.page as string) || 1;
         const limit = parseInt(req.query.limit as string) || 20;

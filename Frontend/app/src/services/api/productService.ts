@@ -356,13 +356,12 @@ export const productService = {  getProducts: async (params?: any): Promise<any>
         throw new Error('Price cannot be negative');
       }
       
-      // Only send new_price and effective_date, omit old_price
-      const data: any = {
-        new_price: price,
+      const data = {
+        price,
         effective_date: effectiveDate || new Date().toISOString()
       };
       
-      const response = await post<{data: Product}>(`/products/company/${companyId}/${productId}/price-history`, data);
+      const response = await post<{data: Product}>(`/products/company/${companyId}/${productId}/price`, data);
       return response.data.data;
     } catch (error) {
       if (error instanceof AxiosError) {

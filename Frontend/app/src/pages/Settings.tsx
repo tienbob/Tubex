@@ -43,11 +43,11 @@ import {
 } from '@mui/icons-material';
 import { useTheme } from '../contexts/ThemeContext';
 import TenantConfigPanel from '../components/whitelabel/TenantConfigPanel';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../components/auth/AuthContext';
 import { useCompanySettings } from '../contexts/CompanySettingsContext';
 import SettingsOverrideDisplay from '../components/settings/SettingsOverrideDisplay';
 import { useAccessControl } from '../hooks/useAccessControl';
-import RoleGuard from '../components/common/RoleGuard';
+import RoleGuard from '../components/auth/RoleGuard';
 
 // Define interface for integration objects
 interface Integration {

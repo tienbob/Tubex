@@ -1,8 +1,8 @@
 import React from 'react';
 import { Box, Container } from '@mui/material';
 import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
-import { InvoiceList, InvoiceDetail, InvoiceForm } from '../components/whitelabel/invoices';
-import Breadcrumbs from '../components/common/Breadcrumbs';
+import { InvoiceList, InvoiceDetail, InvoiceForm } from '../components/invoices';
+import Breadcrumbs from '../components/shared/Breadcrumbs';
 import { Invoice } from '../services/api/invoiceService';
 
 // Detail View Component

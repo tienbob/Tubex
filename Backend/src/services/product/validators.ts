@@ -1,4 +1,4 @@
-import { ValidationSchema } from '../../middleware/unified-validation';
+import { ValidationSchema } from '@/middleware/unified-validation';
 import Joi from 'joi';
 
 export const productValidators: Record<string, ValidationSchema> = {    createProduct: {

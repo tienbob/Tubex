@@ -1108,10 +1108,10 @@ const options: swaggerJsdoc.Options = {
           }
         }
       }
-    }  },  apis: [
-    './src/services/auth/routes.ts',
-    './src/services/company/routes.ts',
-    './src/services/user/routes.ts',
+    }
+  },
+  apis: [
+    './src/services/**/*.ts', // Include all TypeScript files in services folder and subfolders
     './src/app.ts'
   ]
 };

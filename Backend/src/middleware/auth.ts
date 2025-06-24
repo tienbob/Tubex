@@ -4,6 +4,7 @@ import { config } from '../config';
 import { AppError } from './errorHandler';
 import { AppDataSource } from '../database/ormconfig';
 import { User } from '../database/models/sql';
+import { Or } from 'typeorm';
 
 // Define JWT payload interface
 interface JwtPayload {
@@ -69,7 +70,7 @@ export const authorize = (...roles: string[]) => {
         }
 
         // Always allow admin users through, regardless of specified roles
-        if (userWithRole.role === 'admin') {
+        if (userWithRole.role === 'admin' || "manager") {
             return next();
         }
 

@@ -22,10 +22,10 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import SearchIcon from '@mui/icons-material/Search';
 import { orderService } from '../services/api';
-import OrderDetails from '../components/whitelabel/orders/OrderDetails';
-import CreateOrderForm from '../components/whitelabel/orders/CreateOrderForm';
+import OrderDetails from '../components/orders/OrderDetails';
+import CreateOrderForm from '../components/orders/CreateOrderForm';
 import { format } from 'date-fns';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../components/auth/AuthContext';
 import { useAccessControl } from '../hooks/useAccessControl';
 
 interface TabPanelProps {

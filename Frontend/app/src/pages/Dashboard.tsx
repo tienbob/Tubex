@@ -10,11 +10,11 @@ import {
   Alert,
   Button
 } from '@mui/material';
-import PendingEmployeesList from '../components/whitelabel/users/PendingEmployeesList';
-import EmployeeInvitationGenerator from '../components/whitelabel/users/EmployeeInvitationGenerator';
+import PendingEmployeesList from '../components/users/PendingEmployeesList';
+import EmployeeInvitationGenerator from '../components/users/EmployeeInvitationGenerator';
 import { dashboardService } from '../services/api/dashboardService';
 import { productService, orderService, inventoryService } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../components/auth/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAccessControl } from '../hooks/useAccessControl';
 
@@ -525,7 +525,8 @@ const Dashboard: React.FC = () => {
                 </Box>
               </Box>
             </TabPanel>
-          )}          {/* Products Tab */}
+          )}          
+          {/* Products Tab */}
           {isTabAvailable(2) && (
             <TabPanel value={value} index={getTabDisplayIndex(2)}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

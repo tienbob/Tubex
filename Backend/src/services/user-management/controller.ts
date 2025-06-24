@@ -33,10 +33,7 @@ const roleHierarchy: Record<UserRole, number> = {
 };
 
 const canManageUser = (managerRole: UserRole, targetRole: UserRole): boolean => {
-    // Only admin can manage managers/admins, manager can only manage staff
-    if (managerRole === 'admin') return targetRole !== 'admin';
-    if (managerRole === 'manager') return targetRole === 'staff';
-    return false;
+    return roleHierarchy[managerRole] > roleHierarchy[targetRole];
 };
 
 const canAssignRole = (managerRole: UserRole, targetRole: UserRole): boolean => {

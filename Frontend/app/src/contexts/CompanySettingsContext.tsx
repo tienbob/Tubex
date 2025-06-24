@@ -10,7 +10,7 @@ import {
   resetSection,
   SettingsSection
 } from '../utils/companySettings';
-import { useAuth } from './AuthContext';
+import { useAuth } from '../components/auth/AuthContext';
 
 // Define the context type
 interface CompanySettingsContextType {

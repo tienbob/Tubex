@@ -5,7 +5,7 @@ import { DataTable } from '../components/whitelabel';
 import { useNavigate } from 'react-router-dom';
 import { Button, Modal, Box, TextField, MenuItem } from '@mui/material';
 import { useAccessControl } from '../hooks/useAccessControl';
-import RoleGuard from '../components/common/RoleGuard';
+import RoleGuard from '../components/auth/RoleGuard';
 
 const PriceListManagement: React.FC = () => {
   const [priceLists, setPriceLists] = useState<PriceList[]>([]);

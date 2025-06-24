@@ -13,10 +13,13 @@ const warehouseRepository = AppDataSource.getRepository(Warehouse);
 // Add a helper function to check user's access to company data
 const checkCompanyAccess = (req: Request, companyId: string): boolean => {
     const user = (req as any).user;
+    
+    // CRITICAL SECURITY FIX: Remove blanket admin access that could lead to horizontal privilege escalation
     // All users (including admins) must belong to the company they're trying to access
     if (!user || !user.companyId) {
         return false;
     }
+    
     // Strict company isolation: users can only access their own company's data
     return user.companyId === companyId;
 };

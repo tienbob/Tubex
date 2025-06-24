@@ -1,4 +1,4 @@
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../components/auth/AuthContext';
 import { getUserPermissions, hasPermission, User, AccessPermissions } from '../utils/accessControl';
 import { useState, useEffect } from 'react';
 import { companyService } from '../services/api';

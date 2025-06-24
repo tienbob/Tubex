@@ -6,10 +6,10 @@ import {
 } from './components/whitelabel';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import ProtectedRoute from './components/common/ProtectedRoute';
-import ErrorBoundary from './components/common/ErrorBoundary';
-import LoadingSpinner from './components/common/LoadingSpinner';
-import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import ErrorBoundary from './components/shared/ErrorBoundary';
+import LoadingSpinner from './components/shared/LoadingSpinner';
+import { AuthProvider } from './components/auth/AuthContext';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider as CustomThemeProvider } from './contexts/ThemeContext';

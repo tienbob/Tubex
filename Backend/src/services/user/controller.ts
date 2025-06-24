@@ -47,20 +47,9 @@ const extractNameFields = (user: any) => {
  *         description: Server Error
  */
 export const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
-    if (!req.user) {
-        return res.status(401).json({ status: 'error', message: 'Authentication required' });
-    }
     const userRepository = AppDataSource.getRepository(User);
+
     try {
-        if (req.user.role === 'staff') {
-            // Staff can only see themselves
-            const user = await userRepository.findOne({ where: { id: req.user.id }, select: ['id', 'email', 'role', 'status', 'created_at', 'updated_at', 'metadata'], relations: ['company'] });
-            return res.status(200).json({ status: 'success', data: { users: [extractNameFields(user)], pagination: { total: 1, page: 1, limit: 1, pages: 1 } } });
-        }
-        // Only admin/manager can see all users in their company
-        if (!["admin", "manager"].includes(req.user.role)) {
-            return res.status(403).json({ status: 'error', message: 'Access denied' });
-        }
         const page = parseInt(req.query.page as string) || 1;
         const limit = parseInt(req.query.limit as string) || 10;
         const skip = (page - 1) * limit;        const [users, total] = await userRepository.findAndCount({
@@ -120,7 +109,8 @@ export const getUserById = async (req: Request, res: Response, next: NextFunctio
     const userRepository = AppDataSource.getRepository(User);
 
     try {
-        const { id } = req.params;        const user = await userRepository.findOne({
+        const { id } = req.params;        
+        const user = await userRepository.findOne({
             where: { id },
             select: ['id', 'email', 'role', 'status', 'created_at', 'updated_at', 'metadata'],
             relations: ['company']
