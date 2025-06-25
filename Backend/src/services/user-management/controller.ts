@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import { AppDataSource } from '../../database/ormconfig';
 import { User } from '../../database/models/sql/user';
 import { UserAuditLog } from '../../database/models/sql/userAudit';

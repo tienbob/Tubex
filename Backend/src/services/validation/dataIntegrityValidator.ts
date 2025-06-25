@@ -113,9 +113,8 @@ export class DataIntegrityValidator {
 
         // Validate product access rights
         const isSupplier = product.supplier_id === companyId;
-        const isAuthorizedDealer = product.dealer_id === companyId || product.dealer_id === null;
 
-        if (!isSupplier && !isAuthorizedDealer) {
+        if (!isSupplier) {
             throw new Error('Company does not have access to this product');
         }
 

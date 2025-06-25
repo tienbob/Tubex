@@ -1,4 +1,4 @@
-import { validationHandler, ValidationSchema } from '../../middleware/validationHandler';
+import { ValidationSchema } from '../../middleware';
 import Joi from 'joi';
 import { QuoteStatus } from '../../database/models/sql/quote';
 

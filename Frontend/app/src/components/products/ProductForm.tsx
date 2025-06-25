@@ -109,6 +109,7 @@ interface ProductApiInput {
   specifications?: Record<string, string>;
 }
 
+// Move FormSection and TabPanel above SupplierProductForm so they are defined before use
 function TabPanel({ children, value, index, 'aria-labelledby': ariaLabelledBy, ...other }: TabPanelProps) {
   const isActive = value === index;
   
@@ -126,6 +127,31 @@ function TabPanel({ children, value, index, 'aria-labelledby': ariaLabelledBy, .
         </Box>
       )}
     </div>
+  );
+}
+
+interface FormSectionProps {
+  title: string;
+  tooltip?: string;
+  children: React.ReactNode;
+}
+
+const FormSection: React.FC<FormSectionProps> = ({ title, tooltip, children }) => {
+  return (
+    <Box sx={{ mb: 4 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h6" component="h3">{title}</Typography>
+        {tooltip && (
+          <Tooltip title={tooltip} arrow>
+            <IconButton size="small" sx={{ ml: 0.5 }}>
+              <HelpOutlineIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
+      <Divider sx={{ mb: 2 }} />
+      {children}
+    </Box>
   );
 }
 
@@ -462,6 +488,10 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
         [name]: ''
       }));
     }
+    // Real-time validation
+    if (name === 'name' || name === 'categoryId' || name === 'price' || name === 'quantity' || name === 'lowStockThreshold') {
+      validateField(name, value as string);
+    }
   };
   const handleSelectChange = (e: SelectChangeEvent<string>) => {
     const { name = e.target.name, value } = e.target;
@@ -469,6 +499,8 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
       ...prev,
       [name]: value
     }));
+    // Real-time validation
+    if (name === 'categoryId') validateField(name, value as string);
     // Clear error if it exists
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
@@ -526,6 +558,13 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
         )
       }
     }));
+    // Real-time validation for warehouse fields
+    validateField(`warehouse_${field}`, value, index);
+    if (field === 'reorderPoint') {
+      // Also validate minThreshold for reorderPoint logic
+      const minValue = formData.inventory.warehouses[index].minThreshold;
+      validateField('warehouse_minThreshold', minValue, index);
+    }
   };const handleSubmit = async () => {
     if (!validateForm()) return;
     setLoading(true);
@@ -607,141 +646,138 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
       setLoading(false);
     }
   };
-    const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    // Validate the current tab before moving to another
-    // Removed call to validateBasicInfo (was missing)
-    setTabValue(newValue);
-  };
-
-  // Compute total stock from warehouse inventories
-  const computeTotalStock = () => {
-    return formData.inventory.warehouses.reduce((sum, w) => {
-      const qty = parseInt(w.quantity);
-      return sum + (isNaN(qty) ? 0 : qty);
-    }, 0);
-  };
-
-  // Basic Info Tab Panel Content
+    // Fix: Wrap all TabPanels in a single parent element and move renderBasicInfoTab inside SupplierProductForm
   const renderBasicInfoTab = () => (
     <Box>
-      <FormSection 
-        title="Basic Information" 
-        tooltip="Enter the fundamental details about your product"
-      >
-        <Stack spacing={3}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-            <TextField
-              name="name"
-              label="Product Name"
-              fullWidth
-              required
-              value={formData.name}
-              onChange={handleChange}
-              error={!!errors.name}
-              helperText={errors.name || "Enter a descriptive name for your product"}
-              disabled={loading}
-              inputProps={{
-                'aria-describedby': 'product-name-helper-text'
-              }}
-            />
-            <FormControl 
-              fullWidth 
-              required 
-              error={!!errors.categoryId}
-              disabled={loading}
-            >
-              <InputLabel id="category-label">Product Category</InputLabel>
-              <Select
-                labelId="category-label"
-                name="categoryId"
-                value={formData.categoryId}
-                onChange={handleSelectChange}
-                label="Product Category"
-                inputProps={{
-                  'aria-describedby': 'category-helper-text'
-                }}
-              >
-                <MenuItem value="" disabled>
-                  {categories.length === 0 ? 'No categories available' : 'Select a category'}
-                </MenuItem>
-                {categories.map((category) => (
-                  <MenuItem key={category.id} value={category.id}>
-                    {category.name}
-                  </MenuItem>
-                ))}
-              </Select>
-              <FormHelperText id="category-helper-text">
-                {errors.categoryId || "Choose the category that best describes your product"}
-              </FormHelperText>
-            </FormControl>
-          </Stack>
-
-          <TextField
-            name="description"
-            label="Description"
-            fullWidth
-            multiline
-            rows={4}
-            value={formData.description}
-            onChange={handleChange}
-            disabled={loading}
-            helperText="Provide a detailed description of the product's features and benefits"
-            inputProps={{
-              'aria-describedby': 'product-description-helper-text'
-            }}
-          />
-        </Stack>
-      </FormSection>
-      
-      <FormSection 
-        title="Pricing" 
-        tooltip="Set product pricing and view profit margins"
-      >
-        <Stack spacing={3}>
-          <TextField
-            name="price"
-            label="Selling Price"
-            fullWidth
-            required
-            type="number"
-            inputProps={{ min: 0, step: 0.01, 'aria-describedby': 'price-helper-text' }}
-            value={formData.price}
-            onChange={handleChange}
-            error={!!errors.price}
-            helperText={errors.price || "The price customers will pay for this product"}
-            disabled={loading}
-            InputProps={{
-              startAdornment: <InputAdornment position="start">$</InputAdornment>,
-            }}
-          />
-        </Stack>
-      </FormSection>
-      <FormSection title="Product Status">
-        <FormControl fullWidth>
-          <InputLabel id="status-label">Status</InputLabel>
+      <FormSection title="Basic Information">
+        <TextField
+          name="name"
+          label="Product Name"
+          fullWidth
+          value={formData.name}
+          onChange={handleChange}
+          error={!!errors.name}
+          helperText={errors.name}
+        />
+        <TextField
+          name="description"
+          label="Description"
+          fullWidth
+          multiline
+          rows={4}
+          value={formData.description}
+          onChange={handleChange}
+          error={!!errors.description}
+          helperText={errors.description}
+        />
+        <FormControl fullWidth required error={!!errors.categoryId}>
+          <InputLabel>Category</InputLabel>
           <Select
-            labelId="status-label"
+            name="categoryId"
+            value={formData.categoryId}
+            onChange={handleSelectChange}
+            disabled={loading}
+            label="Category"
+          >
+            <MenuItem value="" disabled>Select a category</MenuItem>
+            {categories.map((category) => (
+              <MenuItem key={category.id} value={category.id}>
+                {category.name}
+              </MenuItem>
+            ))}
+          </Select>
+          {errors.categoryId && <FormHelperText>{errors.categoryId}</FormHelperText>}
+        </FormControl>
+        <FormControl fullWidth required error={!!errors.supplierId}>
+          <InputLabel>Supplier</InputLabel>
+          <Select
+            name="supplierId"
+            value={formData.supplierId}
+            onChange={handleSelectChange}
+            disabled={loading}
+            label="Supplier"
+          >
+            <MenuItem value="" disabled>Select a supplier</MenuItem>
+            {suppliers.map((supplier) => (
+              <MenuItem key={supplier.id} value={supplier.id}>
+                {supplier.name}
+              </MenuItem>
+            ))}
+          </Select>
+          {errors.supplierId && <FormHelperText>{errors.supplierId}</FormHelperText>}
+        </FormControl>
+        <TextField
+          name="price"
+          label="Price"
+          fullWidth
+          type="number"
+          inputProps={{ min: 0, step: 0.01 }}
+          value={formData.price}
+          onChange={handleChange}
+          error={!!errors.price}
+          helperText={errors.price}
+        />
+        <FormControl fullWidth required error={!!errors.status}>
+          <InputLabel>Status</InputLabel>
+          <Select
             name="status"
             value={formData.status}
             onChange={handleStatusChange}
             disabled={loading}
             label="Status"
-            inputProps={{
-              'aria-describedby': 'status-helper-text'
-            }}
           >
             <MenuItem value="active">Active</MenuItem>
             <MenuItem value="inactive">Inactive</MenuItem>
             <MenuItem value="out_of_stock">Out of Stock</MenuItem>
             <MenuItem value="discontinued">Discontinued</MenuItem>
           </Select>
-          <FormHelperText id="status-helper-text">
-            Determines if the product is available for purchase
-          </FormHelperText>
+          {errors.status && <FormHelperText>{errors.status}</FormHelperText>}
         </FormControl>
       </FormSection>
     </Box>
   );
+  // Add missing validateField and handleTabChange inside SupplierProductForm
+  const validateField = (name: string, value: string, index?: number) => {
+    let error = '';
+    if (name === 'name' && !value.trim()) error = 'Product name is required';
+    if (name === 'categoryId' && !value.trim()) error = 'Product category is required';
+    if (name === 'price') {
+      if (!value.trim()) error = 'Price is required';
+      else if (isNaN(parseFloat(value)) || parseFloat(value) < 0) error = 'Price must be a valid positive number';
+    }
+    if (name === 'quantity') {
+      if (value.trim() && (isNaN(parseInt(value)) || parseInt(value) < 0)) error = 'Quantity must be a valid non-negative integer';
+    }
+    if (name === 'lowStockThreshold') {
+      if (value.trim() && (isNaN(parseInt(value)) || parseInt(value) < 0)) error = 'Low stock threshold must be a valid non-negative integer';
+    }
+    // Warehouse fields
+    if (name.startsWith('warehouse_') && typeof index === 'number') {
+      const [field] = name.split('_').slice(1);
+      if (["quantity", "minThreshold", "maxThreshold", "reorderPoint", "reorderQuantity"].includes(field)) {
+        if (value && (isNaN(parseFloat(value)) || parseFloat(value) < 0)) error = 'Must be a valid non-negative number';
+      }
+      // Reorder Point >= Min Threshold
+      if (field === 'reorderPoint') {
+        const min = parseFloat(formData.inventory.warehouses[index].minThreshold);
+        const reorder = parseFloat(value);
+        if (!isNaN(min) && !isNaN(reorder) && reorder < min) error = 'Reorder Point must be >= Min Threshold';
+      }
+    }
+    if (error) {
+      setErrors(prev => ({ ...prev, [name + (typeof index === 'number' ? `_${index}` : '')]: error }));
+    } else {
+      setErrors(prev => {
+        const newErrs = { ...prev };
+        delete newErrs[name + (typeof index === 'number' ? `_${index}` : '')];
+        return newErrs;
+      });
+    }
+  };
+
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
+  };
 
   return (
     <FormContainer 
@@ -777,180 +813,190 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
             )}
           </Tabs>
         </Box>
-
-        <TabPanel 
-          value={tabValue} 
-          index={0}
-          aria-labelledby="product-tab-0"
-        >
-          {renderBasicInfoTab()}
-        </TabPanel>        {/* Inventory Tab */}
-        <TabPanel value={tabValue} index={1} aria-labelledby="product-tab-1">
-          {fetchLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
-              <Typography variant="body1" color="text.secondary">Loading inventory...</Typography>
-            </Box>
-          ) : (
-            <Stack spacing={3}>
-              <FormSection title="General Inventory Settings">
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                  <TextField
-                    name="inventory.quantity"
-                    label="Total Stock (All Warehouses)"
-                    fullWidth
-                    type="number"
-                    inputProps={{ min: 0, step: 1, readOnly: true }}
-                    value={inventorySummary.totalQuantity}
-                    onChange={() => {}}
-                    helperText={"This is fetched from the inventory database (sum of all warehouses)"}
-                    disabled={true}
-                  />
-                  <TextField
-                    name="inventory.lowStockThreshold"
-                    label="Global Low Stock Threshold"
-                    fullWidth
-                    type="number"
-                    inputProps={{ min: 0, step: 1, readOnly: true }}
-                    value={inventorySummary.globalLowStockThreshold}
-                    onChange={() => {}}
-                    helperText={'Send alert when total stock falls below this level (min threshold across all warehouses)'
-}
-                    disabled={true}
-                  />
-                </Stack>
-              </FormSection>
-
-              <FormSection title="Warehouse Distribution">
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="subtitle1">Stock Distribution by Warehouse</Typography>
-                  <Button 
-                    variant="outlined" 
-                    onClick={addWarehouseInventory}
-                    disabled={loading || warehouses.length === 0}
-                  >
-                    Add Warehouse Stock
-                  </Button>
-                </Box>
-                
-                {warehouses.length === 0 && (
-                  <Typography color="text.secondary" sx={{ my: 2, textAlign: 'center' }}>
-                    No warehouses available. Create a warehouse first to manage inventory distribution.
-                  </Typography>
-                )}
-                
-                {formData.inventory.warehouses.length === 0 && warehouses.length > 0 && (
-                  <Typography color="text.secondary" sx={{ my: 2, textAlign: 'center' }}>
-                    No warehouse stock entries yet. Click "Add Warehouse Stock" to distribute inventory across warehouses.
-                  </Typography>
-                )}
-                
-                {formData.inventory.warehouses.map((warehouseInventory, index) => (
-                  <Box key={index} sx={{ border: '1px solid #ddd', borderRadius: 1, p: 2, mb: 2 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="subtitle2">Warehouse {index + 1}</Typography>
-                      <IconButton 
-                        onClick={() => removeWarehouseInventory(index)}
-                        color="error"
-                        disabled={loading}
-                        size="small"
-                      >
-                        <DeleteOutlineIcon />
-                      </IconButton>
-                    </Box>
-                    
-                    <Stack spacing={2}>
-                      <FormControl fullWidth required>
-                        <InputLabel>Warehouse</InputLabel>
-                        <Select
-                          value={warehouseInventory.warehouseId}
-                          onChange={(e) => updateWarehouseInventory(index, 'warehouseId', e.target.value)}
-                          disabled={loading}
-                          label="Warehouse"
-                        >
-                          <MenuItem value="" disabled>Select a warehouse</MenuItem>
-                          {warehouses.map((warehouse) => (
-                            <MenuItem key={warehouse.id} value={warehouse.id}>
-                              {warehouse.name} ({warehouse.type})
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                      
-                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                        <TextField
-                          label="Quantity in Warehouse"
-                          type="number"
-                          inputProps={{ min: 0, step: 1 }}
-                          value={warehouseInventory.quantity}
-                          onChange={(e) => updateWarehouseInventory(index, 'quantity', e.target.value)}
-                          disabled={loading}
-                          fullWidth
-                        />
-                        <TextField
-                          label="Min Threshold"
-                          type="number"
-                          inputProps={{ min: 0, step: 1 }}
-                          value={warehouseInventory.minThreshold}
-                          onChange={(e) => updateWarehouseInventory(index, 'minThreshold', e.target.value)}
-                          disabled={loading}
-                          fullWidth
-                        />
-                        <TextField
-                          label="Max Threshold"
-                          type="number"
-                          inputProps={{ min: 0, step: 1 }}
-                          value={warehouseInventory.maxThreshold}
-                          onChange={(e) => updateWarehouseInventory(index, 'maxThreshold', e.target.value)}
-                          disabled={loading}
-                          fullWidth
-                        />
-                      </Stack>
-                      
-                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                        <TextField
-                          label="Reorder Point"
-                          type="number"
-                          inputProps={{ min: 0, step: 1 }}
-                          value={warehouseInventory.reorderPoint}
-                          onChange={(e) => updateWarehouseInventory(index, 'reorderPoint', e.target.value)}
-                          disabled={loading}
-                          fullWidth
-                          helperText="Auto-reorder when stock hits this level"
-                        />
-                        <TextField
-                          label="Reorder Quantity"
-                          type="number"
-                          inputProps={{ min: 0, step: 1 }}
-                          value={warehouseInventory.reorderQuantity}
-                          onChange={(e) => updateWarehouseInventory(index, 'reorderQuantity', e.target.value)}
-                          disabled={loading}
-                          fullWidth
-                          helperText="Quantity to order when reordering"
-                        />
-                      </Stack>
-                    </Stack>
-                  </Box>              
-                ))}
-              </FormSection>
-            </Stack>
-          )}
-        </TabPanel>        
-        {/* Price History Tab - Only shown in edit mode */}
-        {isEditMode && (
-          <TabPanel value={tabValue} index={2} aria-labelledby="product-tab-2">
-            <ProductPriceHistory 
-              productId={productId!}
-              productName={formData.name}
-              currentPrice={parseFloat(formData.price)}
-              canUpdate={true}
-              onPriceUpdated={() => {
-                fetchProductDetails(); // Refresh product details after price update
-              }}
-            />
+        {/* Wrap all TabPanels in a single parent */}
+        <React.Fragment>
+          <TabPanel 
+            value={tabValue} 
+            index={0}
+            aria-labelledby="product-tab-0"
+          >
+            {renderBasicInfoTab()}
           </TabPanel>
-        )}
+          {/* Inventory Tab */}
+          <TabPanel value={tabValue} index={1} aria-labelledby="product-tab-1">
+            {fetchLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
+                <Typography variant="body1" color="text.secondary">Loading inventory...</Typography>
+              </Box>
+            ) : (
+              <Stack spacing={3}>
+                <FormSection title="General Inventory Settings">
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                    <TextField
+                      name="inventory.quantity"
+                      label="Total Stock (All Warehouses)"
+                      fullWidth
+                      type="number"
+                      inputProps={{ min: 0, step: 1, readOnly: true }}
+                      value={inventorySummary.totalQuantity}
+                      onChange={() => {}}
+                      helperText={"This is fetched from the inventory database (sum of all warehouses)"}
+                      disabled={true}
+                    />
+                    <TextField
+                      name="inventory.lowStockThreshold"
+                      label="Global Low Stock Threshold"
+                      fullWidth
+                      type="number"
+                      inputProps={{ min: 0, step: 1, readOnly: true }}
+                      value={inventorySummary.globalLowStockThreshold}
+                      onChange={() => {}}
+                      helperText={'Send alert when total stock falls below this level (min threshold across all warehouses)'
+}
+                      disabled={true}
+                    />
+                  </Stack>
+                </FormSection>
+                <FormSection title="Warehouse Distribution">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="subtitle1">Stock Distribution by Warehouse</Typography>
+                    <Button 
+                      variant="outlined" 
+                      onClick={addWarehouseInventory}
+                      disabled={loading || warehouses.length === 0}
+                    >
+                      Add Warehouse Stock
+                    </Button>
+                  </Box>
+                  
+                  {warehouses.length === 0 && (
+                    <Typography color="text.secondary" sx={{ my: 2, textAlign: 'center' }}>
+                      No warehouses available. Create a warehouse first to manage inventory distribution.
+                    </Typography>
+                  )}
+                  
+                  {formData.inventory.warehouses.length === 0 && warehouses.length > 0 && (
+                    <Typography color="text.secondary" sx={{ my: 2, textAlign: 'center' }}>
+                      No warehouse stock entries yet. Click "Add Warehouse Stock" to distribute inventory across warehouses.
+                    </Typography>
+                  )}
+                  
+                  {formData.inventory.warehouses.map((warehouseInventory, index) => (
+                    <Box key={index} sx={{ border: '1px solid #ddd', borderRadius: 1, p: 2, mb: 2 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Typography variant="subtitle2">Warehouse {index + 1}</Typography>
+                        <IconButton 
+                          onClick={() => removeWarehouseInventory(index)}
+                          color="error"
+                          disabled={loading}
+                          size="small"
+                        >
+                          <DeleteOutlineIcon />
+                        </IconButton>
+                      </Box>
+                      
+                      <Stack spacing={2}>
+                        <FormControl fullWidth required error={!!errors[`warehouse_warehouseId_${index}`]}>
+                          <InputLabel>Warehouse</InputLabel>
+                          <Select
+                            value={warehouseInventory.warehouseId}
+                            onChange={(e) => updateWarehouseInventory(index, 'warehouseId', e.target.value)}
+                            disabled={loading}
+                            label="Warehouse"
+                          >
+                            <MenuItem value="" disabled>Select a warehouse</MenuItem>
+                            {warehouses.map((warehouse) => (
+                              <MenuItem key={warehouse.id} value={warehouse.id}>
+                                {warehouse.name} ({warehouse.type})
+                              </MenuItem>
+                            ))}
+                          </Select>
+                          {errors[`warehouse_warehouseId_${index}`] && <FormHelperText>{errors[`warehouse_warehouseId_${index}`]}</FormHelperText>}
+                        </FormControl>
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                          <TextField
+                            label="Quantity in Warehouse"
+                            type="number"
+                            inputProps={{ min: 0, step: 1 }}
+                            value={warehouseInventory.quantity}
+                            onChange={(e) => updateWarehouseInventory(index, 'quantity', e.target.value)}
+                            disabled={loading}
+                            fullWidth
+                            error={!!errors[`warehouse_quantity_${index}`]}
+                            helperText={errors[`warehouse_quantity_${index}`]}
+                          />
+                          <TextField
+                            label="Min Threshold"
+                            type="number"
+                            inputProps={{ min: 0, step: 1 }}
+                            value={warehouseInventory.minThreshold}
+                            onChange={(e) => updateWarehouseInventory(index, 'minThreshold', e.target.value)}
+                            disabled={loading}
+                            fullWidth
+                            error={!!errors[`warehouse_minThreshold_${index}`]}
+                            helperText={errors[`warehouse_minThreshold_${index}`]}
+                          />
+                          <TextField
+                            label="Max Threshold"
+                            type="number"
+                            inputProps={{ min: 0, step: 1 }}
+                            value={warehouseInventory.maxThreshold}
+                            onChange={(e) => updateWarehouseInventory(index, 'maxThreshold', e.target.value)}
+                            disabled={loading}
+                            fullWidth
+                            error={!!errors[`warehouse_maxThreshold_${index}`]}
+                            helperText={errors[`warehouse_maxThreshold_${index}`]}
+                          />
+                        </Stack>
+                        
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                          <TextField
+                            label="Reorder Point"
+                            type="number"
+                            inputProps={{ min: 0, step: 1 }}
+                            value={warehouseInventory.reorderPoint}
+                            onChange={(e) => updateWarehouseInventory(index, 'reorderPoint', e.target.value)}
+                            disabled={loading}
+                            fullWidth
+                            error={!!errors[`warehouse_reorderPoint_${index}`]}
+                            helperText={errors[`warehouse_reorderPoint_${index}`] || 'Auto-reorder when stock hits this level'}
+                          />
+                          <TextField
+                            label="Reorder Quantity"
+                            type="number"
+                            inputProps={{ min: 0, step: 1 }}
+                            value={warehouseInventory.reorderQuantity}
+                            onChange={(e) => updateWarehouseInventory(index, 'reorderQuantity', e.target.value)}
+                            disabled={loading}
+                            fullWidth
+                            error={!!errors[`warehouse_reorderQuantity_${index}`]}
+                            helperText={errors[`warehouse_reorderQuantity_${index}`] || 'Quantity to order when reordering'}
+                          />
+                        </Stack>
+                      </Stack>
+                    </Box>              
+                  ))}
+                </FormSection>
+              </Stack>
+            )}
+          </TabPanel>
+            {/* Price History Tab - Only shown in edit mode */}
+            {isEditMode && (
+            <TabPanel value={tabValue} index={2} aria-labelledby="product-tab-2">
+              <ProductPriceHistory 
+                productId={productId!}
+                productName={formData.name}
+                currentPrice={parseFloat(formData.price)}
+                canUpdate={true}
+                onPriceUpdated={() => {
+                  fetchProductDetails(); // Refresh product details after price update
+                }}
+              />
+            </TabPanel>
+          )}
+        </React.Fragment>
       </Box>
-        <Box sx={{ mt: 4 }}>
+      <Box sx={{ mt: 4 }}>
         <FormButtons
           onCancel={onCancel}
           onSubmit={handleSubmit}
@@ -971,27 +1017,3 @@ const SupplierProductForm: React.FC<ProductFormProps> = ({
 export default ProductForm;
 
 // New component for form section with tooltip support
-interface FormSectionProps {
-  title: string;
-  tooltip?: string;
-  children: React.ReactNode;
-}
-
-const FormSection: React.FC<FormSectionProps> = ({ title, tooltip, children }) => {
-  return (
-    <Box sx={{ mb: 4 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h6" component="h3">{title}</Typography>
-        {tooltip && (
-          <Tooltip title={tooltip} arrow>
-            <IconButton size="small" sx={{ ml: 0.5 }}>
-              <HelpOutlineIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        )}
-      </Box>
-      <Divider sx={{ mb: 2 }} />
-      {children}
-    </Box>
-  );
-};

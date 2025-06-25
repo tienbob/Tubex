@@ -10,8 +10,6 @@ import {
   Alert,
   Button
 } from '@mui/material';
-import PendingEmployeesList from '../components/users/PendingEmployeesList';
-import EmployeeInvitationGenerator from '../components/users/EmployeeInvitationGenerator';
 import { dashboardService } from '../services/api/dashboardService';
 import { productService, orderService, inventoryService } from '../services/api';
 import { useAuth } from '../components/auth/AuthContext';
@@ -352,7 +350,6 @@ const Dashboard: React.FC = () => {
   const getAvailableTabs = () => {
     const allTabs = [
       { id: 0, label: 'Overview', permission: 'dashboard' },
-      { id: 1, label: 'User Management', permission: 'userView' },
       { id: 2, label: 'Products', permission: 'productView' },
       { id: 3, label: 'Orders', permission: 'orderView' },
       { id: 4, label: 'Inventory', permission: 'inventoryView' }
@@ -360,7 +357,6 @@ const Dashboard: React.FC = () => {
 
     return allTabs.filter(tab => {
       if (tab.permission === 'dashboard') return permissions.dashboard;
-      if (tab.permission === 'userView') return permissions.userView;
       if (tab.permission === 'productView') return permissions.productView;
       if (tab.permission === 'orderView') return permissions.orderView;
       if (tab.permission === 'inventoryView') return permissions.inventoryView;
@@ -504,7 +500,7 @@ const Dashboard: React.FC = () => {
                           <strong>Warehouse Utilization:</strong> {inventorySummary.warehouseUtilization || 0}%
                         </Typography>
                       </Box>
-                    ) : (                      <Typography variant="body2" color="text.secondary">No inventory data available</Typography>
+                    ) : (<Typography variant="body2" color="text.secondary">No inventory data available</Typography>
                     )}
                   </Paper>
                 </Box>
@@ -512,20 +508,6 @@ const Dashboard: React.FC = () => {
             )}
             </TabPanel>
           )}
-          
-          {/* User Management Tab */}
-          {isTabAvailable(1) && (
-            <TabPanel value={value} index={getTabDisplayIndex(1)}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <Box>
-                  <EmployeeInvitationGenerator companyId={companyId} />
-                </Box>
-                <Box>
-                  <PendingEmployeesList onEmployeeStatusChange={() => {}} />
-                </Box>
-              </Box>
-            </TabPanel>
-          )}          
           {/* Products Tab */}
           {isTabAvailable(2) && (
             <TabPanel value={value} index={getTabDisplayIndex(2)}>

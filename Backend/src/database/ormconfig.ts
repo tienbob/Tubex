@@ -13,6 +13,7 @@ import { Invoice, InvoiceItem } from './models/sql/invoice';
 import { ProductPriceHistory } from './models/sql/product-price-history';
 import { Payment } from './models/sql/payment';
 import { ProductCategory } from './models/sql/product-category';
+import { Invitation } from "./models/sql/invitation"
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -40,7 +41,8 @@ export const AppDataSource = new DataSource({
     InvoiceItem,    
     ProductPriceHistory,
     Payment,
-    ProductCategory
+    ProductCategory,
+    Invitation
   ],
   migrations: [
     // New organized migrations (one file per table)

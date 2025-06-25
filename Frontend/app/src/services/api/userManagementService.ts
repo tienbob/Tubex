@@ -284,11 +284,11 @@ const userManagementService = {
   },
 
   /**
-   * Get all invitations
+   * Get invitations for a company
    */
-  getInvitations: async (companyId: string): Promise<any[]> => {
+  getInvitations: async (companyId: string) => {
     try {
-      const response = await apiClient.get(`/companies/${companyId}/invitations`);
+      const response = await apiClient.get('/auth/invitations', { params: { companyId } });
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -377,11 +377,13 @@ const userManagementService = {
   },
 
   /**
-   * Send an invitation
+   * Send an invitation (generate invitation code)
    */
   sendInvitation: async (data: any): Promise<any> => {
     try {
-      const response = await apiClient.post(`/invitations`, data);
+      // Only send companyId as required by backend
+      const payload = { companyId: data.companyId };
+      const response = await apiClient.post(`/auth/invitation-code`, payload);
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -448,6 +450,30 @@ const userManagementService = {
       throw error;
     }
   },
+
+  /**
+   * Send invitation email with code and role
+   */
+  sendInvitationEmail: async (data: {
+    to: string;
+    code: string;
+    role: string;
+    message?: string;
+    companyId: string;
+  }) => {
+    return await apiClient.post('/auth/send-invitation-email', data)
+      .then(res => res.data)
+      .catch(error => {
+        if (error instanceof AxiosError) {
+          throw new ApiError(
+            error.response?.data?.message || 'Failed to send invitation email',
+            error.response?.status || 500,
+            error.response?.data
+          );
+        }
+        throw error;
+      });
+  },
 };
 
 export default userManagementService;
@@ -464,3 +490,5 @@ export const getUserName = (user: any): { firstName: string; lastName: string; f
     fullName: fullName || user?.email?.split('@')[0] || 'N/A'
   };
 };
+
+export * from './userManagementService';

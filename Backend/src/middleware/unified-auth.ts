@@ -4,7 +4,6 @@ import { config } from '../config';
 import { AppError } from './errorHandler';
 import { AppDataSource } from '../database/ormconfig';
 import { User, Company } from '../database/models/sql';
-import { AuthenticatedRequest } from '../types/express';
 
 // Re-export the AuthenticatedRequest for convenience
 export { AuthenticatedRequest } from '../types/express';

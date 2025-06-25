@@ -13,7 +13,9 @@ import {
   registerEmployee,
   completeOAuthRegistration,
   handleOAuthCallback,
-  getPendingEmployees
+  getPendingEmployees,
+  sendInvitationEmailController,
+  getInvitations
 } from './controller';
 import { schemas } from './validators';
 import { authLimiter } from '../../middleware/rateLimiter';
@@ -573,5 +575,96 @@ router.post('/register-employee', authLimiter, validate({ body: schemas.employee
  *         description: Not authorized to view these employees
  */
 router.get('/pending-employees', authenticate, getPendingEmployees as RequestHandler);
+
+/**
+ * @swagger
+ * /auth/send-invitation-email:
+ *   post:
+ *     summary: Send invitation email with code and role
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - to
+ *               - code
+ *               - role
+ *               - companyId
+ *             properties:
+ *               to:
+ *                 type: string
+ *                 format: email
+ *               code:
+ *                 type: string
+ *               role:
+ *                 type: string
+ *                 enum: [admin, manager, staff]
+ *               message:
+ *                 type: string
+ *               companyId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Invitation email sent
+ *       400:
+ *         description: Invalid input or failed to send
+ */
+router.post('/send-invitation-email', authenticate, authorize({ roles: ['admin', 'manager'] }), sendInvitationEmailController as RequestHandler);
+
+/**
+ * @swagger
+ * /auth/invitations:
+ *   get:
+ *     summary: List invitations for a company
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: companyId
+ *         schema:
+ *           type: string
+ *         description: The company ID to list invitations for (optional, defaults to user's company)
+ *     responses:
+ *       200:
+ *         description: List of invitations
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     invitations:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           email:
+ *                             type: string
+ *                           role:
+ *                             type: string
+ *                           status:
+ *                             type: string
+ *                           createdAt:
+ *                             type: string
+ *                             format: date-time
+ *                     count:
+ *                       type: number
+ *       401:
+ *         description: Not authenticated
+ *       403:
+ *         description: Not authorized to view these invitations
+ */
+router.get('/invitations', authenticate, authorize({ roles: ['admin', 'manager'] }), getInvitations as RequestHandler);
 
 export const authRoutes = router;

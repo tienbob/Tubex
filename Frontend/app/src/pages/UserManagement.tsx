@@ -124,7 +124,18 @@ const UserManagement: React.FC = () => {
     }
   };
   const fetchInvitations = async () => {
-    console.warn('`getInvitations` method is not implemented in `userManagementService`.');
+    if (!companyId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await userManagementService.getInvitations(companyId);
+      setInvitations(response.data?.invitations || []);
+    } catch (err: any) {
+      console.error('Error fetching invitations:', err);
+      setError(err.message || 'Failed to load invitations');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Fetch available roles based on current user's hierarchy
@@ -214,13 +225,11 @@ const UserManagement: React.FC = () => {
     setLoading(true);
     try {
       if (selectedUser) {
+        // Only send allowed fields for update
         const updateData: UserUpdateRequest = {
-          firstName: userFormData.name.split(' ')[0],
-          lastName: userFormData.name.split(' ').slice(1).join(' ') || '',
           email: userFormData.email,
           role: userFormData.role as UserUpdateRequest['role'],
           status: userFormData.isActive ? 'active' : 'inactive',
-          companyId: companyId ?? '',
         };
         await userManagementService.updateUser(selectedUser.id, updateData);
       } else {
@@ -299,16 +308,32 @@ const UserManagement: React.FC = () => {
 
   const handleSendInvite = async () => {
     if (!validateInviteForm()) return;
-    
     setLoading(true);
     try {
-      await userManagementService.sendInvitation({
+      // 1. Generate invitation code
+      const codeResponse = await userManagementService.sendInvitation({
         ...inviteFormData,
         companyId
       });
-      
+      // The code is inside codeResponse.data.code
+      const invitationCode = codeResponse?.code || codeResponse?.invitationCode || codeResponse?.data?.code;
+      if (!invitationCode) {
+        console.error('Invitation code missing in response:', codeResponse);
+        setError('Failed to generate invitation code. Please try again.');
+        setLoading(false);
+        return;
+      }
+      // 2. Send email to invitee with code and role
+      await userManagementService.sendInvitationEmail({
+        to: inviteFormData.email,
+        code: invitationCode,
+        role: inviteFormData.role,
+        message: inviteFormData.message,
+        companyId: companyId ?? '' // Ensure string type
+      });
       fetchInvitations();
       closeInviteDialog();
+      setError(null);
     } catch (err: any) {
       console.error('Error sending invitation:', err);
       setError(err.message || 'Failed to send invitation');

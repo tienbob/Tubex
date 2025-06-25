@@ -3,7 +3,6 @@ import {
   authenticate, 
   requireCompanyAdmin, 
   preventSelfModification,
-  validate
 } from '../../middleware';
 import { validateUserManagement } from './validators';
 import {

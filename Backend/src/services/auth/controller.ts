@@ -8,6 +8,9 @@ import { redisClient } from '../../database';
 import { config } from '../../config';
 import { generateTokens } from './utils';
 import { sendPasswordResetEmail, sendWelcomeEmail, sendVerificationEmail, sendLoginNotificationEmail, sendCompanyApprovalNotification, sendCompanyRejectionNotification } from '../email/service';
+import { invitationEmailSchema } from './invitationEmailSchema';
+import { sendInvitationEmail as sendInvitationEmailUtil } from '../email/invitation';
+import { Invitation } from '../../database/models/sql/invitation';
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
     const userRepository = AppDataSource.getRepository(User);
@@ -703,6 +706,7 @@ export const verifyCompany = async (req: Request, res: Response, next: NextFunct
 export const registerEmployee = async (req: Request, res: Response, next: NextFunction) => {
     const userRepository = AppDataSource.getRepository(User);
     const companyRepository = AppDataSource.getRepository(Company);
+    const invitationRepository = AppDataSource.getRepository(Invitation);
 
     try {
         const { email, password, firstName, lastName, invitationCode, role = 'staff' } = req.body;
@@ -712,20 +716,20 @@ export const registerEmployee = async (req: Request, res: Response, next: NextFu
             throw new AppError(400, 'Invalid role. Must be one of: admin, manager, staff');
         }
 
+        // Find invitation by code and status
+        const invitation = await invitationRepository.findOne({ where: { code: invitationCode, status: 'pending' } });
+        if (!invitation) {
+            throw new AppError(400, 'Invalid or expired invitation code');
+        }
+
         // Check if user already exists
-        const existingUser = await userRepository.findOne({ where: { email } });
+        const existingUser = await userRepository.findOne({ where: { email: invitation.email } });
         if (existingUser) {
             throw new AppError(400, 'User with this email already exists');
         }
 
-        // Validate invitation code and get company
-        const companyId = await redisClient.get(`invitation_code:${invitationCode}`);
-        if (!companyId) {
-            throw new AppError(400, 'Invalid or expired invitation code');
-        }
-
         // Find company
-        const company = await companyRepository.findOne({ where: { id: companyId } });
+        const company = await companyRepository.findOne({ where: { id: invitation.company_id || invitation.company?.id } });
         if (!company) {
             throw new AppError(404, 'Company not found');
         }
@@ -739,42 +743,29 @@ export const registerEmployee = async (req: Request, res: Response, next: NextFu
         const salt = await bcrypt.genSalt(12);
         const passwordHash = await bcrypt.hash(password, salt);
 
-        // Create user
+        // Create user using invitation data
         const user = new User();
-        user.email = email;
+        user.email = invitation.email;
         user.password_hash = passwordHash;
-        user.role = role;
+        user.role = invitation.role as 'admin' | 'manager' | 'staff';
         user.company = company;
         user.company_id = company.id;
-        user.status = 'pending'; // User status starts as pending until email is verified
-        
-        // Add name to user metadata
+        user.status = 'active'; // Set to active on registration
         user.metadata = {
             firstName: firstName || '',
             lastName: lastName || '',
-            invitedAt: new Date().toISOString()
+            invitedAt: invitation.created_at ? invitation.created_at.toISOString?.() : new Date().toISOString()
         };
-        
         await userRepository.save(user);
 
-        // Generate email verification token
-        const emailVerificationToken = jwt.sign(
-            { id: user.id },
-            config.jwt.secret as jwt.Secret,
-            { expiresIn: '24h' }
-        );
+        // Increment company's employee_count
+        company.employee_count = (company.employee_count || 0) + 1;
+        await companyRepository.save(company);
 
-        // Store verification token in Redis
-        await redisClient.set(`email_verification:${user.id}`, emailVerificationToken, {
-            EX: 24 * 60 * 60 // 24 hours
-        });
-
-        // Send verification email
-        await sendVerificationEmail(user.email, emailVerificationToken);
-
-        // After successful use, remove the invitation code from Redis
-        // This prevents the code from being used multiple times
-        await redisClient.del(`invitation_code:${invitationCode}`);
+        // Mark invitation as accepted/used
+        invitation.status = 'accepted';
+        invitation.updated_at = new Date();
+        await invitationRepository.save(invitation);
 
         res.status(201).json({
             status: 'success',
@@ -782,7 +773,7 @@ export const registerEmployee = async (req: Request, res: Response, next: NextFu
                 userId: user.id,
                 companyId: company.id,
                 companyName: company.name,
-                message: 'Registration successful. Please check your email to verify your account.'
+                message: 'Registration successful. Your account is now active.'
             }
         });
     } catch (error) {
@@ -996,5 +987,51 @@ export const getPendingEmployees = async (req: Request, res: Response, next: Nex
         });
     } catch (error) {
         next(error);
+    }
+};
+
+export const sendInvitationEmailController = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { to, code, role, message, companyId } = req.body;
+        await invitationEmailSchema.validateAsync({ to, code, role, message, companyId });
+
+        // Save invitation to DB
+        const invitationRepository = AppDataSource.getRepository(Invitation);
+        await invitationRepository.save({
+            email: to,
+            code,
+            role,
+            company_id: companyId,
+            message,
+            status: 'pending'
+        });
+
+        await sendInvitationEmailUtil(to, code, role, message, companyId);
+        res.status(200).json({ status: 'success', message: 'Invitation email sent.' });
+    } catch (error) {
+        next(new AppError(400, error instanceof Error ? error.message : 'Failed to send invitation email'));
+    }
+};
+
+export const getInvitations = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        let companyId = req.query.companyId || req.user?.companyId;
+        if (!companyId) {
+            throw new AppError(400, 'Company ID is required');
+        }
+        // Ensure companyId is a string
+        if (Array.isArray(companyId)) {
+            companyId = companyId[0];
+        } else if (typeof companyId === 'object' && companyId !== null) {
+            companyId = companyId.toString();
+        }
+        const invitationRepository = AppDataSource.getRepository(Invitation);
+        const invitations = await invitationRepository.find({
+            where: { company_id: companyId as string },
+            order: { created_at: 'DESC' }
+        });
+        res.json({ status: 'success', data: { invitations } });
+    } catch (err) {
+        next(err);
     }
 };

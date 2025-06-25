@@ -15,6 +15,7 @@ import { Invoice, InvoiceItem } from "./src/database/models/sql/invoice";
 import { ProductPriceHistory } from "./src/database/models/sql/product-price-history";
 import { Payment } from "./src/database/models/sql/payment";
 import { ProductCategory } from "./src/database/models/sql/product-category";
+import { Invitation } from "./src/database/models/sql/invitation"
 
 // Load configuration directly from environment variables
 const dbConfig = {
@@ -53,7 +54,8 @@ export default new DataSource({
     InvoiceItem, 
     ProductPriceHistory,
     Payment,
-    ProductCategory
+    ProductCategory,
+    Invitation
   ],
   migrations: [
     "src/database/migrations/*.ts"

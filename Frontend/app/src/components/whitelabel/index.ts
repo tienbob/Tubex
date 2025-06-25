@@ -32,8 +32,7 @@ export { default as OrderList } from '../orders/OrderList';
 export { InvoiceList, InvoiceDetail, InvoiceForm } from '../invoices';
 
 // Users
-export { default as UserList } from '../users/UserList';
-export { default as UserForm } from '../users/UserForm';
+export { default as UserForm } from '../user-management/UserForm';
 
 // Re-export types
 export type { Column } from '../shared/DataTable';

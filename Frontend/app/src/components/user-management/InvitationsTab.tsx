@@ -37,12 +37,12 @@ const InvitationsTab: React.FC<{ invitations: any[], loading: boolean, openInvit
                 <TableRow key={invitation.id}>
                   <TableCell>{invitation.email}</TableCell>
                   <TableCell>
-                    <Chip label={invitation.roleName || 'No Role'} size="small" color="primary" />
+                    <Chip label={invitation.role || 'No Role'} size="small" color="primary" />
                   </TableCell>
                   <TableCell>
                     <Chip label={invitation.status} color={invitation.status === 'pending' ? 'warning' : invitation.status === 'accepted' ? 'success' : 'default'} size="small" />
                   </TableCell>
-                  <TableCell>{new Date(invitation.sentAt).toLocaleDateString()}</TableCell>
+                  <TableCell>{invitation.created_at ? new Date(invitation.created_at).toLocaleDateString() : 'N/A'}</TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       {invitation.status === 'pending' && (
